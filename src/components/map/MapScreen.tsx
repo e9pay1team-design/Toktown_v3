@@ -1,0 +1,189 @@
+// ─── 지도 홈 (기획 §6 화면 1) ─────────────────────────────────────
+// 지도(탑뷰) + 검색바 + 카테고리 칩 + 현재위치/내 마을 전환 버튼 +
+// 매장 상세 시트 / 검색 / 저장 장소 오버레이.
+
+import { useEffect, useMemo } from 'react';
+import type { CategoryChip } from '../../store/useUiStore';
+import { useUiStore } from '../../store/useUiStore';
+import { useSavedStore } from '../../store/useSavedStore';
+import { useProfileStore } from '../../store/useProfileStore';
+import { useToastStore } from '../../store/useToastStore';
+import { useVirtualLocation } from '../../mock/location';
+import { LANDMARKS, REGIONAL_NPCS, STORES, storeById } from '../../data/seed';
+import { activeNpcSpots } from '../../lib/game';
+import { MapView } from './MapView';
+import { SearchOverlay } from './SearchOverlay';
+import { StoreDetailSheet } from '../store/StoreDetailSheet';
+import { SavedPlaces } from '../saved/SavedPlaces';
+
+const CHIPS: { id: CategoryChip; label: string; emoji: string }[] = [
+  { id: 'food', label: '맛집', emoji: '🍚' },
+  { id: 'cafe', label: '카페', emoji: '☕' },
+  { id: 'saved', label: '저장', emoji: '❤️' },
+  { id: 'event', label: '이벤트', emoji: '🎪' },
+];
+
+export function MapScreen() {
+  const activeTab = useUiStore((s) => s.activeTab);
+  const selectedStoreId = useUiStore((s) => s.selectedStoreId);
+  const selectStore = useUiStore((s) => s.selectStore);
+  const categoryFilter = useUiStore((s) => s.categoryFilter);
+  const setCategoryFilter = useUiStore((s) => s.setCategoryFilter);
+  const searchOpen = useUiStore((s) => s.searchOpen);
+  const setSearchOpen = useUiStore((s) => s.setSearchOpen);
+  const savedListOpen = useUiStore((s) => s.savedListOpen);
+  const setSavedListOpen = useUiStore((s) => s.setSavedListOpen);
+  const flyTo = useUiStore((s) => s.flyTo);
+  const requestFlyTo = useUiStore((s) => s.requestFlyTo);
+  const setTab = useUiStore((s) => s.setTab);
+
+  const savedIds = useSavedStore((s) => s.savedIds);
+  const character = useProfileStore((s) => s.profile?.character);
+  const position = useVirtualLocation((s) => s.position);
+  const toast = useToastStore((s) => s.show);
+
+  const magpie = REGIONAL_NPCS[0];
+  const npcSpots = useMemo(() => activeNpcSpots(magpie), [magpie]);
+
+  const filteredStores = useMemo(() => {
+    switch (categoryFilter) {
+      case 'food':
+        return STORES.filter((s) => ['국밥', '한식', '면'].includes(s.category));
+      case 'cafe':
+        return STORES.filter((s) => s.category === '카페');
+      case 'event':
+        return STORES.filter((s) => s.category === '공연장');
+      case 'saved':
+        return STORES.filter((s) => savedIds.includes(s.id));
+      default:
+        return STORES;
+    }
+  }, [categoryFilter, savedIds]);
+
+  /* 지도 탭을 벗어나면 지도 위 오버레이 정리 */
+  useEffect(() => {
+    if (activeTab !== 'map') {
+      setSearchOpen(false);
+      setSavedListOpen(false);
+      selectStore(null);
+    }
+  }, [activeTab, setSearchOpen, setSavedListOpen, selectStore]);
+
+  const openStore = (id: number) => {
+    const store = storeById(id);
+    if (!store) return;
+    selectStore(id);
+    // 상세 시트가 하단을 덮으므로 마커가 위쪽에 보이도록 남쪽 오프셋
+    requestFlyTo({ lat: store.lat - 0.00085, lng: store.lng, zoom: 17 });
+  };
+
+  if (!character) return null;
+
+  return (
+    <div className="absolute inset-0">
+      {/* 지도 */}
+      <div className="absolute inset-0 z-0">
+        <MapView
+          stores={filteredStores}
+          savedIds={savedIds}
+          selectedStoreId={selectedStoreId}
+          npcSpots={npcSpots}
+          landmarks={LANDMARKS}
+          myPosition={position}
+          character={character}
+          flyTo={flyTo}
+          onStoreClick={openStore}
+          onNpcClick={() => {
+            const line = magpie.lines[Math.floor(Math.random() * magpie.lines.length)];
+            toast(`🐦 까미: "${line}"`, 'info');
+          }}
+          onLandmarkClick={(lm) => toast(`📍 ${lm.name} — ${lm.desc}`, 'info')}
+          onMapClick={() => selectStore(null)}
+        />
+      </div>
+
+      {/* 상단: 검색바 + 카테고리 칩 */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] px-4 pt-11">
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="pointer-events-auto flex w-full items-center gap-2.5 rounded-2xl border border-town-line bg-town-paper px-4 py-3 text-left shadow-card"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
+            <circle cx={10.5} cy={10.5} r={6.5} fill="none" stroke="#8C7B6E" strokeWidth={2.6} />
+            <line x1={15.5} y1={15.5} x2={21} y2={21} stroke="#8C7B6E" strokeWidth={2.6} strokeLinecap="round" />
+          </svg>
+          <span className="text-[14px] font-medium text-town-inkSoft/70">
+            매장, 음식, 장소 검색
+          </span>
+        </button>
+
+        <div className="mt-2.5 flex gap-2">
+          {CHIPS.map((chip) => {
+            const active = categoryFilter === chip.id;
+            return (
+              <button
+                key={chip.id}
+                onClick={() => setCategoryFilter(active ? null : chip.id)}
+                aria-label={`${chip.label} 필터`}
+                className={`pointer-events-auto flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-bold shadow-card transition ${
+                  active
+                    ? 'bg-town-ink text-town-paper'
+                    : 'border border-town-line bg-town-paper text-town-ink'
+                }`}
+              >
+                <span className="text-[11px]">{chip.emoji}</span>
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 우측 플로팅: 내 마을 전환 + 현재위치 */}
+      <div className="absolute bottom-40 right-4 z-[500] flex flex-col gap-2.5">
+        <button
+          onClick={() => setTab('village')}
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-town-line bg-town-paper shadow-card transition active:scale-95"
+          aria-label="내 마을로 전환"
+          title="내 마을"
+        >
+          <svg width={26} height={26} viewBox="0 0 32 32" aria-hidden>
+            <path d="M16 4 L29 16 L16 28 L3 16 Z" fill="#A8D98A" />
+            <path d="M16 9 L24 16 L16 23 L8 16 Z" fill="#7BC47F" />
+            <path d="M12 14 L16 10.5 L20 14 v4.5 h-8 Z" fill="#F2705E" />
+            <rect x={14.6} y={15.5} width={2.8} height={3} fill="#FFF8EC" />
+          </svg>
+        </button>
+        <button
+          onClick={() => requestFlyTo({ ...position, zoom: 17 })}
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-town-line bg-town-paper shadow-card transition active:scale-95"
+          aria-label="현재 위치로"
+          title="현재 위치"
+        >
+          <svg width={22} height={22} viewBox="0 0 32 32" aria-hidden>
+            <circle cx={16} cy={16} r={6} fill="#5EB3CC" />
+            <circle cx={16} cy={16} r={2.6} fill="#FFFDF7" />
+            <path d="M16 2 v6 M16 24 v6 M2 16 h6 M24 16 h6" stroke="#5EB3CC" strokeWidth={2.8} strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      {/* 저장 필터 시 목록 열기 버튼 */}
+      {categoryFilter === 'saved' && (
+        <button
+          onClick={() => setSavedListOpen(true)}
+          className="pop-in absolute bottom-24 left-1/2 z-[500] -translate-x-1/2 rounded-full bg-town-ink px-5 py-2.5 text-[13px] font-bold text-town-paper shadow-card"
+        >
+          ❤️ 저장 목록 보기 ({savedIds.length})
+        </button>
+      )}
+
+      {/* 오버레이들 */}
+      {selectedStoreId !== null && (
+        <StoreDetailSheet storeId={selectedStoreId} onClose={() => selectStore(null)} />
+      )}
+      {searchOpen && <SearchOverlay onPick={openStore} />}
+      {savedListOpen && <SavedPlaces onPick={openStore} />}
+    </div>
+  );
+}
