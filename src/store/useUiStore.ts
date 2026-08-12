@@ -24,6 +24,14 @@ interface UiState {
   savedListOpen: boolean;
   setSavedListOpen: (open: boolean) => void;
 
+  /** 길찾기 설정 시트 대상 매장 (M2) */
+  routeSheetFor: number | null;
+  setRouteSheetFor: (id: number | null) => void;
+
+  /** 핫플 랭킹 시트 펼침 (M2) */
+  hotSheetOpen: boolean;
+  setHotSheetOpen: (open: boolean) => void;
+
   /** 지도 카메라 이동 요청 (MapView가 소비) */
   flyTo: (LatLng & { zoom?: number; seq: number }) | null;
   requestFlyTo: (to: LatLng & { zoom?: number }) => void;
@@ -46,6 +54,12 @@ export const useUiStore = create<UiState>((set) => ({
 
   savedListOpen: false,
   setSavedListOpen: (open) => set({ savedListOpen: open }),
+
+  routeSheetFor: null,
+  setRouteSheetFor: (id) => set({ routeSheetFor: id }),
+
+  hotSheetOpen: false,
+  setHotSheetOpen: (open) => set({ hotSheetOpen: open }),
 
   flyTo: null,
   requestFlyTo: (to) => set({ flyTo: { ...to, seq: ++flySeq } }),

@@ -8,11 +8,9 @@ import { DemoPanel } from './components/frame/DemoPanel';
 import { ToastHost } from './components/frame/ToastHost';
 import { Onboarding } from './components/onboarding/Onboarding';
 import { BottomNav } from './components/shell/BottomNav';
-import {
-  CommunityScreen,
-  VillageScreen,
-  WalletScreen,
-} from './components/shell/PlaceholderScreens';
+import { AttendanceModal } from './components/shell/AttendanceModal';
+import { CommunityScreen, VillageScreen } from './components/shell/PlaceholderScreens';
+import { WalletScreen } from './components/wallet/WalletScreen';
 import { MapScreen } from './components/map/MapScreen';
 import { useProfileStore } from './store/useProfileStore';
 import { useUiStore } from './store/useUiStore';
@@ -31,6 +29,7 @@ function MainShell() {
         </div>
       )}
       <BottomNav />
+      <AttendanceModal />
       <ToastHost />
     </div>
   );

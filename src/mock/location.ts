@@ -7,23 +7,52 @@ import { create } from 'zustand';
 import type { LatLng } from '../types';
 import { DEFAULT_POSITION } from '../data/seed';
 
+/** 체크인·인증 리뷰·NPC 조우 공통 반경 (기획 §3.1: 약 100m) */
+export const CHECKIN_RADIUS_M = 100;
+
+/** 비현실적 점프 감지 후 체크인·인증이 거부되는 시간(ms) */
+export const SUSPICIOUS_WINDOW_MS = 20_000;
+
 export interface VirtualLocationApi {
   /** 현재 가상 위치 */
   position: LatLng;
-  /** 마지막 순간이동 시각(ms) — 이동속도 검증 시연용(M2) */
+  /** 마지막 순간이동 시각(ms) */
   movedAt: number;
-  /** 직전 위치 — 이동속도 검증 시연용(M2) */
   prevPosition: LatLng | null;
+  /** 이동속도 검증: 이 시각까지 체크인·인증 거부 (0 = 정상) */
+  suspiciousUntil: number;
+  /** 정상 이동 (도보/대중교통 이동으로 간주) — 의심 상태 해제 */
   teleport: (to: LatLng) => void;
+  /** 비현실적 위치 점프 재현 — 잠시 체크인·인증 거부 상태가 된다 */
+  jump: (to: LatLng) => void;
+  /** 여정(경로 추적) 중 프레임 단위 위치 갱신 — 검증 기록 없이 이동 */
+  trace: (to: LatLng) => void;
 }
 
 export const useVirtualLocation = create<VirtualLocationApi>((set, get) => ({
   position: DEFAULT_POSITION,
   movedAt: 0,
   prevPosition: null,
+  suspiciousUntil: 0,
   teleport: (to) =>
-    set({ position: to, prevPosition: get().position, movedAt: Date.now() }),
+    set({
+      position: to,
+      prevPosition: get().position,
+      movedAt: Date.now(),
+      suspiciousUntil: 0,
+    }),
+  jump: (to) =>
+    set({
+      position: to,
+      prevPosition: get().position,
+      movedAt: Date.now(),
+      suspiciousUntil: Date.now() + SUSPICIOUS_WINDOW_MS,
+    }),
+  trace: (to) => set({ position: to }),
 }));
+
+export const isSuspicious = (s: Pick<VirtualLocationApi, 'suspiciousUntil'>) =>
+  s.suspiciousUntil > Date.now();
 
 /** 두 좌표 사이 거리(m) — Haversine */
 export function distanceM(a: LatLng, b: LatLng): number {

@@ -1,6 +1,6 @@
 // ─── 지도 홈 (기획 §6 화면 1) ─────────────────────────────────────
 // 지도(탑뷰) + 검색바 + 카테고리 칩 + 현재위치/내 마을 전환 버튼 +
-// 매장 상세 시트 / 검색 / 저장 장소 오버레이.
+// 핫플 랭킹 시트 + 매장 상세 / 검색 / 저장 장소 / 길찾기 / 이동 오버레이.
 
 import { useEffect, useMemo } from 'react';
 import type { CategoryChip } from '../../store/useUiStore';
@@ -8,13 +8,19 @@ import { useUiStore } from '../../store/useUiStore';
 import { useSavedStore } from '../../store/useSavedStore';
 import { useProfileStore } from '../../store/useProfileStore';
 import { useToastStore } from '../../store/useToastStore';
-import { useVirtualLocation } from '../../mock/location';
+import { useDemoStore } from '../../store/useDemoStore';
+import { useJourneyStore } from '../../store/useJourneyStore';
+import { CHECKIN_RADIUS_M, distanceM, formatDistance, useVirtualLocation } from '../../mock/location';
+import { useVirtualClock } from '../../mock/clock';
 import { LANDMARKS, REGIONAL_NPCS, STORES, storeById } from '../../data/seed';
 import { activeNpcSpots } from '../../lib/game';
 import { MapView } from './MapView';
 import { SearchOverlay } from './SearchOverlay';
+import { HotSheet } from './HotSheet';
 import { StoreDetailSheet } from '../store/StoreDetailSheet';
 import { SavedPlaces } from '../saved/SavedPlaces';
+import { RouteSheet } from '../journey/RouteSheet';
+import { JourneyOverlay } from '../journey/JourneyOverlay';
 
 const CHIPS: { id: CategoryChip; label: string; emoji: string }[] = [
   { id: 'food', label: '맛집', emoji: '🍚' },
@@ -33,6 +39,9 @@ export function MapScreen() {
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const savedListOpen = useUiStore((s) => s.savedListOpen);
   const setSavedListOpen = useUiStore((s) => s.setSavedListOpen);
+  const routeSheetFor = useUiStore((s) => s.routeSheetFor);
+  const setRouteSheetFor = useUiStore((s) => s.setRouteSheetFor);
+  const setHotSheetOpen = useUiStore((s) => s.setHotSheetOpen);
   const flyTo = useUiStore((s) => s.flyTo);
   const requestFlyTo = useUiStore((s) => s.requestFlyTo);
   const setTab = useUiStore((s) => s.setTab);
@@ -40,10 +49,16 @@ export function MapScreen() {
   const savedIds = useSavedStore((s) => s.savedIds);
   const character = useProfileStore((s) => s.profile?.character);
   const position = useVirtualLocation((s) => s.position);
+  const teleport = useVirtualLocation((s) => s.teleport);
   const toast = useToastStore((s) => s.show);
+  const dayOffset = useVirtualClock((s) => s.dayOffset);
+  const clickTeleportArmed = useDemoStore((s) => s.clickTeleportArmed);
+  const setClickTeleportArmed = useDemoStore((s) => s.setClickTeleportArmed);
+  const journeyPhase = useJourneyStore((s) => s.phase);
+  const journeyRoute = useJourneyStore((s) => s.route);
 
   const magpie = REGIONAL_NPCS[0];
-  const npcSpots = useMemo(() => activeNpcSpots(magpie), [magpie]);
+  const npcSpots = useMemo(() => activeNpcSpots(magpie, dayOffset), [magpie, dayOffset]);
 
   const filteredStores = useMemo(() => {
     switch (categoryFilter) {
@@ -65,9 +80,11 @@ export function MapScreen() {
     if (activeTab !== 'map') {
       setSearchOpen(false);
       setSavedListOpen(false);
+      setRouteSheetFor(null);
+      setHotSheetOpen(false);
       selectStore(null);
     }
-  }, [activeTab, setSearchOpen, setSavedListOpen, selectStore]);
+  }, [activeTab, setSearchOpen, setSavedListOpen, setRouteSheetFor, setHotSheetOpen, selectStore]);
 
   const openStore = (id: number) => {
     const store = storeById(id);
@@ -92,52 +109,82 @@ export function MapScreen() {
           myPosition={position}
           character={character}
           flyTo={flyTo}
+          routeLine={journeyPhase !== 'idle' && journeyRoute ? journeyRoute.polyline : null}
+          follow={journeyPhase === 'riding'}
           onStoreClick={openStore}
-          onNpcClick={() => {
-            const line = magpie.lines[Math.floor(Math.random() * magpie.lines.length)];
-            toast(`🐦 까미: "${line}"`, 'info');
+          onNpcClick={(spot) => {
+            const dist = distanceM(position, spot);
+            if (dist <= CHECKIN_RADIUS_M) {
+              const line = magpie.lines[Math.floor(Math.random() * magpie.lines.length)];
+              toast(`🐦 까미: "${line}"`, 'info');
+              setTimeout(() => toast('도감 등록과 마을 입주는 M3에서 열려요!', 'info'), 900);
+            } else {
+              toast(
+                `🐦 까미가 ${spot.label}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
+                'info',
+              );
+            }
           }}
           onLandmarkClick={(lm) => toast(`📍 ${lm.name} — ${lm.desc}`, 'info')}
-          onMapClick={() => selectStore(null)}
+          onMapClick={(latlng) => {
+            if (clickTeleportArmed) {
+              teleport(latlng);
+              setClickTeleportArmed(false);
+              toast('🚶 내 위치를 이동했어요 (가상 GPS)', 'success');
+            } else {
+              selectStore(null);
+            }
+          }}
         />
       </div>
 
-      {/* 상단: 검색바 + 카테고리 칩 */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] px-4 pt-11">
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="pointer-events-auto flex w-full items-center gap-2.5 rounded-2xl border border-town-line bg-town-paper px-4 py-3 text-left shadow-card"
-        >
-          <svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
-            <circle cx={10.5} cy={10.5} r={6.5} fill="none" stroke="#8C7B6E" strokeWidth={2.6} />
-            <line x1={15.5} y1={15.5} x2={21} y2={21} stroke="#8C7B6E" strokeWidth={2.6} strokeLinecap="round" />
-          </svg>
-          <span className="text-[14px] font-medium text-town-inkSoft/70">
-            매장, 음식, 장소 검색
+      {/* 지도 클릭 이동 모드 안내 */}
+      {clickTeleportArmed && (
+        <div className="pointer-events-none absolute inset-x-0 top-24 z-[520] flex justify-center">
+          <span className="pop-in rounded-full bg-town-ink/90 px-4 py-2 text-[12px] font-bold text-town-paper shadow-card">
+            🎯 지도를 클릭하면 내 위치가 이동해요
           </span>
-        </button>
-
-        <div className="mt-2.5 flex gap-2">
-          {CHIPS.map((chip) => {
-            const active = categoryFilter === chip.id;
-            return (
-              <button
-                key={chip.id}
-                onClick={() => setCategoryFilter(active ? null : chip.id)}
-                aria-label={`${chip.label} 필터`}
-                className={`pointer-events-auto flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-bold shadow-card transition ${
-                  active
-                    ? 'bg-town-ink text-town-paper'
-                    : 'border border-town-line bg-town-paper text-town-ink'
-                }`}
-              >
-                <span className="text-[11px]">{chip.emoji}</span>
-                {chip.label}
-              </button>
-            );
-          })}
         </div>
-      </div>
+      )}
+
+      {/* 상단: 검색바 + 카테고리 칩 (이동 중에는 배너와 겹치지 않게 숨김) */}
+      {journeyPhase !== 'riding' && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] px-4 pt-11">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="pointer-events-auto flex w-full items-center gap-2.5 rounded-2xl border border-town-line bg-town-paper px-4 py-3 text-left shadow-card"
+          >
+            <svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
+              <circle cx={10.5} cy={10.5} r={6.5} fill="none" stroke="#8C7B6E" strokeWidth={2.6} />
+              <line x1={15.5} y1={15.5} x2={21} y2={21} stroke="#8C7B6E" strokeWidth={2.6} strokeLinecap="round" />
+            </svg>
+            <span className="text-[14px] font-medium text-town-inkSoft/70">
+              매장, 음식, 장소 검색
+            </span>
+          </button>
+
+          <div className="mt-2.5 flex gap-2">
+            {CHIPS.map((chip) => {
+              const active = categoryFilter === chip.id;
+              return (
+                <button
+                  key={chip.id}
+                  onClick={() => setCategoryFilter(active ? null : chip.id)}
+                  aria-label={`${chip.label} 필터`}
+                  className={`pointer-events-auto flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-bold shadow-card transition ${
+                    active
+                      ? 'bg-town-ink text-town-paper'
+                      : 'border border-town-line bg-town-paper text-town-ink'
+                  }`}
+                >
+                  <span className="text-[11px]">{chip.emoji}</span>
+                  {chip.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 우측 플로팅: 내 마을 전환 + 현재위치 */}
       <div className="absolute bottom-40 right-4 z-[500] flex flex-col gap-2.5">
@@ -178,10 +225,15 @@ export function MapScreen() {
         </button>
       )}
 
+      {/* 핫플 랭킹 (이동 중·저장 필터 중에는 필 숨김) */}
+      {journeyPhase === 'idle' && categoryFilter !== 'saved' && <HotSheet onPick={openStore} />}
+
       {/* 오버레이들 */}
       {selectedStoreId !== null && (
         <StoreDetailSheet storeId={selectedStoreId} onClose={() => selectStore(null)} />
       )}
+      {routeSheetFor !== null && <RouteSheet storeId={routeSheetFor} />}
+      <JourneyOverlay />
       {searchOpen && <SearchOverlay onPick={openStore} />}
       {savedListOpen && <SavedPlaces onPick={openStore} />}
     </div>

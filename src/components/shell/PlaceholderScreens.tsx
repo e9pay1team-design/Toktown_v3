@@ -2,8 +2,7 @@
 // 하단 4탭 구조(M1)는 완성하되, 내용은 해당 마일스톤에서 채워진다.
 
 import type { ReactNode } from 'react';
-import { OtterSvg, OwlSvg, PigeonSvg } from '../../assets/npcs';
-import { TokkenCoin } from '../../assets/misc';
+import { OwlSvg, PigeonSvg } from '../../assets/npcs';
 
 function Placeholder({
   npc,
@@ -62,21 +61,3 @@ export function VillageScreen() {
   );
 }
 
-export function WalletScreen() {
-  return (
-    <Placeholder
-      npc={<OtterSvg size={120} />}
-      title="지갑"
-      desc="톡페이 잔액, 교통 잔액(이동 충전), 톡큰 획득 내역과 Town Key 연동 상태가 이곳에 모여요."
-      milestone="M2"
-      extra={
-        <div className="flex items-center gap-2 rounded-2xl border border-town-line bg-town-paper px-4 py-2.5 shadow-card">
-          <TokkenCoin size={22} />
-          <span className="text-[13px] font-bold text-town-inkSoft">
-            톡큰 잔액 <b className="text-town-ink">0</b>
-          </span>
-        </div>
-      }
-    />
-  );
-}

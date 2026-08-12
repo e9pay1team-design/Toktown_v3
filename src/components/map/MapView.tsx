@@ -23,10 +23,14 @@ interface MapViewProps {
   myPosition: LatLng;
   character: CharacterConfig;
   flyTo: (LatLng & { zoom?: number; seq: number }) | null;
+  /** 이동 중 경로 폴리라인 (M2) */
+  routeLine: LatLng[] | null;
+  /** 이동 중 카메라가 내 캐릭터를 따라감 (M2) */
+  follow: boolean;
   onStoreClick: (id: number) => void;
   onNpcClick: (spot: NpcSpot) => void;
   onLandmarkClick: (lm: Landmark) => void;
-  onMapClick: () => void;
+  onMapClick: (latlng: LatLng) => void;
 }
 
 /** 매장 핀 divIcon */
@@ -89,6 +93,7 @@ export function MapView(props: MapViewProps) {
   const storeLayerRef = useRef<L.LayerGroup | null>(null);
   const npcLayerRef = useRef<L.LayerGroup | null>(null);
   const landmarkLayerRef = useRef<L.LayerGroup | null>(null);
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const myMarkerRef = useRef<L.Marker | null>(null);
   // 최신 콜백을 이벤트 핸들러에서 참조하기 위한 ref
   const cbRef = useRef(props);
@@ -113,11 +118,12 @@ export function MapView(props: MapViewProps) {
       attribution: '&copy; OpenStreetMap',
     }).addTo(map);
 
-    map.on('click', () => cbRef.current.onMapClick());
+    map.on('click', (e) => cbRef.current.onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng }));
 
     storeLayerRef.current = L.layerGroup().addTo(map);
     npcLayerRef.current = L.layerGroup().addTo(map);
     landmarkLayerRef.current = L.layerGroup().addTo(map);
+    routeLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
     return () => {
@@ -182,7 +188,8 @@ export function MapView(props: MapViewProps) {
     }
   }, [props.landmarks]);
 
-  /* 내 캐릭터 */
+  /* 내 캐릭터 — 마커는 캐릭터 변경 시에만 재생성, 위치는 setLatLng 로 갱신
+     (이동 중 프레임 단위 갱신이 있어 재생성하면 DOM 부하가 큼) */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -192,7 +199,49 @@ export function MapView(props: MapViewProps) {
       zIndexOffset: 1000,
       interactive: false,
     }).addTo(map);
-  }, [props.myPosition, props.character]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.character]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    myMarkerRef.current?.setLatLng([props.myPosition.lat, props.myPosition.lng]);
+    if (map && props.follow) {
+      map.panTo([props.myPosition.lat, props.myPosition.lng], { animate: false });
+    }
+  }, [props.myPosition, props.follow]);
+
+  /* 이동 경로 폴리라인 */
+  useEffect(() => {
+    const layer = routeLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!props.routeLine || props.routeLine.length < 2) return;
+    const pts = props.routeLine.map((p) => [p.lat, p.lng]) as [number, number][];
+    layer.addLayer(
+      L.polyline(pts, { color: '#FFFDF7', weight: 9, opacity: 0.9, lineCap: 'round' }),
+    );
+    layer.addLayer(
+      L.polyline(pts, {
+        color: '#4E9B58',
+        weight: 5,
+        opacity: 0.95,
+        dashArray: '1 10',
+        lineCap: 'round',
+      }),
+    );
+    const end = pts[pts.length - 1];
+    layer.addLayer(
+      L.marker(end, {
+        icon: L.divIcon({
+          className: 'toktown-marker',
+          html: '<div style="font-size:22px;filter:drop-shadow(0 2px 2px rgba(74,59,50,.3))">🏁</div>',
+          iconSize: [24, 24],
+          iconAnchor: [4, 22],
+        }),
+        interactive: false,
+      }),
+    );
+  }, [props.routeLine]);
 
   /* 카메라 이동 요청 */
   useEffect(() => {

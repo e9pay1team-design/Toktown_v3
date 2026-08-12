@@ -217,6 +217,49 @@ body {
   animation: fade-in 0.3s ease-out;
 }
 
+/* 탑승 연출 */
+@keyframes vehicle-ride {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.6deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(0.6deg);
+  }
+}
+.vehicle-ride {
+  animation: vehicle-ride 0.7s ease-in-out infinite;
+}
+
+@keyframes road-dash {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.road-dash {
+  animation: road-dash 0.8s linear infinite;
+  background-image: repeating-linear-gradient(
+    90deg,
+    #4a3b32 0 22px,
+    transparent 22px 44px
+  );
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-60px);
+  }
+  to {
+    transform: translateX(440px);
+  }
+}
+.cloud-drift {
+  animation: cloud-drift 14s linear infinite;
+}
+
 /* 스크롤바 숨김 (프레임 내부) */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

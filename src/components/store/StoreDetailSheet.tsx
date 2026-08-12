@@ -1,15 +1,23 @@
 // ─── 매장 상세 (기획 §6 화면 4) ───────────────────────────────────
 // 바텀 시트: 건물 일러스트, 이름/카테고리/영업시간, 톡페이 혜택 뱃지,
-// 버튼(저장/길찾기/결제), 리뷰(장소 귀속, 인증 뱃지).
-// 길찾기·결제 플로우와 리뷰 작성은 M2, 번역 보기는 M3에서 활성화.
+// 버튼(저장/길찾기/결제) + 체크인(발도장) + 리뷰 작성/목록(인증 뱃지).
+// 번역 보기·태그된 커뮤니티 글은 M3에서 활성화.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { reviewsByStore, storeById } from '../../data/seed';
 import { StoreBuilding, CATEGORY_COLORS } from '../../assets/buildings';
 import { BenefitIcon, CertifiedBadge } from '../../assets/misc';
+import { PawStamp } from '../../assets/journey';
+import { CharacterSvg } from '../../assets/CharacterSvg';
 import { useSavedStore } from '../../store/useSavedStore';
 import { useToastStore } from '../../store/useToastStore';
-import { distanceM, formatDistance, useVirtualLocation } from '../../mock/location';
+import { useVisitStore } from '../../store/useVisitStore';
+import { useProfileStore } from '../../store/useProfileStore';
+import { useUiStore } from '../../store/useUiStore';
+import { distanceM, formatDistance, useVirtualLocation, CHECKIN_RADIUS_M } from '../../mock/location';
+import { useVirtualClock, virtualDayIndex } from '../../mock/clock';
+import { today, tryCheckin, tryPayment } from '../../lib/actions';
+import { ReviewComposer } from './ReviewComposer';
 
 function Stars({ n }: { n: number }) {
   return (
@@ -22,23 +30,40 @@ function Stars({ n }: { n: number }) {
 
 export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClose: () => void }) {
   const store = storeById(storeId);
-  const reviews = useMemo(() => reviewsByStore(storeId), [storeId]);
+  const seedReviews = useMemo(() => reviewsByStore(storeId), [storeId]);
   const savedIds = useSavedStore((s) => s.savedIds);
   const toggleSaved = useSavedStore((s) => s.toggle);
   const toast = useToastStore((s) => s.show);
   const position = useVirtualLocation((s) => s.position);
+  const dayOffset = useVirtualClock((s) => s.dayOffset);
+  const myReviews = useVisitStore((s) => s.myReviews);
+  const events = useVisitStore((s) => s.events);
+  const recordSave = useVisitStore((s) => s.recordSave);
+  const profile = useProfileStore((s) => s.profile);
+  const setRouteSheetFor = useUiStore((s) => s.setRouteSheetFor);
+  const [composing, setComposing] = useState(false);
 
   if (!store) return null;
   const saved = savedIds.includes(store.id);
-  const avg = reviews.length
-    ? Math.round((reviews.reduce((a, r) => a + r.rating, 0) / reviews.length) * 10) / 10
-    : 0;
-  const dist = formatDistance(distanceM(position, store));
+  const myStoreReviews = myReviews.filter((r) => r.storeId === store.id);
+  const reviewCount = seedReviews.length + myStoreReviews.length;
+  const ratingSum =
+    seedReviews.reduce((a, r) => a + r.rating, 0) + myStoreReviews.reduce((a, r) => a + r.rating, 0);
+  const avg = reviewCount ? Math.round((ratingSum / reviewCount) * 10) / 10 : 0;
+
+  const dist = distanceM(position, store);
+  const within = dist <= CHECKIN_RADIUS_M;
+  const day = virtualDayIndex(dayOffset);
+  const checkedToday = events.some(
+    (e) => e.type === 'checkin' && e.storeId === store.id && e.day === day,
+  );
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-[560] px-2 pb-2">
-      <div className="sheet-up flex max-h-[62%] min-h-[300px] flex-col overflow-hidden rounded-[1.6rem] border border-town-line bg-town-paper shadow-sheet"
-        style={{ maxHeight: '520px' }}
+    <>
+    <div className="pointer-events-none absolute inset-0 z-[560] flex flex-col justify-end px-2 pb-2">
+      <div
+        className="sheet-up pointer-events-auto flex min-h-[300px] flex-col overflow-hidden rounded-[1.6rem] border border-town-line bg-town-paper shadow-sheet"
+        style={{ maxHeight: '540px' }}
       >
         {/* 그랩바 + 닫기 */}
         <div className="relative flex items-center justify-center pb-1 pt-2.5">
@@ -76,14 +101,19 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="text-[21px] font-extrabold leading-tight">{store.name}</h2>
-                <p className="mt-0.5 text-[12.5px] font-bold text-town-inkSoft">
+                <p className="mt-0.5 flex items-center gap-1.5 text-[12.5px] font-bold text-town-inkSoft">
                   {store.category}
-                  {store.subCategory ? ` · ${store.subCategory}` : ''} · {dist}
+                  {store.subCategory ? ` · ${store.subCategory}` : ''} · {formatDistance(dist)}
+                  {within && (
+                    <span className="rounded-full bg-town-leaf/15 px-1.5 py-0.5 text-[9.5px] font-extrabold text-town-leafDark">
+                      인증 반경 안 ✓
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="shrink-0 rounded-xl bg-town-cream px-2.5 py-1.5 text-center">
                 <p className="text-[15px] font-extrabold leading-none text-town-sunDeep">★ {avg}</p>
-                <p className="mt-0.5 text-[9.5px] font-bold text-town-inkSoft">리뷰 {reviews.length}</p>
+                <p className="mt-0.5 text-[9.5px] font-bold text-town-inkSoft">리뷰 {reviewCount}</p>
               </div>
             </div>
 
@@ -107,7 +137,12 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
             <button
               onClick={() => {
                 toggleSaved(store.id);
-                toast(saved ? '저장을 해제했어요' : '내 장소에 저장했어요!', 'success');
+                if (!saved) {
+                  recordSave(store.id, today());
+                  toast('내 장소에 저장했어요!', 'success');
+                } else {
+                  toast('저장을 해제했어요', 'info');
+                }
               }}
               aria-label="매장 저장 토글"
               className={`flex flex-col items-center gap-1 rounded-2xl border py-3 text-[12px] font-extrabold transition active:scale-95 ${
@@ -120,31 +155,81 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
               {saved ? '저장됨' : '저장'}
             </button>
             <button
-              onClick={() => toast('길찾기·이동 연출은 M2에서 열려요! 🚌', 'info')}
+              onClick={() => {
+                onClose();
+                setRouteSheetFor(store.id);
+              }}
               className="flex flex-col items-center gap-1 rounded-2xl border border-town-line bg-town-paper py-3 text-[12px] font-extrabold text-town-ink transition active:scale-95"
             >
               <span className="text-[17px]">🧭</span> 길찾기
             </button>
             <button
-              onClick={() => toast('톡페이 결제 시뮬레이션은 M2에서 열려요! 💳', 'info')}
+              onClick={() => tryPayment(store)}
               className="flex flex-col items-center gap-1 rounded-2xl border border-town-line bg-town-paper py-3 text-[12px] font-extrabold text-town-ink transition active:scale-95"
             >
               <span className="text-[17px]">💳</span> 결제
             </button>
           </div>
 
+          {/* 체크인 CTA */}
+          <button
+            onClick={() => tryCheckin(store.id)}
+            disabled={checkedToday}
+            className={`mt-2 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-[14.5px] font-extrabold shadow-pop transition active:translate-y-[2px] active:shadow-none disabled:shadow-none ${
+              checkedToday
+                ? 'bg-town-line text-town-inkSoft'
+                : within
+                  ? 'bg-town-coral text-white'
+                  : 'bg-town-cream text-town-inkSoft'
+            }`}
+          >
+            <PawStamp size={19} />
+            {checkedToday
+              ? '오늘 발도장 완료!'
+              : within
+                ? '발도장 체크인 (+10 톡큰)'
+                : `체크인은 ${CHECKIN_RADIUS_M}m 이내에서`}
+          </button>
+
           {/* 리뷰 (장소 귀속) */}
           <section className="mt-5">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-[14px] font-extrabold">
-                주민 리뷰 <span className="text-town-leafDark">{reviews.length}</span>
+                주민 리뷰 <span className="text-town-leafDark">{reviewCount}</span>
               </h3>
-              <span className="rounded-full bg-town-cream px-2 py-1 text-[10px] font-bold text-town-inkSoft">
-                리뷰 작성은 M2에서
-              </span>
+              <button
+                onClick={() => setComposing(true)}
+                className="rounded-full bg-town-leafDark px-3 py-1.5 text-[11.5px] font-extrabold text-white shadow-pop transition active:translate-y-[1px] active:shadow-none"
+              >
+                ✏️ 리뷰 쓰기
+              </button>
             </div>
             <ul className="flex flex-col gap-2.5">
-              {reviews.map((r) => (
+              {myStoreReviews.map((r) => (
+                <li key={r.id} className="rounded-2xl border-2 border-town-leaf/40 bg-town-leaf/5 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold">
+                      {profile && (
+                        <span className="inline-block overflow-hidden rounded-full border border-town-line bg-[#EAF6EF]">
+                          <CharacterSvg config={profile.character} size={22} bust shadow={false} />
+                        </span>
+                      )}
+                      {profile?.nickname}
+                      <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">나</span>
+                      {r.certified && (
+                        <span className="flex items-center gap-0.5 rounded-full bg-town-leaf/15 px-1.5 py-0.5 text-[9.5px] font-extrabold text-town-leafDark">
+                          <CertifiedBadge size={11} /> 방문 인증
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-1">
+                    <Stars n={r.rating} />
+                  </div>
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-town-ink/90">{r.text}</p>
+                </li>
+              ))}
+              {seedReviews.map((r) => (
                 <li key={r.id} className="rounded-2xl border border-town-line bg-town-cream/60 p-3">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold">
@@ -167,6 +252,9 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
           </section>
         </div>
       </div>
+
     </div>
+    {composing && <ReviewComposer store={store} onClose={() => setComposing(false)} />}
+    </>
   );
 }
