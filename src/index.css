@@ -260,6 +260,20 @@ body {
   animation: cloud-drift 14s linear infinite;
 }
 
+/* 내 마을: 배치 가능 타일 깜빡임 */
+@keyframes tile-blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+.tile-blink {
+  animation: tile-blink 1.1s ease-in-out infinite;
+}
+
 /* 스크롤바 숨김 (프레임 내부) */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

@@ -48,13 +48,13 @@ export function StorePin({
   );
 }
 
-/** NPC 조우 마커 — 흰 원형 버블 속 NPC 얼굴 + 반짝임 */
-export function NpcBubble() {
+/** NPC 조우 마커 — 흰 원형 버블 속 NPC 얼굴 + 반짝임 (drummer: 이벤트 한정) */
+export function NpcBubble({ drummer = false }: { drummer?: boolean }) {
   return (
     <svg width={52} height={60} viewBox="0 0 52 60" style={{ display: 'block', overflow: 'visible' }}>
       <ellipse cx={26} cy={57} rx={10} ry={2.8} fill="rgba(74,59,50,0.25)" />
       <path d="M19 44 L26 56 L33 44 Z" fill="#FFFDF7" />
-      <circle cx={26} cy={24} r={22} fill="#FFFDF7" stroke="#FFD66B" strokeWidth={3} />
+      <circle cx={26} cy={24} r={22} fill="#FFFDF7" stroke={drummer ? '#8B79C9' : '#FFD66B'} strokeWidth={3} />
       {/* 까치 얼굴 (미니) */}
       <g>
         <ellipse cx={26} cy={26} rx={15} ry={14} fill="#3B4252" />
@@ -65,9 +65,16 @@ export function NpcBubble() {
         <path d="M23.5 26 L28.5 26 L26 30 Z" fill="#F5B942" />
         <circle cx={16.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
         <circle cx={35.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
+        {drummer && (
+          <path d="M12 17 q14 -7 28 0 l-0.8 3.6 q-13 -6 -26.4 0 Z" fill="#F2705E" />
+        )}
       </g>
       {/* 반짝임 */}
-      <path d="M45 6 l1.6 3.8 l3.8 1.6 l-3.8 1.6 l-1.6 3.8 l-1.6 -3.8 l-3.8 -1.6 l3.8 -1.6 Z" fill="#FFD66B" />
+      {drummer ? (
+        <text x={41} y={12} fontSize={12} fontWeight={800} fill="#8B79C9">♪</text>
+      ) : (
+        <path d="M45 6 l1.6 3.8 l3.8 1.6 l-3.8 1.6 l-1.6 3.8 l-1.6 -3.8 l-3.8 -1.6 l3.8 -1.6 Z" fill="#FFD66B" />
+      )}
       <path d="M6 12 l1.1 2.6 l2.6 1.1 l-2.6 1.1 l-1.1 2.6 l-1.1 -2.6 l-2.6 -1.1 l2.6 -1.1 Z" fill="#F2A7C3" />
     </svg>
   );

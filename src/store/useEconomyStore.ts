@@ -53,6 +53,8 @@ interface EconomyState {
   attendStreak: number;
 
   earnTokken: (reason: TokkenReason, detail?: string) => number;
+  /** 톡큰 사용 (상점 구매) — 잔액 부족 시 false */
+  spendTokken: (amount: number) => boolean;
   chargeTokpay: (amount: number) => void;
   spendTokpay: (amount: number) => boolean;
   transferToTransit: (amount: number) => boolean;
@@ -82,6 +84,12 @@ export const useEconomyStore = create<EconomyState>()(
           ].slice(0, 60),
         }));
         return amount;
+      },
+
+      spendTokken: (amount) => {
+        if (get().tokken < amount) return false;
+        set((s) => ({ tokken: s.tokken - amount }));
+        return true;
       },
 
       chargeTokpay: (amount) => set((s) => ({ tokpayBalance: s.tokpayBalance + amount })),

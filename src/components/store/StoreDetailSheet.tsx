@@ -4,7 +4,8 @@
 // 번역 보기·태그된 커뮤니티 글은 M3에서 활성화.
 
 import { useMemo, useState } from 'react';
-import { reviewsByStore, storeById } from '../../data/seed';
+import { TOWN_EVENTS, reviewsByStore, storeById } from '../../data/seed';
+import { useEventStore } from '../../store/useEventStore';
 import { StoreBuilding, CATEGORY_COLORS } from '../../assets/buildings';
 import { BenefitIcon, CertifiedBadge } from '../../assets/misc';
 import { PawStamp } from '../../assets/journey';
@@ -41,9 +42,16 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
   const recordSave = useVisitStore((s) => s.recordSave);
   const profile = useProfileStore((s) => s.profile);
   const setRouteSheetFor = useUiStore((s) => s.setRouteSheetFor);
+  const activeEventId = useEventStore((s) => s.activeEventId);
   const [composing, setComposing] = useState(false);
 
   if (!store) return null;
+
+  /* Event Map 활성 + 거점 반경 내 매장이면 한정 혜택 노출 */
+  const activeEvent = TOWN_EVENTS.find((e) => e.id === activeEventId) ?? null;
+  const eventVenue = activeEvent ? storeById(activeEvent.venueStoreId) : null;
+  const inEventZone =
+    activeEvent && eventVenue ? distanceM(store, eventVenue) <= activeEvent.radiusM : false;
   const saved = savedIds.includes(store.id);
   const myStoreReviews = myReviews.filter((r) => r.storeId === store.id);
   const reviewCount = seedReviews.length + myStoreReviews.length;
@@ -130,6 +138,17 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
             <div className="mt-3 flex items-center gap-2 rounded-xl bg-town-cream px-3 py-2.5 text-[12.5px] font-bold text-town-ink">
               <span aria-hidden>🕐</span> {store.hours}
             </div>
+
+            {inEventZone && activeEvent && (
+              <div className="mt-2 rounded-xl border-2 border-[#8B79C9] bg-[#F3F0FC] px-3 py-2.5">
+                <p className="text-[12px] font-extrabold text-[#5F4FA0]">
+                  🎪 {activeEvent.title} 한정 혜택
+                </p>
+                <p className="mt-0.5 text-[11.5px] font-bold leading-snug text-[#8B79C9]">
+                  {activeEvent.benefit}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 액션: 저장 / 길찾기 / 결제 */}

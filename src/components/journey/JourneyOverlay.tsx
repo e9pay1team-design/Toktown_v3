@@ -11,7 +11,7 @@ import { useUiStore } from '../../store/useUiStore';
 import { useToastStore } from '../../store/useToastStore';
 import { useVirtualLocation } from '../../mock/location';
 import { pointAlong } from '../../lib/routes';
-import { tryRideTag, withinRadius } from '../../lib/actions';
+import { checkLandmarkDiscovery, tryRideTag, withinRadius } from '../../lib/actions';
 import { BusSvg, SubwaySvg } from '../../assets/journey';
 import { TownKeyringSvg } from '../../assets/journey';
 
@@ -48,6 +48,7 @@ export function JourneyOverlay() {
       }
       if (p >= 1) {
         useJourneyStore.getState().arrive();
+        setTimeout(checkLandmarkDiscovery, 600);
         return;
       }
       rafRef.current = requestAnimationFrame(tick);

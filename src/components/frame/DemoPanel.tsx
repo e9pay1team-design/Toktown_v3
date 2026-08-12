@@ -5,13 +5,19 @@
 
 import { useState, type ReactNode } from 'react';
 import { TownLogoMark } from '../../assets/misc';
-import { REGIONAL_NPCS, STORES } from '../../data/seed';
+import { LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../../data/seed';
 import { useVirtualLocation } from '../../mock/location';
 import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useToastStore } from '../../store/useToastStore';
 import { useDemoStore } from '../../store/useDemoStore';
 import { useUiStore } from '../../store/useUiStore';
-import { nearestStoreInRadius, tryPayment, tryRideTag } from '../../lib/actions';
+import { useEventStore } from '../../store/useEventStore';
+import {
+  checkLandmarkDiscovery,
+  nearestStoreInRadius,
+  tryPayment,
+  tryRideTag,
+} from '../../lib/actions';
 
 const JUMP_TARGET = { lat: 37.5759, lng: 126.9769, label: '광화문' };
 
@@ -30,27 +36,35 @@ export function DemoPanel() {
   const setClickTeleportArmed = useDemoStore((s) => s.setClickTeleportArmed);
   const requestFlyTo = useUiStore((s) => s.requestFlyTo);
   const setTab = useUiStore((s) => s.setTab);
+  const activeEventId = useEventStore((s) => s.activeEventId);
+  const toggleEvent = useEventStore((s) => s.toggleEvent);
 
   const [target, setTarget] = useState('s:1');
 
   const magpie = REGIONAL_NPCS[0];
   const suspicious = suspiciousUntil > Date.now();
+  const nantaEvent = TOWN_EVENTS[0];
+  const eventOn = activeEventId === nantaEvent.id;
 
   const moveTo = () => {
     const [kind, id] = target.split(':');
     const spot =
       kind === 's'
         ? STORES.find((s) => s.id === Number(id))
-        : magpie.spots.find((s) => s.id === id);
+        : kind === 'l'
+          ? LANDMARKS.find((l) => l.id === id)
+          : magpie.spots.find((s) => s.id === id);
     if (!spot) return;
     const label = 'name' in spot ? spot.name : spot.label;
     teleport({ lat: spot.lat, lng: spot.lng });
     setTab('map');
     requestFlyTo({ lat: spot.lat, lng: spot.lng, zoom: 17 });
     toast(`🚶 ${label}(으)로 이동했어요 (가상 GPS)`, 'success');
+    setTimeout(checkLandmarkDiscovery, 400);
   };
 
   const reset = () => {
+    if (!window.confirm('모든 데모 데이터(캐릭터·마을·톡큰)가 초기화됩니다. 계속할까요?')) return;
     Object.keys(localStorage)
       .filter((k) => k.startsWith('toktown:'))
       .forEach((k) => localStorage.removeItem(k));
@@ -67,7 +81,7 @@ export function DemoPanel() {
         <div>
           <h1 className="text-lg font-extrabold leading-tight">TokTown 데모</h1>
           <p className="text-[12px] text-town-inkSoft">
-            평가용 컨트롤 패널 · M2 빌드 · 가상 {virtualToday(dayOffset)} (D+{dayOffset})
+            평가용 컨트롤 패널 · M3 빌드 · 가상 {virtualToday(dayOffset)} (D+{dayOffset})
           </p>
         </div>
       </div>
@@ -95,6 +109,13 @@ export function DemoPanel() {
                 {magpie.spots.map((s) => (
                   <option key={s.id} value={`n:${s.id}`}>
                     {s.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="랜드마크 (최초 방문 시 미니어처)">
+                {LANDMARKS.map((l) => (
+                  <option key={l.id} value={`l:${l.id}`}>
+                    {l.name}
                   </option>
                 ))}
               </optgroup>
@@ -165,12 +186,26 @@ export function DemoPanel() {
           >
             📅 날짜 +1
           </button>
-          <div className="flex items-center justify-between rounded-xl border border-dashed border-town-line bg-town-paper/60 px-3 py-2.5 opacity-60">
-            <span className="text-[13px] text-town-inkSoft">Event Map 토글</span>
-            <span className="rounded-full bg-town-line px-2 py-0.5 text-[10px] font-bold text-town-inkSoft">
-              M3
-            </span>
-          </div>
+          <button
+            onClick={() => {
+              const nowOn = toggleEvent(nantaEvent.id);
+              if (nowOn) {
+                const venue = storeById(nantaEvent.venueStoreId);
+                setTab('map');
+                if (venue) requestFlyTo({ lat: venue.lat, lng: venue.lng, zoom: 16 });
+                toast(`🎪 ${nantaEvent.title} 활성화! 극장 반경 한정 혜택 + 한정 NPC 출몰`, 'success');
+              } else {
+                toast('Event Map을 종료했어요', 'info');
+              }
+            }}
+            className={`${btn} ${
+              eventOn
+                ? 'bg-[#8B79C9] text-white'
+                : 'border-2 border-[#C7B9F2] bg-[#F3F0FC] text-[#5F4FA0] shadow-none'
+            }`}
+          >
+            {eventOn ? '🎪 Event Map 진행 중 (끄기)' : '🎪 Event Map 토글 (난타 위크)'}
+          </button>
           <button onClick={reset} className={`${btn} bg-town-coral text-white`}>
             데모 리셋 (localStorage 초기화)
           </button>
@@ -178,18 +213,18 @@ export function DemoPanel() {
       </div>
 
       <div className="rounded-2xl border border-town-line bg-town-paper/70 p-3 text-[12px] leading-relaxed text-town-inkSoft">
-        <p className="mb-1 font-bold text-town-ink">M2 체험 가이드</p>
-        1. 출석 팝업에서 도장 찍기 (+10)
+        <p className="mb-1 font-bold text-town-ink">5분 데모 시나리오 (브리프 §8)</p>
+        1. 온보딩 → 캐릭터 → 주민증 발급
         <br />
-        2. <b>미성옥</b> 상세 → 길찾기 → 이동 시작 → <b>승차 태그</b>
+        2. <b>미성옥</b> 검색 → 길찾기 → <b>승차 태그</b> → 도착
         <br />
-        3. 도착 후 체크인 + 인증 리뷰 → 톡큰 토스트
+        3. 체크인 + 인증 리뷰 → 톡큰 → 🔥 핫플 상승
         <br />
-        4. 🔥 핫플 랭킹에서 순위 상승 확인
+        4. <b>명동성당</b>으로 이동 → 까치 조우 → 도감 등록
         <br />
-        5. 결제 시뮬레이션 → 지갑에서 잔액·내역 확인
+        5. 내 마을 → 미성옥 건물 + 까치 배치 → 상점 구매
         <br />
-        6. 비현실적 점프 → 체크인 거부 확인
+        6. 커뮤니티 <b>번역 보기</b> → 🎪 Event Map → 한정 혜택
       </div>
     </aside>
   );

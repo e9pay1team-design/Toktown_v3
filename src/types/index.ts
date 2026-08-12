@@ -66,6 +66,8 @@ export interface NpcSpot {
   label: string;
   lat: number;
   lng: number;
+  /** 이벤트 한정 NPC 변형 (드러머 까미 등) */
+  variant?: 'drummer';
 }
 
 /** 기본 NPC (전국 공통, 기능 담당) */

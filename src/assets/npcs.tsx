@@ -10,10 +10,10 @@ const blush = (x: number, y: number) => (
   <circle cx={x} cy={y} r={4.6} fill="#FF9D9D" opacity={0.5} />
 );
 
-/** 명동 까치 '까미' — 쇼핑백 든 까치 */
-export function MagpieSvg({ size = 96 }: NpcProps) {
+/** 명동 까치 '까미' — 쇼핑백 든 까치 (drummer: 이벤트 한정 '드러머 까미') */
+export function MagpieSvg({ size = 96, drummer = false }: NpcProps & { drummer?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="까치 까미">
+    <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label={drummer ? '드러머 까미' : '까치 까미'}>
       <ellipse cx={58} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
       {/* 꼬리 */}
       <g transform="rotate(28 24 96)">
@@ -39,12 +39,31 @@ export function MagpieSvg({ size = 96 }: NpcProps) {
       {/* 왼 날개 (파란 포인트) */}
       <ellipse cx={28} cy={72} rx={10} ry={17} fill="#3B4252" transform="rotate(14 28 72)" />
       <ellipse cx={27} cy={78} rx={6} ry={9} fill="#7BA7D9" transform="rotate(14 27 78)" />
-      {/* 오른 날개 + 쇼핑백 */}
+      {/* 오른 날개 + (쇼핑백 | 드럼스틱) */}
       <ellipse cx={88} cy={72} rx={10} ry={17} fill="#3B4252" transform="rotate(-14 88 72)" />
-      <path d="M88 84 q4 -8 12 -6" stroke="#F2705E" strokeWidth={3} fill="none" strokeLinecap="round" />
-      <rect x={92} y={84} width={22} height={24} rx={5} fill="#FF8B7B" />
-      <path d="M97 84 q4 -9 12 0" stroke="#F2705E" strokeWidth={3} fill="none" />
-      <circle cx={103} cy={96} r={4} fill="#FFFDF7" opacity={0.8} />
+      {!drummer && (
+        <g>
+          <path d="M88 84 q4 -8 12 -6" stroke="#F2705E" strokeWidth={3} fill="none" strokeLinecap="round" />
+          <rect x={92} y={84} width={22} height={24} rx={5} fill="#FF8B7B" />
+          <path d="M97 84 q4 -9 12 0" stroke="#F2705E" strokeWidth={3} fill="none" />
+          <circle cx={103} cy={96} r={4} fill="#FFFDF7" opacity={0.8} />
+        </g>
+      )}
+      {drummer && (
+        <g>
+          {/* 머리띠 */}
+          <path d="M26 36 q34 -14 68 0 l-1 7 q-33 -12 -66 0 Z" fill="#F2705E" />
+          <path d="M90 38 l12 -6 l-3 10 Z" fill="#F2705E" />
+          {/* 드럼스틱 */}
+          <g transform="rotate(-38 96 84)">
+            <rect x={94} y={64} width={5} height={26} rx={2.5} fill="#CE9F6C" />
+            <circle cx={96.5} cy={62} r={4.6} fill="#8A6B52" />
+          </g>
+          {/* 음표 */}
+          <text x={18} y={30} fontSize={13} fill="#8B79C9">♪</text>
+          <text x={100} y={22} fontSize={11} fill="#F2705E">♫</text>
+        </g>
+      )}
       {/* 발 */}
       <path d="M46 104 l-3 7 M46 104 l3 7" stroke="#F5B942" strokeWidth={3.4} strokeLinecap="round" />
       <path d="M66 104 l-3 7 M66 104 l3 7" stroke="#F5B942" strokeWidth={3.4} strokeLinecap="round" />

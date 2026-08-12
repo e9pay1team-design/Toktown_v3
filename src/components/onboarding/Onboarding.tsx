@@ -13,6 +13,7 @@ import {
   OUTFITS,
   SKIN_TONES,
 } from '../../assets/characterParts';
+import { PartsEditor } from '../character/PartsEditor';
 import { DEFAULT_CHARACTER, useProfileStore } from '../../store/useProfileStore';
 
 type Step = 'welcome' | 'character' | 'nickname' | 'card' | 'tutorial';
@@ -102,58 +103,6 @@ function CharacterCreator({
   setConfig: (c: CharacterConfig) => void;
   onNext: () => void;
 }) {
-  const [tab, setTab] = useState<'skin' | 'hair' | 'outfit'>('skin');
-
-  const Swatch = ({
-    colors,
-    value,
-    onPick,
-  }: {
-    colors: string[];
-    value: number;
-    onPick: (i: number) => void;
-  }) => (
-    <div className="flex flex-wrap justify-center gap-3">
-      {colors.map((c, i) => (
-        <button
-          key={c}
-          onClick={() => onPick(i)}
-          className={`h-11 w-11 rounded-full border-4 transition ${
-            value === i ? 'scale-110 border-town-ink' : 'border-white'
-          }`}
-          style={{ background: c }}
-          aria-label={`색상 ${i + 1}`}
-        />
-      ))}
-    </div>
-  );
-
-  const Pills = ({
-    items,
-    value,
-    onPick,
-  }: {
-    items: readonly string[];
-    value: number;
-    onPick: (i: number) => void;
-  }) => (
-    <div className="flex flex-wrap justify-center gap-2">
-      {items.map((label, i) => (
-        <button
-          key={label}
-          onClick={() => onPick(i)}
-          className={`rounded-full px-4 py-2 text-[13px] font-bold transition ${
-            value === i
-              ? 'bg-town-leafDark text-white shadow-pop'
-              : 'bg-town-paper text-town-inkSoft border border-town-line'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <div className="flex h-full flex-col">
       <header className="px-6 pb-2 pt-12 text-center">
@@ -177,68 +126,13 @@ function CharacterCreator({
       </div>
 
       {/* 파츠 패널 */}
-      <div className="mt-4 flex flex-1 flex-col rounded-t-[2rem] border-t border-town-line bg-town-paper px-5 pb-5 pt-4 shadow-sheet">
-        <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl bg-town-cream p-1.5">
-          {(
-            [
-              ['skin', '피부'],
-              ['hair', '헤어'],
-              ['outfit', '의상'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`rounded-xl py-2 text-[13.5px] font-extrabold transition ${
-                tab === id ? 'bg-town-paper text-town-ink shadow-card' : 'text-town-inkSoft'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="no-scrollbar mt-4 flex flex-1 flex-col overflow-y-auto rounded-t-[2rem] border-t border-town-line bg-town-paper px-5 pb-5 pt-4 shadow-sheet">
+        <div className="flex-1">
+          <PartsEditor config={config} onChange={setConfig} />
         </div>
-
-        <div className="flex flex-1 flex-col justify-center gap-5">
-          {tab === 'skin' && (
-            <Swatch
-              colors={SKIN_TONES}
-              value={config.skin}
-              onPick={(i) => setConfig({ ...config, skin: i })}
-            />
-          )}
-          {tab === 'hair' && (
-            <>
-              <Pills
-                items={HAIR_STYLES}
-                value={config.hairStyle}
-                onPick={(i) => setConfig({ ...config, hairStyle: i })}
-              />
-              <Swatch
-                colors={HAIR_COLORS}
-                value={config.hairColor}
-                onPick={(i) => setConfig({ ...config, hairColor: i })}
-              />
-            </>
-          )}
-          {tab === 'outfit' && (
-            <>
-              <Pills
-                items={OUTFITS}
-                value={config.outfit}
-                onPick={(i) => setConfig({ ...config, outfit: i })}
-              />
-              <Swatch
-                colors={OUTFIT_COLORS}
-                value={config.outfitColor}
-                onPick={(i) => setConfig({ ...config, outfitColor: i })}
-              />
-            </>
-          )}
-        </div>
-
         <button
           onClick={onNext}
-          className="rounded-2xl bg-town-leafDark py-4 text-[16px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+          className="mt-4 rounded-2xl bg-town-leafDark py-4 text-[16px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
         >
           다음
         </button>

@@ -2,7 +2,7 @@
 // 상세 시트와 데모 패널 양쪽에서 호출된다. 검증 순서:
 // 이동속도(비현실적 점프) → 반경 100m → 1일 1회 → 지급.
 
-import { STORES, storeById } from '../data/seed';
+import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../data/seed';
 import type { Store } from '../types';
 import {
   CHECKIN_RADIUS_M,
@@ -18,6 +18,12 @@ import { useEconomyStore } from '../store/useEconomyStore';
 import { useVisitStore } from '../store/useVisitStore';
 import { useToastStore } from '../store/useToastStore';
 import { useJourneyStore } from '../store/useJourneyStore';
+import { useCollectionStore } from '../store/useCollectionStore';
+import { useVillageStore } from '../store/useVillageStore';
+import { useEventStore } from '../store/useEventStore';
+
+/** 랜드마크 '지역 최초 방문' 발견 반경 (m) */
+export const LANDMARK_RADIUS_M = 150;
 
 const toast = (msg: string, kind?: 'info' | 'success' | 'tokken' | 'error') =>
   useToastStore.getState().show(msg, kind);
@@ -52,10 +58,38 @@ export function tryCheckin(storeId: number): boolean {
     return false;
   }
 
+  const firstCertifiedVisit = !visits.hasCertifiedVisit(storeId);
   visits.recordCheckin(storeId, day);
   const amount = useEconomyStore.getState().earnTokken('checkin', store.name);
   toast(`${store.name} 발도장 완료! 톡큰 +${amount}`, 'tokken');
+  if (firstCertifiedVisit) {
+    setTimeout(
+      () => toast(`🏠 ${store.name} 건물 획득! 내 마을에서 배치해 보세요`, 'success'),
+      700,
+    );
+  }
+  grantEventCheckinReward(store, firstCertifiedVisit ? 1400 : 700);
   return true;
+}
+
+/** Event Map 활성 중 극장 인근 체크인 → 한정 톡큰 + 한정 소품 (1회) */
+function grantEventCheckinReward(store: Store, delayMs: number) {
+  const { activeEventId, eventRewardClaimed, claimReward } = useEventStore.getState();
+  const event = TOWN_EVENTS.find((e) => e.id === activeEventId);
+  if (!event) return;
+  const venue = storeById(event.venueStoreId);
+  if (!venue || distanceM(store, venue) > event.radiusM) return;
+  if (eventRewardClaimed[event.id]) return;
+  claimReward(event.id);
+  const bonus = useEconomyStore.getState().earnTokken('checkin', `${event.title} 한정 보너스`);
+  useVillageStore.getState().buyDecor('nanta-drum');
+  setTimeout(() => {
+    toast(`🎪 ${event.title} 한정 톡큰 +${bonus}!`, 'tokken');
+    setTimeout(
+      () => toast(`🎁 한정 소품 '${event.limitedItemName}' 획득! 보관함을 확인하세요`, 'success'),
+      750,
+    );
+  }, delayMs);
 }
 
 /** 리뷰 등록 (작성 시트에서 호출) — certified 는 현장 반경 + 정상 이동일 때 */
@@ -71,6 +105,7 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
   const loc = useVirtualLocation.getState();
   const certified = withinRadius(store) && !isSuspicious(loc);
 
+  const firstCertifiedVisit = certified && !visits.hasCertifiedVisit(storeId);
   visits.recordReview({ storeId, rating, text, certified, day });
   const amount = useEconomyStore
     .getState()
@@ -81,7 +116,40 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
       : `리뷰 등록 완료! 톡큰 +${amount}`,
     'tokken',
   );
+  if (firstCertifiedVisit) {
+    setTimeout(
+      () => toast(`🏠 ${store.name} 건물 획득! 내 마을에서 배치해 보세요`, 'success'),
+      700,
+    );
+  }
   return true;
+}
+
+/** NPC 조우 확정 → 도감 등록 + 톡큰 (조우 모달에서 호출) */
+export function registerNpcEncounter(npcId: string): void {
+  const added = useCollectionStore.getState().addDex(npcId);
+  if (!added) return;
+  const name = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE.name : REGIONAL_NPCS[0].name;
+  const amount = useEconomyStore.getState().earnTokken('npcEncounter', name);
+  toast(`📖 ${name} 도감 등록! 톡큰 +${amount}`, 'tokken');
+  setTimeout(
+    () => toast(`🏡 ${name}이(가) 내 마을에 입주할 수 있어요 — 보관함 확인!`, 'success'),
+    800,
+  );
+}
+
+/** 랜드마크 '지역 최초 방문' 판정 — 위치 이동 직후 호출 */
+export function checkLandmarkDiscovery(): void {
+  const loc = useVirtualLocation.getState();
+  if (isSuspicious(loc)) return; // 이동속도 검증 실패 중에는 발견 불가
+  const collection = useCollectionStore.getState();
+  for (const lm of LANDMARKS) {
+    if (collection.landmarks.includes(lm.id)) continue;
+    if (distanceM(loc.position, lm) <= LANDMARK_RADIUS_M) {
+      collection.addLandmark(lm.id);
+      toast(`🏛️ ${lm.name} 최초 방문! 미니어처를 획득했어요`, 'success');
+    }
+  }
 }
 
 /** 결제 시뮬레이션 — 반경 내 매장에서 톡페이 결제 → Tokken */

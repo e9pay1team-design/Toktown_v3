@@ -27,6 +27,8 @@ interface MapViewProps {
   routeLine: LatLng[] | null;
   /** 이동 중 카메라가 내 캐릭터를 따라감 (M2) */
   follow: boolean;
+  /** Event Map 활성 시 혜택 반경 오버레이 (M3) */
+  eventCircle: (LatLng & { radiusM: number }) | null;
   onStoreClick: (id: number) => void;
   onNpcClick: (spot: NpcSpot) => void;
   onLandmarkClick: (lm: Landmark) => void;
@@ -47,10 +49,10 @@ function storeIcon(store: Store, saved: boolean, selected: boolean): L.DivIcon {
   });
 }
 
-const npcIcon = () =>
+const npcIcon = (drummer: boolean) =>
   L.divIcon({
     className: 'toktown-marker',
-    html: `<div class="npc-bounce">${renderToStaticMarkup(<NpcBubble />)}</div>`,
+    html: `<div class="npc-bounce">${renderToStaticMarkup(<NpcBubble drummer={drummer} />)}</div>`,
     iconSize: [52, 60],
     iconAnchor: [26, 57],
   });
@@ -159,8 +161,12 @@ export function MapView(props: MapViewProps) {
     if (!layer) return;
     layer.clearLayers();
     for (const spot of props.npcSpots) {
-      const marker = L.marker([spot.lat, spot.lng], { icon: npcIcon(), zIndexOffset: 500 });
-      marker.bindTooltip(`까치 까미 · ${spot.label}`, {
+      const drummer = spot.variant === 'drummer';
+      const marker = L.marker([spot.lat, spot.lng], {
+        icon: npcIcon(drummer),
+        zIndexOffset: drummer ? 600 : 500,
+      });
+      marker.bindTooltip(`${drummer ? '드러머 까미 🎪' : '까치 까미'} · ${spot.label}`, {
         direction: 'top',
         offset: [0, -56],
         className: 'toktown-tooltip',
@@ -169,6 +175,24 @@ export function MapView(props: MapViewProps) {
       layer.addLayer(marker);
     }
   }, [props.npcSpots]);
+
+  /* Event Map 혜택 반경 */
+  const eventLayerRef = useRef<L.Circle | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    eventLayerRef.current?.remove();
+    eventLayerRef.current = null;
+    if (!props.eventCircle) return;
+    eventLayerRef.current = L.circle([props.eventCircle.lat, props.eventCircle.lng], {
+      radius: props.eventCircle.radiusM,
+      color: '#8B79C9',
+      weight: 2.5,
+      dashArray: '6 8',
+      fillColor: '#8B79C9',
+      fillOpacity: 0.08,
+    }).addTo(map);
+  }, [props.eventCircle]);
 
   /* 랜드마크 오버레이 */
   useEffect(() => {

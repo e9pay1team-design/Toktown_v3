@@ -2,7 +2,7 @@
 // 지도(탑뷰) + 검색바 + 카테고리 칩 + 현재위치/내 마을 전환 버튼 +
 // 핫플 랭킹 시트 + 매장 상세 / 검색 / 저장 장소 / 길찾기 / 이동 오버레이.
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CategoryChip } from '../../store/useUiStore';
 import { useUiStore } from '../../store/useUiStore';
 import { useSavedStore } from '../../store/useSavedStore';
@@ -10,13 +10,17 @@ import { useProfileStore } from '../../store/useProfileStore';
 import { useToastStore } from '../../store/useToastStore';
 import { useDemoStore } from '../../store/useDemoStore';
 import { useJourneyStore } from '../../store/useJourneyStore';
+import { useEventStore } from '../../store/useEventStore';
+import { useCollectionStore } from '../../store/useCollectionStore';
 import { CHECKIN_RADIUS_M, distanceM, formatDistance, useVirtualLocation } from '../../mock/location';
 import { useVirtualClock } from '../../mock/clock';
-import { LANDMARKS, REGIONAL_NPCS, STORES, storeById } from '../../data/seed';
+import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../../data/seed';
 import { activeNpcSpots } from '../../lib/game';
+import { checkLandmarkDiscovery } from '../../lib/actions';
 import { MapView } from './MapView';
 import { SearchOverlay } from './SearchOverlay';
 import { HotSheet } from './HotSheet';
+import { NpcEncounterModal } from './NpcEncounterModal';
 import { StoreDetailSheet } from '../store/StoreDetailSheet';
 import { SavedPlaces } from '../saved/SavedPlaces';
 import { RouteSheet } from '../journey/RouteSheet';
@@ -56,9 +60,19 @@ export function MapScreen() {
   const setClickTeleportArmed = useDemoStore((s) => s.setClickTeleportArmed);
   const journeyPhase = useJourneyStore((s) => s.phase);
   const journeyRoute = useJourneyStore((s) => s.route);
+  const activeEventId = useEventStore((s) => s.activeEventId);
+  const dex = useCollectionStore((s) => s.dex);
+  const [encounterNpcId, setEncounterNpcId] = useState<string | null>(null);
 
   const magpie = REGIONAL_NPCS[0];
-  const npcSpots = useMemo(() => activeNpcSpots(magpie, dayOffset), [magpie, dayOffset]);
+  const activeEvent = TOWN_EVENTS.find((e) => e.id === activeEventId) ?? null;
+  const eventVenue = activeEvent ? storeById(activeEvent.venueStoreId) : null;
+
+  const npcSpots = useMemo(() => {
+    const spots = [...activeNpcSpots(magpie, dayOffset)];
+    if (activeEvent) spots.push({ ...DRUMMER_MAGPIE.spot, variant: 'drummer' as const });
+    return spots;
+  }, [magpie, dayOffset, activeEvent]);
 
   const filteredStores = useMemo(() => {
     switch (categoryFilter) {
@@ -111,19 +125,29 @@ export function MapScreen() {
           flyTo={flyTo}
           routeLine={journeyPhase !== 'idle' && journeyRoute ? journeyRoute.polyline : null}
           follow={journeyPhase === 'riding'}
+          eventCircle={
+            activeEvent && eventVenue
+              ? { lat: eventVenue.lat, lng: eventVenue.lng, radiusM: activeEvent.radiusM }
+              : null
+          }
           onStoreClick={openStore}
           onNpcClick={(spot) => {
+            const npcId = spot.variant === 'drummer' ? DRUMMER_MAGPIE.id : magpie.id;
+            const npcName = spot.variant === 'drummer' ? DRUMMER_MAGPIE.name : magpie.name;
             const dist = distanceM(position, spot);
-            if (dist <= CHECKIN_RADIUS_M) {
-              const line = magpie.lines[Math.floor(Math.random() * magpie.lines.length)];
-              toast(`🐦 까미: "${line}"`, 'info');
-              setTimeout(() => toast('도감 등록과 마을 입주는 M3에서 열려요!', 'info'), 900);
-            } else {
+            if (dist > CHECKIN_RADIUS_M) {
               toast(
-                `🐦 까미가 ${spot.label}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
+                `🐦 ${npcName}이(가) ${spot.label}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
                 'info',
               );
+              return;
             }
+            if (dex.includes(npcId)) {
+              const npc = spot.variant === 'drummer' ? DRUMMER_MAGPIE : magpie;
+              toast(`🐦 ${npcName}: "${npc.lines[Math.floor(Math.random() * npc.lines.length)]}"`, 'info');
+              return;
+            }
+            setEncounterNpcId(npcId);
           }}
           onLandmarkClick={(lm) => toast(`📍 ${lm.name} — ${lm.desc}`, 'info')}
           onMapClick={(latlng) => {
@@ -131,6 +155,7 @@ export function MapScreen() {
               teleport(latlng);
               setClickTeleportArmed(false);
               toast('🚶 내 위치를 이동했어요 (가상 GPS)', 'success');
+              setTimeout(checkLandmarkDiscovery, 400);
             } else {
               selectStore(null);
             }
@@ -183,6 +208,27 @@ export function MapScreen() {
               );
             })}
           </div>
+
+          {/* Event Map 활성 배너 */}
+          {activeEvent && eventVenue && (
+            <button
+              onClick={() =>
+                requestFlyTo({ lat: eventVenue.lat, lng: eventVenue.lng, zoom: 16 })
+              }
+              className="pop-in pointer-events-auto mt-2 flex w-full items-center gap-2 rounded-2xl border-2 border-[#8B79C9] bg-[#F3F0FC] px-3.5 py-2.5 text-left shadow-card"
+            >
+              <span className="text-[18px]">🎪</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12.5px] font-extrabold text-[#5F4FA0]">
+                  {activeEvent.title} 진행 중
+                </span>
+                <span className="block truncate text-[10px] font-bold text-[#8B79C9]">
+                  극장 반경 {activeEvent.radiusM}m 한정 혜택 · 한정 NPC 출몰
+                </span>
+              </span>
+              <span className="shrink-0 text-[11px] font-extrabold text-[#8B79C9]">보기 →</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -236,6 +282,9 @@ export function MapScreen() {
       <JourneyOverlay />
       {searchOpen && <SearchOverlay onPick={openStore} />}
       {savedListOpen && <SavedPlaces onPick={openStore} />}
+      {encounterNpcId && (
+        <NpcEncounterModal npcId={encounterNpcId} onClose={() => setEncounterNpcId(null)} />
+      )}
     </div>
   );
 }

@@ -693,6 +693,21 @@ export const TOWN_EVENTS: TownEvent[] = [
   },
 ];
 
+/** 이벤트 한정 NPC — 드러머 까미 (Event Map 활성 시 난타극장 앞 출몰) */
+export const DRUMMER_MAGPIE = {
+  id: 'magpie-drummer',
+  name: '드러머 까미',
+  species: '까치',
+  region: '명동 (난타 스페셜 위크 한정)',
+  bio: '난타 공연에 심취한 까미의 리듬 버전. 머리띠와 드럼스틱은 공연 주간에만 볼 수 있는 한정 스타일이다.',
+  lines: [
+    '두구두구두구… 쾅! 지금은 난타 스페셜 위크야!',
+    '주방 도구로도 음악이 된다니, 명동은 정말 놀라워. 까악!',
+    '이 머리띠? 공연 주간 한정이야. 부럽지?',
+  ],
+  spot: { id: 'nanta-stage', label: '명동난타극장 앞', lat: 37.5636, lng: 126.9836 },
+};
+
 /** Tokken 경제 수치 — 초기값 (운영하며 튜닝 전제) */
 export const TOKKEN_ECONOMY: TokkenEconomy = {
   payment: 50,
