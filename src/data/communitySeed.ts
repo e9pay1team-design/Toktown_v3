@@ -1,6 +1,30 @@
-// ─── 커뮤니티 시드 데이터 (명동 채널) ─────────────────────────────
+// ─── 커뮤니티 시드 데이터 (전체 통합 채널) ────────────────────────
+// 지역 구분 없는 통합 피드. 글은 태그(#도움요청 #동네정보 …)로 분류하고
+// 상단 검색창으로 본문·작성자·태그를 검색한다.
 // 자동 번역은 사전 준비된 번역문 페어로 시뮬레이션(브리프 §2).
 // 위치 프라이버시(기획 §3.3): 노출되는 위치 정보는 '장소 태그'뿐.
+
+/** 글 분류 태그 — 작성 시 선택, 칩 필터/검색 대상 */
+export interface PostTag {
+  id: string;
+  label: string;
+  /** 칩 배경색 */
+  color: string;
+  /** 칩 글자색 */
+  text: string;
+}
+
+export const POST_TAGS: PostTag[] = [
+  { id: 'help', label: '#도움요청', color: '#FDE8E4', text: '#C2503F' },
+  { id: 'info', label: '#동네정보', color: '#E3F1FA', text: '#356F9C' },
+  { id: 'food', label: '#맛집', color: '#FFF3D6', text: '#A9722A' },
+  { id: 'english', label: '#English', color: '#EDE8FA', text: '#6A5CAB' },
+  { id: 'event', label: '#이벤트', color: '#FCE8F1', text: '#A84660' },
+  { id: 'friends', label: '#동네친구', color: '#E6F4E4', text: '#4C762B' },
+];
+
+export const tagById = (id: string): PostTag | undefined =>
+  POST_TAGS.find((t) => t.id === id);
 
 export interface CommunityComment {
   id: string;
@@ -19,6 +43,8 @@ export interface CommunityPost {
   lang: 'ko' | 'en';
   text: string;
   translated: string;
+  /** 분류 태그 id 목록 (POST_TAGS 참조) */
+  tags: string[];
   /** 장소 태그 (매장 id, 없으면 미첨부) */
   storeTagId?: number;
   likes: number;
@@ -30,6 +56,7 @@ export interface CommunityPost {
 export const COMMUNITY_POSTS: CommunityPost[] = [
   {
     id: 'p1',
+    tags: ['help', 'english', 'food'],
     author: 'Emma',
     flag: '🇬🇧',
     nationality: '영국',
@@ -61,6 +88,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p2',
+    tags: ['info', 'food'],
     author: '민호',
     flag: '🇰🇷',
     nationality: '한국',
@@ -84,6 +112,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p3',
+    tags: ['help', 'english', 'event'],
     author: 'Hana',
     flag: '🇯🇵',
     nationality: '일본',
@@ -115,6 +144,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p4',
+    tags: ['info', 'food'],
     author: '다은',
     flag: '🇰🇷',
     nationality: '한국',
@@ -138,6 +168,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p5',
+    tags: ['help', 'english'],
     author: 'Chloe',
     flag: '🇫🇷',
     nationality: '프랑스',
@@ -170,6 +201,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p6',
+    tags: ['info'],
     author: '규현',
     flag: '🇰🇷',
     nationality: '한국',
@@ -200,6 +232,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p7',
+    tags: ['info', 'english'],
     author: 'Daniel',
     flag: '🇺🇸',
     nationality: '미국',
@@ -214,6 +247,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
   },
   {
     id: 'p8',
+    tags: ['friends'],
     author: '보라',
     flag: '🇰🇷',
     nationality: '한국',

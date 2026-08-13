@@ -274,6 +274,21 @@ body {
   animation: tile-blink 1.1s ease-in-out infinite;
 }
 
+/* 위아래로 살랑이는 강조 (대화 '다음' 화살표 등) */
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+.bob {
+  display: inline-block;
+  animation: bob 1s ease-in-out infinite;
+}
+
 /* 스크롤바 숨김 (프레임 내부) */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

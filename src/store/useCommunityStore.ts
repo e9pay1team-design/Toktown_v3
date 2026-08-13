@@ -1,4 +1,5 @@
 // ─── 커뮤니티 스토어: 내가 쓴 글 + 좋아요 ─────────────────────────
+// 통합 커뮤니티 개편: 글은 분류 태그(POST_TAGS id)를 함께 저장한다.
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -6,6 +7,8 @@ import { persist } from 'zustand/middleware';
 export interface MyPost {
   id: string;
   text: string;
+  /** 분류 태그 id 목록 */
+  tags: string[];
   storeTagId?: number;
   ts: number;
 }
@@ -13,7 +16,7 @@ export interface MyPost {
 interface CommunityState {
   myPosts: MyPost[];
   likedIds: string[];
-  addPost: (text: string, storeTagId?: number) => void;
+  addPost: (text: string, tags: string[], storeTagId?: number) => void;
   toggleLike: (postId: string) => void;
 }
 
@@ -24,9 +27,12 @@ export const useCommunityStore = create<CommunityState>()(
     (set) => ({
       myPosts: [],
       likedIds: [],
-      addPost: (text, storeTagId) =>
+      addPost: (text, tags, storeTagId) =>
         set((s) => ({
-          myPosts: [{ id: `my-${++postSeq}`, text, storeTagId, ts: Date.now() }, ...s.myPosts],
+          myPosts: [
+            { id: `my-${++postSeq}`, text, tags, storeTagId, ts: Date.now() },
+            ...s.myPosts,
+          ],
         })),
       toggleLike: (postId) =>
         set((s) => ({
@@ -35,6 +41,17 @@ export const useCommunityStore = create<CommunityState>()(
             : [...s.likedIds, postId],
         })),
     }),
-    { name: 'toktown:community' },
+    {
+      name: 'toktown:community',
+      version: 2,
+      migrate: (persisted: unknown) => {
+        // v1 → v2: 기존 내 글에 tags 필드 보강
+        const state = persisted as CommunityState;
+        return {
+          ...state,
+          myPosts: (state.myPosts ?? []).map((p) => ({ ...p, tags: p.tags ?? [] })),
+        };
+      },
+    },
   ),
 );

@@ -81,7 +81,7 @@ export function DemoPanel() {
         <div>
           <h1 className="text-lg font-extrabold leading-tight">TokTown 데모</h1>
           <p className="text-[12px] text-town-inkSoft">
-            평가용 컨트롤 패널 · M3 빌드 · 가상 {virtualToday(dayOffset)} (D+{dayOffset})
+            평가용 컨트롤 패널 · M4 빌드 · 가상 {virtualToday(dayOffset)} (D+{dayOffset})
           </p>
         </div>
       </div>
@@ -222,9 +222,16 @@ export function DemoPanel() {
         <br />
         4. <b>명동성당</b>으로 이동 → 까치 조우 → 도감 등록
         <br />
-        5. 내 마을 → 미성옥 건물 + 까치 배치 → 상점 구매
+        5. 내 마을(걷는 월드) → 드래그/WASD 로 산책 → 🎒 보관함에서
+        미성옥 건물·까미 배치 → 부엉 촌장에게 <b>말 걸기</b>
         <br />
-        6. 커뮤니티 <b>번역 보기</b> → 🎪 Event Map → 한정 혜택
+        6. 커뮤니티 검색·<b>#태그 필터</b>·번역 보기 → 🎪 Event Map → 한정 혜택
+      </div>
+      <div className="rounded-2xl border border-town-line bg-town-paper/70 p-3 text-[12px] leading-relaxed text-town-inkSoft">
+        <p className="mb-1 font-bold text-town-ink">🏘️ 내 마을 조작</p>
+        화면 <b>드래그(조이스틱)</b> 또는 <b>방향키/WASD</b>로 이동 · 뒤쪽 숲과
+        앞쪽 바다는 경계 · 주민에게 다가가 <b>말 걸기</b> · 마을 풍성도가 오르면
+        동물 주민이 하나씩 입주해요
       </div>
     </aside>
   );

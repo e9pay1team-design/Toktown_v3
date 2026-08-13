@@ -1,0 +1,1206 @@
+// ─── 내 마을 캔버스 드로잉 (V1 프로토타입 이식) ───────────────────
+// 모든 픽셀을 코드로 그린다 — 이미지 에셋 0장. 지형/파도, 템플릿 건물
+// (색·간판만 다른 기본형), 랜드마크 4종 커스텀, 소품, 동물 캐릭터
+// (귀 모양·헤어), 말풍선, 나비/갈매기 등 생동감 요소.
+
+import { TW, TH, toScreen, vtileHash, VT, type VTerrainId } from './villageWorld';
+import type { StoreCategory } from '../types';
+
+export const VPALETTE = {
+  grass: '#8ed071',
+  grassAlt: '#84c766',
+  grassDark: '#77bd5c',
+  grassBlade: '#6fae52',
+  sand: '#f2e2b6',
+  sandAlt: '#e9d6a5',
+  sandDot: '#dcc68f',
+  path: '#f0e7d6',
+  pathAlt: '#e6dbc5',
+  pathJoint: '#d8cbb1',
+  water: '#5bbfe3',
+  waterDeep: '#3f9fc8',
+  waterLight: '#8ad6ef',
+  foam: '#e8f9ff',
+  trunk: '#a9724a',
+  trunkDark: '#8b5a37',
+  leaf: '#57ab5c',
+  leafDark: '#3f8c48',
+  leafLight: '#74c274',
+  pine: '#3f8f62',
+  pineDark: '#2f7550',
+  rock: '#b9bec7',
+  rockDark: '#98a0ab',
+  ink: '#4a3b32',
+  paper: '#fffdf7',
+} as const;
+
+const UI_FONT =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif';
+
+export function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const rr = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function ellipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number): void {
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+}
+
+function shadow(ctx: CanvasRenderingContext2D, sx: number, sy: number, rx: number, alpha = 0.16): void {
+  ctx.fillStyle = `rgba(40,50,35,${alpha})`;
+  ellipse(ctx, sx, sy, rx, rx * 0.45);
+  ctx.fill();
+}
+
+/** 타일 다이아몬드 경로 */
+export function vTilePath(ctx: CanvasRenderingContext2D, x: number, y: number, grow = 0.6): void {
+  const { sx, sy } = toScreen(x, y);
+  const hw = TW / 2 + grow;
+  const hh = TH / 2 + grow;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - hh);
+  ctx.lineTo(sx + hw, sy);
+  ctx.lineTo(sx, sy + hh);
+  ctx.lineTo(sx - hw, sy);
+  ctx.closePath();
+}
+
+/** (x0,y0)-(x1,y1) 사각 풋프린트를 덮는 다이아몬드 경로 */
+export function vFootprintPath(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  lift = 0,
+): void {
+  const a = toScreen(x0, y0);
+  const b = toScreen(x1, y0);
+  const c = toScreen(x1, y1);
+  const d = toScreen(x0, y1);
+  ctx.beginPath();
+  ctx.moveTo(a.sx, a.sy - lift);
+  ctx.lineTo(b.sx, b.sy - lift);
+  ctx.lineTo(c.sx, c.sy - lift);
+  ctx.lineTo(d.sx, d.sy - lift);
+  ctx.closePath();
+}
+
+// ---------------------------------------------------------------- 지형
+
+export function drawVTile(
+  ctx: CanvasRenderingContext2D,
+  tx: number,
+  ty: number,
+  t: VTerrainId,
+  time: number,
+): void {
+  const cx = tx + 0.5;
+  const cy = ty + 0.5;
+  const h = vtileHash(tx, ty);
+
+  if (t === VT.Water) {
+    // 겹치는 두 물결 + 타일 해시 오프셋 — 잔잔히 파도치는 바다.
+    const wave =
+      Math.sin(time * 1.2 + (tx + ty) * 0.42 + h * 1.6) +
+      0.6 * Math.sin(time * 0.72 - (tx - ty) * 0.31);
+    vTilePath(ctx, cx, cy);
+    ctx.fillStyle =
+      wave > 0.6 ? VPALETTE.waterLight : wave > -0.2 ? VPALETTE.water : VPALETTE.waterDeep;
+    ctx.fill();
+    if (wave > 1.15) {
+      const { sx, sy } = toScreen(cx, cy);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ellipse(ctx, sx, sy, TW * 0.2, TH * 0.14);
+      ctx.fill();
+    }
+    return;
+  }
+
+  vTilePath(ctx, cx, cy);
+  if (t === VT.Sand) ctx.fillStyle = h > 0.5 ? VPALETTE.sand : VPALETTE.sandAlt;
+  else if (t === VT.Path) ctx.fillStyle = h > 0.5 ? VPALETTE.path : VPALETTE.pathAlt;
+  else if (t === VT.GrassDark) ctx.fillStyle = VPALETTE.grassDark;
+  else ctx.fillStyle = h > 0.5 ? VPALETTE.grass : VPALETTE.grassAlt;
+  ctx.fill();
+
+  const { sx, sy } = toScreen(cx, cy);
+  if (t === VT.Path) {
+    ctx.strokeStyle = VPALETTE.pathJoint;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - TH * 0.34);
+    ctx.lineTo(sx + TW * 0.34, sy);
+    ctx.lineTo(sx, sy + TH * 0.34);
+    ctx.lineTo(sx - TW * 0.34, sy);
+    ctx.closePath();
+    ctx.stroke();
+  } else if (t === VT.Sand) {
+    if (h > 0.72) {
+      ctx.fillStyle = VPALETTE.sandDot;
+      ctx.fillRect(sx - 5 + h * 8, sy - 1, 2, 2);
+      ctx.fillRect(sx + 2 - h * 5, sy + 3, 2, 2);
+    }
+  } else if (h > 0.66) {
+    ctx.strokeStyle = VPALETTE.grassBlade;
+    ctx.lineWidth = 1.4;
+    const bx = sx - 8 + h * 16;
+    ctx.beginPath();
+    ctx.moveTo(bx, sy + 3);
+    ctx.lineTo(bx - 1.5, sy - 2);
+    ctx.moveTo(bx + 4, sy + 4);
+    ctx.lineTo(bx + 5, sy - 1);
+    ctx.stroke();
+  }
+}
+
+export function drawVFoam(ctx: CanvasRenderingContext2D, tx: number, ty: number, time: number): void {
+  const cx = tx + 0.5;
+  const cy = ty + 0.5;
+  const pulse = (Math.sin(time * 1.9 + (tx - ty) * 0.7) + 1) / 2;
+  ctx.globalAlpha = 0.12 + pulse * 0.26;
+  vTilePath(ctx, cx, cy, -2 - pulse * 4);
+  ctx.strokeStyle = VPALETTE.foam;
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+// ---------------------------------------------------------------- 건물
+
+/** 벽/지붕/포인트 — 템플릿 건물이 갈아입는 3색 */
+export interface VBuildingSkin {
+  wall: string;
+  wallShade: string;
+  roof: string;
+  roofShade: string;
+  accent: string;
+}
+
+export const CATEGORY_SKINS: Record<StoreCategory, VBuildingSkin> = {
+  국밥: { wall: '#fff3e4', wallShade: '#f2dcc4', roof: '#ef7f6d', roofShade: '#d2604f', accent: '#c2503f' },
+  한식: { wall: '#fbeee7', wallShade: '#ecd9cd', roof: '#c1705a', roofShade: '#a05744', accent: '#834536' },
+  면: { wall: '#fff6e0', wallShade: '#f0e3c2', roof: '#f0b455', roofShade: '#cf9137', accent: '#a9722a' },
+  카페: { wall: '#eefaf4', wallShade: '#d5eae1', roof: '#4fb9a8', roofShade: '#369486', accent: '#2b7d70' },
+  공연장: { wall: '#f6f2ff', wallShade: '#e2daf5', roof: '#a596e0', roofShade: '#8375c4', accent: '#6a5cab' },
+};
+
+export const CATEGORY_EMOJI: Record<StoreCategory, string> = {
+  국밥: '🍲',
+  한식: '🍚',
+  면: '🍜',
+  카페: '☕',
+  공연장: '🥁',
+};
+
+const WALL_H = 46;
+const ROOF_T = 9;
+const OVERHANG = 0.15;
+
+type Pt = { sx: number; sy: number };
+
+function facePoint(p0: Pt, p1: Pt, u: number, v: number): { x: number; y: number } {
+  return { x: p0.sx + (p1.sx - p0.sx) * u, y: p0.sy + (p1.sy - p0.sy) * u - v };
+}
+
+function faceQuad(
+  ctx: CanvasRenderingContext2D,
+  p0: Pt,
+  p1: Pt,
+  u0: number,
+  u1: number,
+  v0: number,
+  v1: number,
+): void {
+  const a = facePoint(p0, p1, u0, v0);
+  const b = facePoint(p0, p1, u1, v0);
+  const c = facePoint(p0, p1, u1, v1);
+  const d = facePoint(p0, p1, u0, v1);
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.lineTo(d.x, d.y);
+  ctx.closePath();
+}
+
+export interface VBuildingOpts {
+  /** 0..1 — 가까이 갈수록 이름표가 또렷해진다 */
+  focus: number;
+  label: string;
+  emoji: string;
+  time: number;
+}
+
+/**
+ * 기본 템플릿 건물 — 랜드마크를 제외한 모든 건물이 이 한 벌을 쓰고,
+ * 카테고리 색(skin)과 간판 이름만 바꿔 입는다 (기획 요구).
+ */
+export function drawTemplateBuilding(
+  ctx: CanvasRenderingContext2D,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+  s: VBuildingSkin,
+  opts: VBuildingOpts,
+): void {
+  const x0 = bx;
+  const y0 = by;
+  const x1 = bx + bw;
+  const y1 = by + bh;
+  const B = toScreen(x1, y0);
+  const C = toScreen(x1, y1);
+  const D = toScreen(x0, y1);
+
+  // 바닥 그림자.
+  ctx.save();
+  ctx.translate(3, 4);
+  vFootprintPath(ctx, x0, y0, x1, y1);
+  ctx.fillStyle = 'rgba(40,50,35,0.18)';
+  ctx.fill();
+  ctx.restore();
+
+  // 왼쪽(+y) 벽이 빛을 더 받는다.
+  faceQuad(ctx, D, C, 0, 1, 0, WALL_H);
+  ctx.fillStyle = s.wall;
+  ctx.fill();
+  faceQuad(ctx, C, B, 0, 1, 0, WALL_H);
+  ctx.fillStyle = s.wallShade;
+  ctx.fill();
+
+  // 문 (왼쪽 벽 중앙).
+  const dw = Math.min(0.44, 1.05 / bw);
+  faceQuad(ctx, D, C, 0.5 - dw / 2, 0.5 + dw / 2, 0, 31);
+  ctx.fillStyle = s.accent;
+  ctx.fill();
+  faceQuad(ctx, D, C, 0.5 - dw / 2 + 0.035, 0.5 + dw / 2 - 0.035, 3, 28);
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fill();
+
+  // 문 위 어닝 줄무늬.
+  const stripes = 4;
+  for (let i = 0; i < stripes; i++) {
+    const u0 = 0.5 - dw / 2 - 0.05 + (i * (dw + 0.1)) / stripes;
+    const u1 = u0 + (dw + 0.1) / stripes;
+    faceQuad(ctx, D, C, u0, u1, 33, 41);
+    ctx.fillStyle = i % 2 === 0 ? s.roof : VPALETTE.paper;
+    ctx.fill();
+  }
+
+  // 오른쪽 벽 창문.
+  for (let i = 0; i < Math.max(1, bh - 1); i++) {
+    const u0 = 0.24 + i * 0.36;
+    faceQuad(ctx, C, B, u0, u0 + 0.22, 15, 33);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fill();
+    faceQuad(ctx, C, B, u0, u0 + 0.22, 15, 33);
+    ctx.strokeStyle = s.accent;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // 지붕 슬래브.
+  const rx0 = x0 - OVERHANG;
+  const ry0 = y0 - OVERHANG;
+  const rx1 = x1 + OVERHANG;
+  const ry1 = y1 + OVERHANG;
+  const RB = toScreen(rx1, ry0);
+  const RC = toScreen(rx1, ry1);
+  const RD = toScreen(rx0, ry1);
+  faceQuad(ctx, RD, RC, 0, 1, WALL_H, WALL_H + ROOF_T);
+  ctx.fillStyle = s.roofShade;
+  ctx.fill();
+  faceQuad(ctx, RC, RB, 0, 1, WALL_H, WALL_H + ROOF_T);
+  ctx.fillStyle = s.roofShade;
+  ctx.fill();
+  vFootprintPath(ctx, rx0, ry0, rx1, ry1, WALL_H + ROOF_T);
+  ctx.fillStyle = s.roof;
+  ctx.fill();
+  const mid0 = toScreen((rx0 + rx1) / 2, ry0);
+  const mid1 = toScreen((rx0 + rx1) / 2, ry1);
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(mid0.sx, mid0.sy - WALL_H - ROOF_T);
+  ctx.lineTo(mid1.sx, mid1.sy - WALL_H - ROOF_T);
+  ctx.stroke();
+
+  // 문 옆 이모지 간판.
+  const signAnchor = facePoint(D, C, 0.5 + dw / 2 + 0.13, 27);
+  ctx.strokeStyle = s.accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(signAnchor.x, signAnchor.y - 6);
+  ctx.lineTo(signAnchor.x, signAnchor.y - 13);
+  ctx.stroke();
+  ctx.fillStyle = VPALETTE.paper;
+  roundRect(ctx, signAnchor.x - 10, signAnchor.y - 6, 20, 19, 5);
+  ctx.fill();
+  ctx.strokeStyle = s.accent;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.font = `11px ${UI_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(opts.emoji, signAnchor.x, signAnchor.y + 4);
+
+  // 떠 있는 이름표.
+  const top = toScreen((x0 + x1) / 2, (y0 + y1) / 2);
+  const plateY = top.sy - WALL_H - ROOF_T - 24 + Math.sin(opts.time * 1.6) * 1.5;
+  drawVNameplate(ctx, top.sx, plateY, opts.label, {
+    alpha: 0.45 + opts.focus * 0.55,
+    accent: s.accent,
+    scale: 1 + opts.focus * 0.08,
+  });
+}
+
+export function drawVNameplate(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  text: string,
+  opts: { alpha: number; accent: string; scale?: number },
+): void {
+  const scale = opts.scale ?? 1;
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha = opts.alpha;
+  ctx.font = `700 12px ${UI_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const w = ctx.measureText(text).width + 18;
+  ctx.fillStyle = 'rgba(255,253,247,0.94)';
+  roundRect(ctx, -w / 2, -11, w, 22, 11);
+  ctx.fill();
+  ctx.strokeStyle = opts.accent;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-4, 10);
+  ctx.lineTo(4, 10);
+  ctx.lineTo(0, 16);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,253,247,0.94)';
+  ctx.fill();
+  ctx.fillStyle = VPALETTE.ink;
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- 랜드마크
+
+/**
+ * 랜드마크 미니어처 — 템플릿을 쓰지 않는 유일한 건물들 (기획 요구).
+ * 전부 2×2 풋프린트, 실물의 실루엣만 남긴 미니어처.
+ */
+export function drawVLandmark(
+  ctx: CanvasRenderingContext2D,
+  id: string,
+  bx: number,
+  by: number,
+  opts: { focus: number; label: string; time: number },
+): void {
+  const x0 = bx;
+  const y0 = by;
+  const x1 = bx + 2;
+  const y1 = by + 2;
+  const B = toScreen(x1, y0);
+  const C = toScreen(x1, y1);
+  const D = toScreen(x0, y1);
+  const top = toScreen(bx + 1, by + 1);
+
+  ctx.save();
+  ctx.translate(3, 4);
+  vFootprintPath(ctx, x0, y0, x1, y1);
+  ctx.fillStyle = 'rgba(40,50,35,0.18)';
+  ctx.fill();
+  ctx.restore();
+
+  let accent = '#8a8f98';
+
+  if (id === 'cathedral') {
+    accent = '#9a8f85';
+    // 몸체 (석조).
+    faceQuad(ctx, D, C, 0, 1, 0, 40);
+    ctx.fillStyle = '#f4efe8';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0, 1, 0, 40);
+    ctx.fillStyle = '#ded5c9';
+    ctx.fill();
+    // 아치 문 + 장미창.
+    faceQuad(ctx, D, C, 0.38, 0.62, 0, 22);
+    ctx.fillStyle = '#8a7a6b';
+    ctx.fill();
+    const rose = facePoint(D, C, 0.5, 31);
+    ctx.fillStyle = '#b9d7ea';
+    ellipse(ctx, rose.x, rose.y, 5, 5);
+    ctx.fill();
+    ctx.strokeStyle = '#8a7a6b';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // 박공 지붕.
+    vFootprintPath(ctx, x0 - 0.1, y0 - 0.1, x1 + 0.1, y1 + 0.1, 40);
+    ctx.fillStyle = '#8f9aa5';
+    ctx.fill();
+    // 첨탑 + 십자가.
+    ctx.fillStyle = '#f4efe8';
+    ctx.fillRect(top.sx - 6, top.sy - 78, 12, 40);
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 8, top.sy - 78);
+    ctx.lineTo(top.sx, top.sy - 96);
+    ctx.lineTo(top.sx + 8, top.sy - 78);
+    ctx.closePath();
+    ctx.fillStyle = '#7d8894';
+    ctx.fill();
+    ctx.strokeStyle = '#a89a5b';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(top.sx, top.sy - 96);
+    ctx.lineTo(top.sx, top.sy - 106);
+    ctx.moveTo(top.sx - 4, top.sy - 102);
+    ctx.lineTo(top.sx + 4, top.sy - 102);
+    ctx.stroke();
+  } else if (id === 'namsan') {
+    accent = '#5f9037';
+    // 언덕.
+    vFootprintPath(ctx, x0, y0, x1, y1);
+    ctx.fillStyle = VPALETTE.leafDark;
+    ctx.fill();
+    ellipse(ctx, top.sx, top.sy - 10, TW * 0.8, TH * 0.85);
+    ctx.fillStyle = VPALETTE.leaf;
+    ctx.fill();
+    ellipse(ctx, top.sx - 14, top.sy - 4, 12, 7);
+    ctx.fillStyle = VPALETTE.leafLight;
+    ctx.fill();
+    // 타워 기둥 + 전망대.
+    ctx.fillStyle = '#e8e4dc';
+    ctx.fillRect(top.sx - 3.5, top.sy - 74, 7, 56);
+    ctx.fillStyle = '#d2ccc0';
+    ctx.fillRect(top.sx - 1, top.sy - 74, 4.5, 56);
+    ctx.fillStyle = '#4fb9a8';
+    roundRect(ctx, top.sx - 13, top.sy - 88, 26, 15, 7);
+    ctx.fill();
+    ctx.strokeStyle = '#369486';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(top.sx - 9, top.sy - 84, 18, 4);
+    // 안테나.
+    ctx.strokeStyle = '#c2503f';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(top.sx, top.sy - 88);
+    ctx.lineTo(top.sx, top.sy - 102);
+    ctx.stroke();
+    ctx.fillStyle = '#f2705e';
+    ellipse(ctx, top.sx, top.sy - 103, 2.5, 2.5);
+    ctx.fill();
+  } else if (id === 'cheonggyecheon') {
+    accent = '#4489bb';
+    // 개울 수면 (낮은 랜드마크).
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#7ccbe8';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.18, y0 + 0.18, x1 - 0.18, y1 - 0.18, 3);
+    ctx.fillStyle = VPALETTE.water;
+    ctx.fill();
+    // 물결.
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 3; i++) {
+      const ph = opts.time * 2 + i * 2.1;
+      const ox = Math.sin(ph) * 4;
+      ctx.beginPath();
+      ctx.moveTo(top.sx - 14 + ox + i * 8, top.sy - 4 + i * 4);
+      ctx.quadraticCurveTo(top.sx - 8 + ox + i * 8, top.sy - 7 + i * 4, top.sx - 2 + ox + i * 8, top.sy - 4 + i * 4);
+      ctx.stroke();
+    }
+    // 돌다리.
+    const b0 = toScreen(bx + 0.2, by + 1);
+    const b1 = toScreen(bx + 1.8, by + 1);
+    ctx.strokeStyle = '#c9bda3';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(b0.sx, b0.sy - 8);
+    ctx.quadraticCurveTo(top.sx, top.sy - 22, b1.sx, b1.sy - 8);
+    ctx.stroke();
+    ctx.strokeStyle = '#a99b7d';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(b0.sx, b0.sy - 5);
+    ctx.quadraticCurveTo(top.sx, top.sy - 19, b1.sx, b1.sy - 5);
+    ctx.stroke();
+    // 갈대.
+    for (const [ox, oy] of [
+      [-26, 4],
+      [24, 7],
+      [30, -2],
+    ] as const) {
+      const swy = Math.sin(opts.time * 1.6 + ox) * 1.5;
+      ctx.strokeStyle = VPALETTE.grassBlade;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(top.sx + ox, top.sy + oy);
+      ctx.lineTo(top.sx + ox + swy, top.sy + oy - 12);
+      ctx.stroke();
+      ctx.fillStyle = '#c9a86b';
+      ellipse(ctx, top.sx + ox + swy, top.sy + oy - 14, 2, 4);
+      ctx.fill();
+    }
+  } else {
+    // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
+    accent = '#8d4f3f';
+    faceQuad(ctx, D, C, 0, 1, 0, 24);
+    ctx.fillStyle = '#e8e0d2';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0, 1, 0, 24);
+    ctx.fillStyle = '#d5cbb8';
+    ctx.fill();
+    // 홍예문 (아치).
+    const arch = facePoint(D, C, 0.5, 0);
+    ctx.fillStyle = '#6b5d4e';
+    ctx.beginPath();
+    ctx.ellipse(arch.x, arch.y - 8, 8, 11, 0, Math.PI, 0);
+    ctx.rect(arch.x - 8, arch.y - 8, 16, 8);
+    ctx.fill();
+    // 누각 벽 (붉은 기둥).
+    faceQuad(ctx, D, C, 0.12, 0.88, 24, 42);
+    ctx.fillStyle = '#b8574a';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0.12, 0.88, 24, 42);
+    ctx.fillStyle = '#9c4438';
+    ctx.fill();
+    for (const u of [0.2, 0.5, 0.8]) {
+      faceQuad(ctx, D, C, u - 0.03, u + 0.03, 24, 42);
+      ctx.fillStyle = '#7d3025';
+      ctx.fill();
+    }
+    // 1단 지붕.
+    vFootprintPath(ctx, x0 - 0.22, y0 - 0.22, x1 + 0.22, y1 + 0.22, 46);
+    ctx.fillStyle = '#4e5a66';
+    ctx.fill();
+    vFootprintPath(ctx, x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05, 50);
+    ctx.fillStyle = '#5d6b78';
+    ctx.fill();
+    // 2단 지붕.
+    vFootprintPath(ctx, x0 + 0.28, y0 + 0.28, x1 - 0.28, y1 - 0.28, 62);
+    ctx.fillStyle = '#4e5a66';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 14, top.sy - 63);
+    ctx.lineTo(top.sx + 14, top.sy - 63);
+    ctx.stroke();
+  }
+
+  const plateY = top.sy - 96 - 14 + Math.sin(opts.time * 1.6) * 1.5;
+  drawVNameplate(ctx, top.sx, id === 'cheonggyecheon' ? top.sy - 46 : plateY, opts.label, {
+    alpha: 0.45 + opts.focus * 0.55,
+    accent,
+    scale: 1 + opts.focus * 0.08,
+  });
+}
+
+// ---------------------------------------------------------------- 소품
+
+const FLOWER_COLORS = ['#f2698c', '#ffd166', '#ffffff', '#c79bf0', '#ff9a6b'];
+
+/** 고정 소품 + 상점 소품 겸용. decor id 는 DECOR_ITEMS(id)와 일치. */
+export interface VDrawableProp {
+  type: string;
+  x: number;
+  y: number;
+  v: number;
+}
+
+export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time: number): void {
+  const { sx, sy } = toScreen(p.x, p.y);
+  switch (p.type) {
+    case 'tree':
+    case 'maple': {
+      const maple = p.type === 'maple';
+      const scale = 0.85 + p.v * 0.3;
+      const sway = Math.sin(time * 1.1 + p.v * 9) * 2;
+      shadow(ctx, sx, sy + 2, 15 * scale);
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.beginPath();
+      ctx.moveTo(sx - 4 * scale, sy);
+      ctx.lineTo(sx + 4 * scale, sy);
+      ctx.lineTo(sx + 2.5 * scale, sy - 26 * scale);
+      ctx.lineTo(sx - 2.5 * scale, sy - 26 * scale);
+      ctx.closePath();
+      ctx.fill();
+      const cy = sy - 34 * scale;
+      ctx.fillStyle = maple ? '#c2503f' : VPALETTE.leafDark;
+      ellipse(ctx, sx + sway, cy + 4 * scale, 20 * scale, 16 * scale);
+      ctx.fill();
+      ctx.fillStyle = maple ? '#e0684f' : VPALETTE.leaf;
+      ellipse(ctx, sx - 7 * scale + sway, cy, 14 * scale, 12 * scale);
+      ctx.fill();
+      ellipse(ctx, sx + 8 * scale + sway, cy + 1 * scale, 13 * scale, 11 * scale);
+      ctx.fill();
+      ctx.fillStyle = maple ? '#f0885f' : VPALETTE.leafLight;
+      ellipse(ctx, sx - 2 * scale + sway, cy - 8 * scale, 12 * scale, 9 * scale);
+      ctx.fill();
+      if (!maple && p.v > 0.68) {
+        ctx.fillStyle = '#f2685f';
+        ellipse(ctx, sx + 11 * scale + sway, cy + 8 * scale, 3.2, 3.2);
+        ctx.fill();
+        ellipse(ctx, sx - 10 * scale + sway, cy + 5 * scale, 3.2, 3.2);
+        ctx.fill();
+      }
+      return;
+    }
+    case 'pine': {
+      const scale = 0.85 + p.v * 0.35;
+      const sway = Math.sin(time * 0.9 + p.v * 7) * 1.4;
+      shadow(ctx, sx, sy + 2, 12 * scale);
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.fillRect(sx - 3 * scale, sy - 14 * scale, 6 * scale, 14 * scale);
+      for (let i = 0; i < 3; i++) {
+        const w = (20 - i * 4.5) * scale;
+        const yb = sy - 12 * scale - i * 13 * scale;
+        ctx.fillStyle = i === 2 ? VPALETTE.pine : VPALETTE.pineDark;
+        ctx.beginPath();
+        ctx.moveTo(sx + sway * (i * 0.4), yb - 20 * scale);
+        ctx.lineTo(sx + w, yb);
+        ctx.lineTo(sx - w, yb);
+        ctx.closePath();
+        ctx.fill();
+      }
+      return;
+    }
+    case 'bush': {
+      const scale = 0.8 + p.v * 0.4;
+      shadow(ctx, sx, sy + 1, 12 * scale);
+      ctx.fillStyle = VPALETTE.leafDark;
+      ellipse(ctx, sx, sy - 5 * scale, 14 * scale, 10 * scale);
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.leaf;
+      ellipse(ctx, sx - 4 * scale, sy - 9 * scale, 9 * scale, 7 * scale);
+      ctx.fill();
+      ellipse(ctx, sx + 5 * scale, sy - 8 * scale, 8 * scale, 6 * scale);
+      ctx.fill();
+      return;
+    }
+    case 'flower': {
+      const color = FLOWER_COLORS[Math.floor(p.v * FLOWER_COLORS.length) % FLOWER_COLORS.length];
+      const n = 1 + Math.floor(p.v * 3);
+      for (let i = 0; i < n; i++) {
+        const ox = (i - (n - 1) / 2) * 11;
+        const oy = ((i % 2) - 0.5) * 6;
+        const bob = Math.sin(time * 2 + p.v * 8 + i) * 0.8;
+        ctx.strokeStyle = VPALETTE.grassBlade;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(sx + ox, sy + oy);
+        ctx.lineTo(sx + ox + bob, sy + oy - 8);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2;
+          ellipse(ctx, sx + ox + bob + Math.cos(a) * 3, sy + oy - 9 + Math.sin(a) * 3, 2.6, 2.6);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#ffe680';
+        ellipse(ctx, sx + ox + bob, sy + oy - 9, 1.8, 1.8);
+        ctx.fill();
+      }
+      return;
+    }
+    case 'rock': {
+      const scale = 0.8 + p.v * 0.5;
+      shadow(ctx, sx, sy + 1, 11 * scale);
+      ctx.fillStyle = VPALETTE.rockDark;
+      ctx.beginPath();
+      ctx.moveTo(sx - 12 * scale, sy);
+      ctx.lineTo(sx - 7 * scale, sy - 11 * scale);
+      ctx.lineTo(sx + 4 * scale, sy - 13 * scale);
+      ctx.lineTo(sx + 12 * scale, sy - 3 * scale);
+      ctx.lineTo(sx + 6 * scale, sy + 2 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.rock;
+      ctx.beginPath();
+      ctx.moveTo(sx - 7 * scale, sy - 11 * scale);
+      ctx.lineTo(sx + 4 * scale, sy - 13 * scale);
+      ctx.lineTo(sx + 2 * scale, sy - 6 * scale);
+      ctx.lineTo(sx - 5 * scale, sy - 5 * scale);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+    case 'lamp': {
+      shadow(ctx, sx, sy, 8);
+      ctx.fillStyle = '#6b7280';
+      ctx.fillRect(sx - 2.5, sy - 46, 5, 46);
+      ctx.fillStyle = '#4b5563';
+      ellipse(ctx, sx, sy, 8, 3.5);
+      ctx.fill();
+      ctx.fillStyle = '#fff3c4';
+      roundRect(ctx, sx - 8, sy - 58, 16, 14, 5);
+      ctx.fill();
+      ctx.strokeStyle = '#4b5563';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      return;
+    }
+    case 'bench': {
+      shadow(ctx, sx, sy + 1, 18);
+      ctx.fillStyle = VPALETTE.trunk;
+      ctx.beginPath();
+      ctx.moveTo(sx - 20, sy - 8);
+      ctx.lineTo(sx, sy - 18);
+      ctx.lineTo(sx + 20, sy - 8);
+      ctx.lineTo(sx, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.beginPath();
+      ctx.moveTo(sx - 20, sy - 8);
+      ctx.lineTo(sx, sy + 2);
+      ctx.lineTo(sx, sy + 6);
+      ctx.lineTo(sx - 20, sy - 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.trunk;
+      ctx.fillRect(sx - 2, sy - 30, 4, 14);
+      ctx.beginPath();
+      ctx.moveTo(sx - 18, sy - 26);
+      ctx.lineTo(sx + 2, sy - 34);
+      ctx.lineTo(sx + 2, sy - 28);
+      ctx.lineTo(sx - 18, sy - 20);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+    case 'fountain': {
+      shadow(ctx, sx, sy + 2, 22, 0.14);
+      vTilePath(ctx, p.x, p.y, 2);
+      ctx.fillStyle = '#e3dac6';
+      ctx.fill();
+      ctx.strokeStyle = '#cbbfa5';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      vTilePath(ctx, p.x, p.y, -6);
+      ctx.fillStyle = VPALETTE.water;
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      const r = 4 + Math.sin(time * 3) * 1.5;
+      ellipse(ctx, sx, sy - 3, r * 2, r * 0.9);
+      ctx.fill();
+      ctx.fillStyle = '#cbbfa5';
+      ctx.fillRect(sx - 2.5, sy - 26, 5, 20);
+      ctx.fillStyle = '#e3dac6';
+      ellipse(ctx, sx, sy - 26, 9, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.8;
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + time * 0.6;
+        const t = (Math.sin(time * 3 + i) + 1) / 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 29);
+        ctx.quadraticCurveTo(
+          sx + Math.cos(a) * 8,
+          sy - 36 - t * 3,
+          sx + Math.cos(a) * 15,
+          sy - 12 + Math.abs(Math.sin(a)) * 4,
+        );
+        ctx.stroke();
+      }
+      return;
+    }
+    case 'mailbox': {
+      shadow(ctx, sx, sy, 8);
+      ctx.fillStyle = '#8b5a37';
+      ctx.fillRect(sx - 2.5, sy - 22, 5, 22);
+      ctx.fillStyle = '#e2554a';
+      roundRect(ctx, sx - 9, sy - 42, 18, 22, 7);
+      ctx.fill();
+      ctx.fillStyle = '#c23f36';
+      roundRect(ctx, sx - 9, sy - 42, 18, 8, 7);
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.paper;
+      roundRect(ctx, sx - 5, sy - 34, 10, 3.5, 1.5);
+      ctx.fill();
+      return;
+    }
+    case 'nanta-drum': {
+      shadow(ctx, sx, sy + 1, 13);
+      // 드럼통 화분.
+      ctx.fillStyle = '#c9a227';
+      roundRect(ctx, sx - 12, sy - 22, 24, 22, 4);
+      ctx.fill();
+      ctx.fillStyle = '#a9861f';
+      ctx.fillRect(sx - 12, sy - 15, 24, 3);
+      ctx.fillRect(sx - 12, sy - 7, 24, 3);
+      ellipse(ctx, sx, sy - 22, 12, 5);
+      ctx.fillStyle = '#e8d9b0';
+      ctx.fill();
+      ctx.strokeStyle = '#a9861f';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // 드럼스틱 + 꽃.
+      ctx.strokeStyle = '#8b5a37';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(sx - 7, sy - 24);
+      ctx.lineTo(sx - 14, sy - 36);
+      ctx.moveTo(sx + 7, sy - 24);
+      ctx.lineTo(sx + 14, sy - 36);
+      ctx.stroke();
+      const bob = Math.sin(time * 2 + p.v * 5) * 1;
+      ctx.fillStyle = '#f2698c';
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2;
+        ellipse(ctx, sx + bob + Math.cos(a) * 3.4, sy - 32 + Math.sin(a) * 3.4, 2.6, 2.6);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#ffe680';
+      ellipse(ctx, sx + bob, sy - 32, 2, 2);
+      ctx.fill();
+      return;
+    }
+  }
+}
+
+// ---------------------------------------------------------------- 캐릭터
+
+export type VFacing = 'n' | 's' | 'e' | 'w';
+
+export interface VCharSkin {
+  body: string;
+  bodyDark: string;
+  fur: string;
+  furDark: string;
+  hair?: string;
+  /** 0 단발 · 1 숏컷 · 2 긴머리 · 3 번헤어 (플레이어 전용) */
+  hairStyle?: number;
+  ear?: 'cat' | 'dog' | 'bear' | 'rabbit' | 'bird' | 'owl' | 'none';
+}
+
+export interface VCharOpts {
+  facing: VFacing;
+  /** 걷기 사이클 누적 라디안 — 정지 시 0 */
+  phase: number;
+  moving: boolean;
+  skin: VCharSkin;
+  scale?: number;
+}
+
+export function drawVCharacter(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  o: VCharOpts,
+): void {
+  const { sx, sy } = toScreen(x, y);
+  const s = o.scale ?? 1;
+  const swing = o.moving ? Math.sin(o.phase) : 0;
+  const bob = o.moving ? Math.abs(Math.sin(o.phase)) * 2.2 : 0;
+  const back = o.facing === 'n';
+  const flip = o.facing === 'w' ? -1 : 1;
+
+  shadow(ctx, sx, sy, 13 * s, 0.2);
+
+  ctx.save();
+  ctx.translate(sx, sy - bob);
+  ctx.scale(s * flip, s);
+
+  // 다리
+  ctx.fillStyle = o.skin.bodyDark;
+  roundRect(ctx, -8 + swing * 3, -12, 7, 13, 3);
+  ctx.fill();
+  roundRect(ctx, 1 - swing * 3, -12, 7, 13, 3);
+  ctx.fill();
+
+  // 몸통
+  ctx.fillStyle = o.skin.body;
+  roundRect(ctx, -11, -30, 22, 21, 9);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  roundRect(ctx, -8, -28, 7, 16, 4);
+  ctx.fill();
+
+  // 팔
+  ctx.fillStyle = o.skin.fur;
+  roundRect(ctx, -15, -28 - swing * 3, 6, 15, 3);
+  ctx.fill();
+  roundRect(ctx, 9, -28 + swing * 3, 6, 15, 3);
+  ctx.fill();
+
+  // 귀 — 머리(중심 -42, 반경 14×13) 위로 나와야 보인다.
+  const ear = o.skin.ear ?? 'none';
+  ctx.fillStyle = o.skin.furDark;
+  if (ear === 'cat') {
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 13, -47);
+      ctx.lineTo(side * 7, -64);
+      ctx.lineTo(side * 1, -45);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(244,150,165,0.6)';
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 10.5, -49);
+      ctx.lineTo(side * 7, -59);
+      ctx.lineTo(side * 4, -48);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (ear === 'dog') {
+    for (const side of [-1, 1]) {
+      ellipse(ctx, side * 14, -45, 5.5, 10.5);
+      ctx.fill();
+    }
+  } else if (ear === 'bear') {
+    for (const side of [-1, 1]) {
+      ellipse(ctx, side * 10.5, -53, 6.5, 6.5);
+      ctx.fill();
+    }
+  } else if (ear === 'rabbit') {
+    for (const side of [-1, 1]) {
+      ellipse(ctx, side * 7, -63, 4.5, 13);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(244,150,165,0.55)';
+    for (const side of [-1, 1]) {
+      ellipse(ctx, side * 7, -64, 2.2, 9);
+      ctx.fill();
+    }
+  } else if (ear === 'bird') {
+    ctx.beginPath();
+    ctx.moveTo(-4, -52);
+    ctx.lineTo(1, -64);
+    ctx.lineTo(4, -51);
+    ctx.closePath();
+    ctx.fill();
+  } else if (ear === 'owl') {
+    // 부엉이 깃털 뿔 한 쌍.
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 12, -48);
+      ctx.lineTo(side * 8, -62);
+      ctx.lineTo(side * 3, -47);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // 머리
+  ctx.fillStyle = o.skin.fur;
+  ellipse(ctx, 0, -42, 14, 13);
+  ctx.fill();
+
+  // 헤어 (플레이어) — 스타일 4종 변주.
+  if (o.skin.hair) {
+    const style = o.skin.hairStyle ?? 0;
+    ctx.fillStyle = o.skin.hair;
+    ctx.beginPath();
+    ctx.ellipse(0, -46, 14, 11, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    if (style !== 1) {
+      // 옆머리 (숏컷 제외).
+      ctx.beginPath();
+      ctx.ellipse(-9, -44, 5, 8, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (style === 2) {
+      // 긴머리 — 양쪽으로 흘러내림.
+      ctx.beginPath();
+      ctx.ellipse(-12, -34, 4.5, 11, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(12, -34, 4.5, 11, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (style === 3) {
+      // 번헤어 — 정수리 동그란 번.
+      ellipse(ctx, 0, -58, 6, 5.5);
+      ctx.fill();
+    }
+  }
+
+  if (!back) {
+    const furry = ear === 'cat' || ear === 'dog' || ear === 'bear';
+    if (furry) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ellipse(ctx, 0, -35, 7.5, 5.5);
+      ctx.fill();
+    }
+    // 부엉이 눈가 원반.
+    if (ear === 'owl') {
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ellipse(ctx, -5.5, -42, 4.6, 4.9);
+      ctx.fill();
+      ellipse(ctx, 5.5, -42, 4.6, 4.9);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = VPALETTE.ink;
+    ellipse(ctx, -5.5, -42, 2.4, 3);
+    ctx.fill();
+    ellipse(ctx, 5.5, -42, 2.4, 3);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ellipse(ctx, -6.2, -43.2, 0.9, 1);
+    ctx.fill();
+    ellipse(ctx, 4.8, -43.2, 0.9, 1);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(244,140,150,0.5)';
+    ellipse(ctx, -10, -37, 3, 2);
+    ctx.fill();
+    ellipse(ctx, 10, -37, 3, 2);
+    ctx.fill();
+
+    if (ear === 'bird' || ear === 'owl') {
+      ctx.fillStyle = '#f0b455';
+      ctx.beginPath();
+      ctx.moveTo(-3.5, -37);
+      ctx.lineTo(3.5, -37);
+      ctx.lineTo(0, -31);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      if (furry) {
+        ctx.fillStyle = VPALETTE.ink;
+        ellipse(ctx, 0, -37, 2, 1.5);
+        ctx.fill();
+      }
+      ctx.strokeStyle = VPALETTE.ink;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(0, furry ? -34.5 : -37, 3.2, 0.2 * Math.PI, 0.8 * Math.PI);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+/** NPC 머리 위 말풍선 */
+export function drawVBubble(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  time: number,
+): void {
+  const { sx, sy } = toScreen(x, y);
+  const bob = Math.sin(time * 2) * 1.5;
+  ctx.save();
+  ctx.font = `600 11px ${UI_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const w = Math.min(150, ctx.measureText(text).width + 16);
+  const top = sy - 78 + bob;
+  ctx.fillStyle = 'rgba(255,253,247,0.96)';
+  roundRect(ctx, sx - w / 2, top - 12, w, 24, 12);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(sx - 4, top + 11);
+  ctx.lineTo(sx + 5, top + 11);
+  ctx.lineTo(sx, top + 18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = VPALETTE.ink;
+  ctx.fillText(text, sx, top, w - 12);
+  ctx.restore();
+}
+
+/** 배치 커서 — w×h 풋프린트를 초록/빨강으로 표시 */
+export function drawVPlacementCursor(
+  ctx: CanvasRenderingContext2D,
+  bx: number,
+  by: number,
+  w: number,
+  h: number,
+  ok: boolean,
+  time: number,
+): void {
+  const pulse = (Math.sin(time * 5) + 1) / 2;
+  ctx.save();
+  vFootprintPath(ctx, bx, by, bx + w, by + h);
+  ctx.fillStyle = ok
+    ? `rgba(120,220,140,${0.3 + pulse * 0.2})`
+    : `rgba(240,110,110,${0.3 + pulse * 0.2})`;
+  ctx.fill();
+  ctx.strokeStyle = ok ? '#3fa85c' : '#d24d4d';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- 생동감
+
+/** 나비 — 꽃밭 사이를 하늘하늘 나는 앰비언트 개체 */
+export function drawVButterfly(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  hover: number,
+  flap: number,
+  color: string,
+): void {
+  const { sx, sy } = toScreen(x, y);
+  const cy = sy - 26 - hover;
+  const wing = Math.abs(Math.sin(flap));
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.92;
+  ellipse(ctx, sx - 3 - wing * 2.5, cy - 1, 3.6, 2.4 + wing * 1.8);
+  ctx.fill();
+  ellipse(ctx, sx + 3 + wing * 2.5, cy - 1, 3.6, 2.4 + wing * 1.8);
+  ctx.fill();
+  ctx.fillStyle = VPALETTE.ink;
+  ellipse(ctx, sx, cy, 1.2, 3);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** 갈매기 — 바다 위를 도는 흰 새 */
+export function drawVGull(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  alt: number,
+  flap: number,
+): void {
+  const { sx, sy } = toScreen(x, y);
+  const cy = sy - alt;
+  const w = Math.sin(flap) * 4;
+  ctx.save();
+  // 수면 그림자.
+  ctx.fillStyle = 'rgba(30,60,70,0.12)';
+  ellipse(ctx, sx, sy, 7, 2.6);
+  ctx.fill();
+  ctx.strokeStyle = '#fdfdfa';
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx - 8, cy - w);
+  ctx.quadraticCurveTo(sx - 3, cy + 2, sx, cy);
+  ctx.quadraticCurveTo(sx + 3, cy + 2, sx + 8, cy - w);
+  ctx.stroke();
+  ctx.restore();
+}
