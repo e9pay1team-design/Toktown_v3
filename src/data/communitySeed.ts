@@ -8,6 +8,7 @@
 export interface PostTag {
   id: string;
   label: string;
+  labelEn: string;
   /** 칩 배경색 */
   color: string;
   /** 칩 글자색 */
@@ -15,12 +16,12 @@ export interface PostTag {
 }
 
 export const POST_TAGS: PostTag[] = [
-  { id: 'help', label: '#도움요청', color: '#FDE8E4', text: '#C2503F' },
-  { id: 'info', label: '#동네정보', color: '#E3F1FA', text: '#356F9C' },
-  { id: 'food', label: '#맛집', color: '#FFF3D6', text: '#A9722A' },
-  { id: 'english', label: '#English', color: '#EDE8FA', text: '#6A5CAB' },
-  { id: 'event', label: '#이벤트', color: '#FCE8F1', text: '#A84660' },
-  { id: 'friends', label: '#동네친구', color: '#E6F4E4', text: '#4C762B' },
+  { id: 'help', label: '#도움요청', labelEn: '#Help', color: '#FDE8E4', text: '#C2503F' },
+  { id: 'info', label: '#동네정보', labelEn: '#LocalInfo', color: '#E3F1FA', text: '#356F9C' },
+  { id: 'food', label: '#맛집', labelEn: '#Food', color: '#FFF3D6', text: '#A9722A' },
+  { id: 'english', label: '#English', labelEn: '#English', color: '#EDE8FA', text: '#6A5CAB' },
+  { id: 'event', label: '#이벤트', labelEn: '#Event', color: '#FCE8F1', text: '#A84660' },
+  { id: 'friends', label: '#동네친구', labelEn: '#Friends', color: '#E6F4E4', text: '#4C762B' },
 ];
 
 export const tagById = (id: string): PostTag | undefined =>

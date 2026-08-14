@@ -1,6 +1,7 @@
 // ─── 하단 4탭: 지도 / 커뮤니티 / 내 마을 / 지갑 (기획 §6 확정) ────
 
 import { type TabId, useUiStore } from '../../store/useUiStore';
+import { useT } from '../../i18n';
 
 function TabIcon({ tab, active }: { tab: TabId; active: boolean }) {
   const color = active ? '#4E9B58' : '#B4A99A';
@@ -45,16 +46,17 @@ function TabIcon({ tab, active }: { tab: TabId; active: boolean }) {
   }
 }
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'map', label: '지도' },
-  { id: 'community', label: '커뮤니티' },
-  { id: 'village', label: '내 마을' },
-  { id: 'wallet', label: '지갑' },
+const TABS: { id: TabId; label: string; labelEn: string }[] = [
+  { id: 'map', label: '지도', labelEn: 'Map' },
+  { id: 'community', label: '커뮤니티', labelEn: 'Community' },
+  { id: 'village', label: '내 마을', labelEn: 'My Town' },
+  { id: 'wallet', label: '지갑', labelEn: 'Wallet' },
 ];
 
 export function BottomNav() {
   const activeTab = useUiStore((s) => s.activeTab);
   const setTab = useUiStore((s) => s.setTab);
+  const T = useT();
 
   return (
     <nav className="absolute inset-x-0 bottom-0 z-[800] border-t border-town-line bg-town-paper/95 pb-4 pt-1.5 backdrop-blur">
@@ -75,7 +77,7 @@ export function BottomNav() {
                   active ? 'font-extrabold text-town-leafDark' : 'font-medium text-[#B4A99A]'
                 }`}
               >
-                {t.label}
+                {T(t.label, t.labelEn)}
               </span>
             </button>
           );

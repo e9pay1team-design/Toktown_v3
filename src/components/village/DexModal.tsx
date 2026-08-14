@@ -5,17 +5,19 @@
 import { DRUMMER_MAGPIE, REGIONAL_NPCS } from '../../data/seed';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { MagpieSvg } from '../../assets/npcs';
+import { useT } from '../../i18n';
 
 /** 전국 확대 티저 (기획 §4 지역 마스코트 예시) */
 const UPCOMING = [
-  { region: '홍대', hint: '기타 멘 인디 고양이' },
-  { region: '성수/서울숲', hint: '커피 든 꽃사슴' },
-  { region: '경복궁/북촌', hint: '한옥 지붕 위 아기호랑이' },
-  { region: '부산', hint: '서퍼 갈매기' },
-  { region: '제주', hint: '감귤 문 조랑말' },
+  { region: '홍대', regionEn: 'Hongdae', hint: '기타 멘 인디 고양이', hintEn: 'An indie cat with a guitar' },
+  { region: '성수/서울숲', regionEn: 'Seongsu', hint: '커피 든 꽃사슴', hintEn: 'A sika deer holding coffee' },
+  { region: '경복궁/북촌', regionEn: 'Gyeongbokgung', hint: '한옥 지붕 위 아기호랑이', hintEn: 'A tiger cub on a hanok roof' },
+  { region: '부산', regionEn: 'Busan', hint: '서퍼 갈매기', hintEn: 'A surfer seagull' },
+  { region: '제주', regionEn: 'Jeju', hint: '감귤 문 조랑말', hintEn: 'A pony with a tangerine' },
 ];
 
 export function DexModal({ onClose }: { onClose: () => void }) {
+  const T = useT();
   const dex = useCollectionStore((s) => s.dex);
   const magpie = REGIONAL_NPCS[0];
   const hasMagpie = dex.includes(magpie.id);
@@ -26,9 +28,12 @@ export function DexModal({ onClose }: { onClose: () => void }) {
       <div className="sheet-up mx-2 mb-1 flex max-h-[80%] flex-col overflow-hidden rounded-[1.6rem] bg-town-paper shadow-sheet">
         <div className="flex items-center justify-between border-b border-town-line px-5 pb-3 pt-4">
           <div>
-            <h3 className="text-[16px] font-extrabold">NPC 도감</h3>
+            <h3 className="text-[16px] font-extrabold">{T('NPC 도감', 'NPC Dex')}</h3>
             <p className="text-[11px] font-bold text-town-inkSoft">
-              등록 {dex.length} · 지역을 여행하며 동물 친구를 모아보세요
+              {T(
+                `등록 ${dex.length} · 지역을 여행하며 동물 친구를 모아보세요`,
+                `${dex.length} registered · travel around to collect animal friends`,
+              )}
             </p>
           </div>
           <button
@@ -52,20 +57,23 @@ export function DexModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-[14.5px] font-extrabold">
-                {hasMagpie ? magpie.name : '???'}
+                {hasMagpie ? T(magpie.name, magpie.nameEn ?? magpie.name) : '???'}
                 <span className="rounded-full bg-town-cream px-2 py-0.5 text-[9.5px] font-bold text-town-inkSoft">
-                  📍 {magpie.region}
+                  📍 {T(magpie.region, magpie.regionEn ?? magpie.region)}
                 </span>
                 {hasMagpie && (
                   <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-                    등록
+                    {T('등록', 'Registered')}
                   </span>
                 )}
               </p>
               <p className="mt-1 text-[11.5px] leading-snug text-town-inkSoft">
                 {hasMagpie
-                  ? magpie.bio
-                  : '명동 어딘가에서 반짝이는 버블을 찾아 말을 걸어보세요. 하루마다 출몰 지점이 바뀌어요.'}
+                  ? T(magpie.bio, magpie.bioEn ?? magpie.bio)
+                  : T(
+                      '명동 어딘가에서 반짝이는 버블을 찾아 말을 걸어보세요. 하루마다 출몰 지점이 바뀌어요.',
+                      'Find the sparkling bubble somewhere in Myeongdong and say hi. Its spot changes daily.',
+                    )}
               </p>
             </div>
           </div>
@@ -81,27 +89,30 @@ export function DexModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-[14.5px] font-extrabold">
-                {hasDrummer ? DRUMMER_MAGPIE.name : '???'}
+                {hasDrummer ? T(DRUMMER_MAGPIE.name, DRUMMER_MAGPIE.nameEn) : '???'}
                 <span className="rounded-full bg-town-lilac/40 px-2 py-0.5 text-[9.5px] font-bold text-[#6B5BAA]">
-                  🎪 이벤트 한정
+                  {T('🎪 이벤트 한정', '🎪 Event-limited')}
                 </span>
                 {hasDrummer && (
                   <span className="rounded-full bg-[#8B79C9] px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-                    등록
+                    {T('등록', 'Registered')}
                   </span>
                 )}
               </p>
               <p className="mt-1 text-[11.5px] leading-snug text-town-inkSoft">
                 {hasDrummer
-                  ? DRUMMER_MAGPIE.bio
-                  : '난타 스페셜 위크 기간에만 극장 앞에 나타난다는 소문이…'}
+                  ? T(DRUMMER_MAGPIE.bio, DRUMMER_MAGPIE.bioEn)
+                  : T(
+                      '난타 스페셜 위크 기간에만 극장 앞에 나타난다는 소문이…',
+                      'Rumor says it only appears by the theatre during NANTA Special Week…',
+                    )}
               </p>
             </div>
           </div>
 
           {/* 전국 확대 티저 */}
           <h4 className="mb-2 mt-5 text-[12px] font-extrabold text-town-inkSoft">
-            다른 지역의 친구들 (여행하면 만날 수 있어요)
+            {T('다른 지역의 친구들 (여행하면 만날 수 있어요)', 'Friends in other regions (meet them by traveling)')}
           </h4>
           <div className="grid grid-cols-1 gap-1.5">
             {UPCOMING.map((u) => (
@@ -113,8 +124,10 @@ export function DexModal({ onClose }: { onClose: () => void }) {
                   ?
                 </span>
                 <div>
-                  <p className="text-[12.5px] font-extrabold text-town-inkSoft">📍 {u.region}</p>
-                  <p className="text-[10.5px] text-town-inkSoft/70">{u.hint} — 프로토타입 이후 확대</p>
+                  <p className="text-[12.5px] font-extrabold text-town-inkSoft">📍 {T(u.region, u.regionEn)}</p>
+                  <p className="text-[10.5px] text-town-inkSoft/70">
+                    {T(`${u.hint} — 프로토타입 이후 확대`, `${u.hintEn} — after the prototype`)}
+                  </p>
                 </div>
               </div>
             ))}

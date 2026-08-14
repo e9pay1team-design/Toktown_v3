@@ -21,6 +21,7 @@ import { useJourneyStore } from '../store/useJourneyStore';
 import { useCollectionStore } from '../store/useCollectionStore';
 import { useVillageStore } from '../store/useVillageStore';
 import { useEventStore } from '../store/useEventStore';
+import { lmName, sName, tr } from '../i18n';
 
 /** 랜드마크 '지역 최초 방문' 발견 반경 (m) */
 export const LANDMARK_RADIUS_M = 150;
@@ -43,28 +44,38 @@ export function tryCheckin(storeId: number): boolean {
   const loc = useVirtualLocation.getState();
 
   if (isSuspicious(loc)) {
-    toast('🚨 비현실적인 위치 점프가 감지되어 체크인이 거부됐어요', 'error');
+    toast(tr('🚨 비현실적인 위치 점프가 감지되어 체크인이 거부됐어요', '🚨 Unrealistic location jump detected — check-in denied'), 'error');
     return false;
   }
   const dist = distToStore(store);
   if (dist > CHECKIN_RADIUS_M) {
-    toast(`매장 ${CHECKIN_RADIUS_M}m 이내에서만 체크인할 수 있어요 (현재 ${formatDistance(dist)})`, 'error');
+    toast(
+      tr(
+        `매장 ${CHECKIN_RADIUS_M}m 이내에서만 체크인할 수 있어요 (현재 ${formatDistance(dist)})`,
+        `Check-in works within ${CHECKIN_RADIUS_M}m of the store (now ${formatDistance(dist)})`,
+      ),
+      'error',
+    );
     return false;
   }
   const day = today();
   const visits = useVisitStore.getState();
   if (visits.hasCheckedIn(storeId, day)) {
-    toast('오늘은 이미 이곳에 발도장을 찍었어요 (1일 1회)', 'info');
+    toast(tr('오늘은 이미 이곳에 발도장을 찍었어요 (1일 1회)', 'Already stamped here today (once per day)'), 'info');
     return false;
   }
 
   const firstCertifiedVisit = !visits.hasCertifiedVisit(storeId);
   visits.recordCheckin(storeId, day);
-  const amount = useEconomyStore.getState().earnTokken('checkin', store.name);
-  toast(`${store.name} 발도장 완료! 톡큰 +${amount}`, 'tokken');
+  const amount = useEconomyStore.getState().earnTokken('checkin', sName(store));
+  toast(tr(`${store.name} 발도장 완료! 톡큰 +${amount}`, `Stamped at ${sName(store)}! +${amount} Tokken`), 'tokken');
   if (firstCertifiedVisit) {
     setTimeout(
-      () => toast(`🏠 ${store.name} 건물 획득! 내 마을에서 배치해 보세요`, 'success'),
+      () =>
+        toast(
+          tr(`🏠 ${store.name} 건물 획득! 내 마을에서 배치해 보세요`, `🏠 Earned the ${sName(store)} building! Place it in My Town`),
+          'success',
+        ),
       700,
     );
   }
@@ -81,12 +92,21 @@ function grantEventCheckinReward(store: Store, delayMs: number) {
   if (!venue || distanceM(store, venue) > event.radiusM) return;
   if (eventRewardClaimed[event.id]) return;
   claimReward(event.id);
-  const bonus = useEconomyStore.getState().earnTokken('checkin', `${event.title} 한정 보너스`);
+  const bonus = useEconomyStore
+    .getState()
+    .earnTokken('checkin', tr(`${event.title} 한정 보너스`, `${event.titleEn ?? event.title} bonus`));
   useVillageStore.getState().buyDecor('nanta-drum');
   setTimeout(() => {
-    toast(`🎪 ${event.title} 한정 톡큰 +${bonus}!`, 'tokken');
+    toast(tr(`🎪 ${event.title} 한정 톡큰 +${bonus}!`, `🎪 ${event.titleEn ?? event.title} bonus +${bonus} Tokken!`), 'tokken');
     setTimeout(
-      () => toast(`🎁 한정 소품 '${event.limitedItemName}' 획득! 보관함을 확인하세요`, 'success'),
+      () =>
+        toast(
+          tr(
+            `🎁 한정 소품 '${event.limitedItemName}' 획득! 보관함을 확인하세요`,
+            `🎁 Limited item '${event.limitedItemNameEn ?? event.limitedItemName}' acquired! Check your storage`,
+          ),
+          'success',
+        ),
       750,
     );
   }, delayMs);
@@ -99,7 +119,7 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
   const day = today();
   const visits = useVisitStore.getState();
   if (visits.hasReviewed(storeId, day)) {
-    toast('이 장소 리뷰는 1일 1회만 쓸 수 있어요', 'info');
+    toast(tr('이 장소 리뷰는 1일 1회만 쓸 수 있어요', 'One review per place per day'), 'info');
     return false;
   }
   const loc = useVirtualLocation.getState();
@@ -109,16 +129,20 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
   visits.recordReview({ storeId, rating, text, certified, day });
   const amount = useEconomyStore
     .getState()
-    .earnTokken(certified ? 'certifiedReview' : 'review', store.name);
+    .earnTokken(certified ? 'certifiedReview' : 'review', sName(store));
   toast(
     certified
-      ? `방문 인증 리뷰 등록! 톡큰 +${amount}`
-      : `리뷰 등록 완료! 톡큰 +${amount}`,
+      ? tr(`방문 인증 리뷰 등록! 톡큰 +${amount}`, `Verified review posted! +${amount} Tokken`)
+      : tr(`리뷰 등록 완료! 톡큰 +${amount}`, `Review posted! +${amount} Tokken`),
     'tokken',
   );
   if (firstCertifiedVisit) {
     setTimeout(
-      () => toast(`🏠 ${store.name} 건물 획득! 내 마을에서 배치해 보세요`, 'success'),
+      () =>
+        toast(
+          tr(`🏠 ${store.name} 건물 획득! 내 마을에서 배치해 보세요`, `🏠 Earned the ${sName(store)} building! Place it in My Town`),
+          'success',
+        ),
       700,
     );
   }
@@ -129,11 +153,16 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
 export function registerNpcEncounter(npcId: string): void {
   const added = useCollectionStore.getState().addDex(npcId);
   if (!added) return;
-  const name = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE.name : REGIONAL_NPCS[0].name;
+  const src = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+  const name = tr(src.name, src.nameEn ?? src.name);
   const amount = useEconomyStore.getState().earnTokken('npcEncounter', name);
-  toast(`📖 ${name} 도감 등록! 톡큰 +${amount}`, 'tokken');
+  toast(tr(`📖 ${name} 도감 등록! 톡큰 +${amount}`, `📖 ${name} added to your Dex! +${amount} Tokken`), 'tokken');
   setTimeout(
-    () => toast(`🏡 ${name}이(가) 내 마을에 입주할 수 있어요 — 보관함 확인!`, 'success'),
+    () =>
+      toast(
+        tr(`🏡 ${name}이(가) 내 마을에 입주할 수 있어요 — 보관함 확인!`, `🏡 ${name} can move into My Town — check your storage!`),
+        'success',
+      ),
     800,
   );
 }
@@ -147,7 +176,10 @@ export function checkLandmarkDiscovery(): void {
     if (collection.landmarks.includes(lm.id)) continue;
     if (distanceM(loc.position, lm) <= LANDMARK_RADIUS_M) {
       collection.addLandmark(lm.id);
-      toast(`🏛️ ${lm.name} 최초 방문! 미니어처를 획득했어요`, 'success');
+      toast(
+        tr(`🏛️ ${lm.name} 최초 방문! 미니어처를 획득했어요`, `🏛️ First visit to ${lmName(lm)}! Miniature acquired`),
+        'success',
+      );
     }
   }
 }
@@ -156,19 +188,25 @@ export function checkLandmarkDiscovery(): void {
 export function tryPayment(store: Store): boolean {
   const dist = distToStore(store);
   if (dist > CHECKIN_RADIUS_M) {
-    toast(`매장 앞에서만 결제할 수 있어요 (현재 ${formatDistance(dist)})`, 'error');
+    toast(
+      tr(`매장 앞에서만 결제할 수 있어요 (현재 ${formatDistance(dist)})`, `Pay at the store only (now ${formatDistance(dist)} away)`),
+      'error',
+    );
     return false;
   }
   const eco = useEconomyStore.getState();
   const result = mockTokpay.payAtStore(store, eco.tokpayBalance);
   if (!result.ok) {
-    toast(result.message, 'error');
+    toast(tr(result.message, `Not enough TokPay balance — top up in Wallet!`), 'error');
     return false;
   }
   eco.spendTokpay(result.amount);
-  toast(`💳 ${result.message}`, 'success');
-  const amount = eco.earnTokken('payment', store.name);
-  setTimeout(() => toast(`결제 보상 톡큰 +${amount}`, 'tokken'), 550);
+  toast(
+    tr(`💳 ${result.message}`, `💳 Paid ₩${result.amount.toLocaleString()} at ${sName(store)}`),
+    'success',
+  );
+  const amount = eco.earnTokken('payment', sName(store));
+  setTimeout(() => toast(tr(`결제 보상 톡큰 +${amount}`, `Payment reward +${amount} Tokken`), 'tokken'), 550);
   return true;
 }
 
@@ -184,16 +222,25 @@ export function nearestStoreInRadius(): Store | null {
 export function tryRideTag(): boolean {
   const journey = useJourneyStore.getState();
   if (journey.phase !== 'waitTag') {
-    toast('길찾기에서 대중교통 경로로 "이동 시작"을 누른 뒤 태그하세요', 'info');
+    toast(
+      tr('길찾기에서 대중교통 경로로 "이동 시작"을 누른 뒤 태그하세요', 'Start a transit journey in Directions first, then tag'),
+      'info',
+    );
     return false;
   }
   const eco = useEconomyStore.getState();
   if (!eco.spendTransit(TRANSIT_FARE)) {
-    toast('교통 잔액이 부족해요! 지갑에서 톡페이 → 교통 잔액을 충전하세요', 'error');
+    toast(
+      tr('교통 잔액이 부족해요! 지갑에서 톡페이 → 교통 잔액을 충전하세요', 'Not enough transit balance! Tap-charge the card in Wallet'),
+      'error',
+    );
     return false;
   }
   const amount = eco.earnTokken('rideTag', journey.route?.line);
-  toast(`승차 태그 완료 (${TRANSIT_FARE.toLocaleString()}원) · 톡큰 +${amount}`, 'tokken');
+  toast(
+    tr(`승차 태그 완료 (${TRANSIT_FARE.toLocaleString()}원) · 톡큰 +${amount}`, `Ride tagged (₩${TRANSIT_FARE.toLocaleString()}) · +${amount} Tokken`),
+    'tokken',
+  );
   journey.board();
   return true;
 }

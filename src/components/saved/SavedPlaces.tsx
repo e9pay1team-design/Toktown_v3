@@ -7,12 +7,14 @@ import { BenefitIcon, CategoryGlyph } from '../../assets/misc';
 import { useSavedStore } from '../../store/useSavedStore';
 import { useToastStore } from '../../store/useToastStore';
 import { useUiStore } from '../../store/useUiStore';
+import { catLabel, sBenefit, sName, sSub, tr, useT } from '../../i18n';
 
 export function SavedPlaces({ onPick }: { onPick: (storeId: number) => void }) {
   const setSavedListOpen = useUiStore((s) => s.setSavedListOpen);
   const savedIds = useSavedStore((s) => s.savedIds);
   const toggle = useSavedStore((s) => s.toggle);
   const toast = useToastStore((s) => s.show);
+  const T = useT();
 
   const savedStores = savedIds
     .map((id) => STORES.find((s) => s.id === id))
@@ -31,9 +33,9 @@ export function SavedPlaces({ onPick }: { onPick: (storeId: number) => void }) {
           </svg>
         </button>
         <div>
-          <h2 className="text-[18px] font-extrabold leading-tight">저장한 장소</h2>
+          <h2 className="text-[18px] font-extrabold leading-tight">{T('저장한 장소', 'Saved Places')}</h2>
           <p className="text-[11.5px] font-bold text-town-inkSoft">
-            ❤️ {savedStores.length}곳 · 기본 폴더
+            {T(`❤️ ${savedStores.length}곳 · 기본 폴더`, `❤️ ${savedStores.length} places · default folder`)}
           </p>
         </div>
       </header>
@@ -42,11 +44,11 @@ export function SavedPlaces({ onPick }: { onPick: (storeId: number) => void }) {
         {savedStores.length === 0 ? (
           <div className="flex flex-col items-center gap-3 pt-16 text-center">
             <span className="text-[44px]">🤍</span>
-            <p className="text-[14.5px] font-extrabold">아직 저장한 장소가 없어요</p>
+            <p className="text-[14.5px] font-extrabold">{T('아직 저장한 장소가 없어요', 'No saved places yet')}</p>
             <p className="text-[12.5px] leading-relaxed text-town-inkSoft">
-              지도에서 마음에 드는 매장을 찾아
+              {T('지도에서 마음에 드는 매장을 찾아', 'Find a place you like on the map')}
               <br />
-              하트를 눌러 저장해 보세요!
+              {T('하트를 눌러 저장해 보세요!', 'and tap the heart to save it!')}
             </p>
           </div>
         ) : (
@@ -63,14 +65,14 @@ export function SavedPlaces({ onPick }: { onPick: (storeId: number) => void }) {
                   <CategoryGlyph category={store.category} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14.5px] font-extrabold">{store.name}</p>
+                  <p className="truncate text-[14.5px] font-extrabold">{sName(store)}</p>
                   <p className="truncate text-[11.5px] font-bold text-town-inkSoft">
-                    {store.category}
-                    {store.subCategory ? ` · ${store.subCategory}` : ''}
+                    {catLabel(store.category)}
+                    {sSub(store) ? ` · ${sSub(store)}` : ''}
                   </p>
-                  {store.benefit && (
+                  {sBenefit(store) && (
                     <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[#EAF4F8] px-2 py-0.5 text-[10px] font-bold text-town-skyDeep">
-                      <BenefitIcon size={11} /> {store.benefit}
+                      <BenefitIcon size={11} /> {sBenefit(store)}
                     </span>
                   )}
                 </div>
@@ -82,16 +84,16 @@ export function SavedPlaces({ onPick }: { onPick: (storeId: number) => void }) {
                     }}
                     className="rounded-lg bg-town-leafDark px-2.5 py-1.5 text-[11px] font-extrabold text-white"
                   >
-                    지도에서 보기
+                    {T('지도에서 보기', 'View on map')}
                   </button>
                   <button
                     onClick={() => {
                       toggle(store.id);
-                      toast('저장을 해제했어요', 'info');
+                      toast(tr('저장을 해제했어요', 'Removed from saved'), 'info');
                     }}
                     className="rounded-lg border border-town-line bg-town-paper px-2.5 py-1.5 text-[11px] font-bold text-town-inkSoft"
                   >
-                    저장 해제
+                    {T('저장 해제', 'Unsave')}
                   </button>
                 </div>
               </li>

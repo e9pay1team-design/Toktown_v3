@@ -15,6 +15,7 @@ import { StorePin, NpcBubble } from '../../assets/markers';
 import { LandmarkSvg } from '../../assets/landmarks';
 import { CharacterSvg } from '../../assets/CharacterSvg';
 import type { CharacterConfig } from '../../types';
+import { lmName, sName, tr, useLang } from '../../i18n';
 
 interface MapViewProps {
   stores: Store[];
@@ -140,6 +141,8 @@ export function MapView(props: MapViewProps) {
   // 최신 콜백을 이벤트 핸들러에서 참조하기 위한 ref
   const cbRef = useRef(props);
   cbRef.current = props;
+  // 언어 변경 시 마커 툴팁·라벨 재생성
+  const lang = useLang();
 
   /* 지도 초기화 (1회) */
   useEffect(() => {
@@ -191,7 +194,7 @@ export function MapView(props: MapViewProps) {
         icon: storeIcon(store, props.savedIds.includes(store.id), selected),
         zIndexOffset: selected ? 800 : 100,
       });
-      marker.bindTooltip(store.name, {
+      marker.bindTooltip(sName(store), {
         direction: 'top',
         offset: [0, -44],
         className: 'toktown-tooltip',
@@ -199,7 +202,7 @@ export function MapView(props: MapViewProps) {
       marker.on('click', () => cbRef.current.onStoreClick(store.id));
       layer.addLayer(marker);
     }
-  }, [props.stores, props.savedIds, props.selectedStoreId]);
+  }, [props.stores, props.savedIds, props.selectedStoreId, lang]);
 
   /* NPC 마커 (지역 한정 출몰) */
   useEffect(() => {
@@ -212,15 +215,18 @@ export function MapView(props: MapViewProps) {
         icon: npcIcon(drummer),
         zIndexOffset: drummer ? 600 : 500,
       });
-      marker.bindTooltip(`${drummer ? '드러머 까미 🎪' : '까치 까미'} · ${spot.label}`, {
-        direction: 'top',
-        offset: [0, -56],
-        className: 'toktown-tooltip',
-      });
+      marker.bindTooltip(
+        `${tr(drummer ? '드러머 까미 🎪' : '까치 까미', drummer ? 'Drummer Kkami 🎪' : 'Kkami the Magpie')} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
+        {
+          direction: 'top',
+          offset: [0, -56],
+          className: 'toktown-tooltip',
+        },
+      );
       marker.on('click', () => cbRef.current.onNpcClick(spot));
       layer.addLayer(marker);
     }
-  }, [props.npcSpots]);
+  }, [props.npcSpots, lang]);
 
   /* Event Map 혜택 반경 */
   const eventLayerRef = useRef<L.Circle | null>(null);
@@ -247,7 +253,7 @@ export function MapView(props: MapViewProps) {
     layer.clearLayers();
     for (const lm of props.landmarks) {
       const marker = L.marker([lm.lat, lm.lng], { icon: landmarkIcon(lm), zIndexOffset: 50 });
-      marker.bindTooltip(lm.name, {
+      marker.bindTooltip(lmName(lm), {
         direction: 'bottom',
         offset: [0, 6],
         permanent: true,
@@ -256,7 +262,7 @@ export function MapView(props: MapViewProps) {
       marker.on('click', () => cbRef.current.onLandmarkClick(lm));
       layer.addLayer(marker);
     }
-  }, [props.landmarks]);
+  }, [props.landmarks, lang]);
 
   /* 내 캐릭터 — 마커는 캐릭터 변경 시에만 재생성, 위치는 setLatLng 로 갱신
      (이동 중 프레임 단위 갱신이 있어 재생성하면 DOM 부하가 큼) */

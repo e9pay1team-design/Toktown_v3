@@ -10,6 +10,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { OtterSvg } from '../../assets/npcs';
 import { TokkenCoin } from '../../assets/misc';
 import { DecorSvg } from '../../assets/decor';
+import { decorName, tr, useT } from '../../i18n';
 
 export function ShopModal({ onClose }: { onClose: () => void }) {
   const tokken = useEconomyStore((s) => s.tokken);
@@ -17,14 +18,15 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
   const buyDecor = useVillageStore((s) => s.buyDecor);
   const activeEventId = useEventStore((s) => s.activeEventId);
   const toast = useToastStore((s) => s.show);
+  const T = useT();
 
   const buy = (id: string, name: string, price: number) => {
     if (!spendTokken(price)) {
-      toast('톡큰이 부족해요! 체크인·리뷰·결제로 모아보세요', 'error');
+      toast(tr('톡큰이 부족해요! 체크인·리뷰·결제로 모아보세요', 'Not enough Tokken! Earn more with check-ins, reviews, payments'), 'error');
       return;
     }
     buyDecor(id);
-    toast(`${name} 구매 완료! 보관함에서 배치하세요`, 'tokken');
+    toast(tr(`${name} 구매 완료! 보관함에서 배치하세요`, `Bought ${name}! Place it from storage`), 'tokken');
   };
 
   return (
@@ -33,9 +35,9 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-3 border-b border-town-line px-5 pb-3 pt-4">
           <OtterSvg size={54} />
           <div className="min-w-0 flex-1">
-            <h3 className="text-[16px] font-extrabold">달수 상점</h3>
+            <h3 className="text-[16px] font-extrabold">{T('달수 상점', "Dalsu's Shop")}</h3>
             <p className="text-[11px] font-bold text-town-inkSoft">
-              "톡큰만 있으면 뭐든 있죠~ 오늘의 신상 구경하고 가세요!"
+              {T('"톡큰만 있으면 뭐든 있죠~ 오늘의 신상 구경하고 가세요!"', '"Tokken buys anything~ come see today\'s new arrivals!"')}
             </p>
           </div>
           <button
@@ -48,7 +50,7 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center justify-between bg-town-cream/70 px-5 py-2">
-          <span className="text-[11.5px] font-extrabold text-town-inkSoft">내 톡큰</span>
+          <span className="text-[11.5px] font-extrabold text-town-inkSoft">{T('내 톡큰', 'My Tokken')}</span>
           <span className="flex items-center gap-1.5 text-[15px] font-extrabold">
             <TokkenCoin size={18} /> {tokken.toLocaleString()}
           </span>
@@ -57,7 +59,8 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
         <div className="no-scrollbar grid max-h-[420px] grid-cols-2 gap-2.5 overflow-y-auto p-4 pb-8">
           {DECOR_ITEMS.map((item) => {
             const eventLocked = Boolean(item.eventOnly) && activeEventId !== item.eventOnly;
-            const eventTitle = TOWN_EVENTS.find((e) => e.id === item.eventOnly)?.title;
+            const event = TOWN_EVENTS.find((e) => e.id === item.eventOnly);
+            const eventTitle = event ? T(event.title, event.titleEn ?? event.title) : undefined;
             const affordable = tokken >= item.price;
             return (
               <div
@@ -71,14 +74,14 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
                 <div className={`flex h-16 items-end justify-center ${eventLocked ? 'opacity-40 grayscale' : ''}`}>
                   <DecorSvg id={item.id} size={46} />
                 </div>
-                <p className="mt-1.5 truncate text-center text-[12.5px] font-extrabold">{item.name}</p>
+                <p className="mt-1.5 truncate text-center text-[12.5px] font-extrabold">{decorName(item)}</p>
                 {item.eventOnly && (
                   <p className="text-center text-[9px] font-extrabold text-[#8B79C9]">
-                    🎪 {eventTitle} 한정
+                    {T(`🎪 ${eventTitle} 한정`, `🎪 ${eventTitle} only`)}
                   </p>
                 )}
                 <button
-                  onClick={() => buy(item.id, item.name, item.price)}
+                  onClick={() => buy(item.id, decorName(item), item.price)}
                   disabled={eventLocked || !affordable}
                   aria-label={`${item.name} 구매`}
                   className={`mt-2 flex w-full items-center justify-center gap-1 rounded-xl py-2 text-[12px] font-extrabold transition active:scale-95 ${
@@ -90,7 +93,7 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
                   }`}
                 >
                   {eventLocked ? (
-                    '이벤트 중에만 판매'
+                    T('이벤트 중에만 판매', 'Event-only item')
                   ) : (
                     <>
                       <TokkenCoin size={14} /> {item.price}

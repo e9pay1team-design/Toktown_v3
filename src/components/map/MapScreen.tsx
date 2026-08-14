@@ -25,12 +25,13 @@ import { StoreDetailSheet } from '../store/StoreDetailSheet';
 import { SavedPlaces } from '../saved/SavedPlaces';
 import { RouteSheet } from '../journey/RouteSheet';
 import { JourneyOverlay } from '../journey/JourneyOverlay';
+import { lmDesc, lmName, tr, useT } from '../../i18n';
 
-const CHIPS: { id: CategoryChip; label: string; emoji: string }[] = [
-  { id: 'food', label: '맛집', emoji: '🍚' },
-  { id: 'cafe', label: '카페', emoji: '☕' },
-  { id: 'saved', label: '저장', emoji: '❤️' },
-  { id: 'event', label: '이벤트', emoji: '🎪' },
+const CHIPS: { id: CategoryChip; label: string; labelEn: string; emoji: string }[] = [
+  { id: 'food', label: '맛집', labelEn: 'Food', emoji: '🍚' },
+  { id: 'cafe', label: '카페', labelEn: 'Cafe', emoji: '☕' },
+  { id: 'saved', label: '저장', labelEn: 'Saved', emoji: '❤️' },
+  { id: 'event', label: '이벤트', labelEn: 'Event', emoji: '🎪' },
 ];
 
 export function MapScreen() {
@@ -63,6 +64,7 @@ export function MapScreen() {
   const activeEventId = useEventStore((s) => s.activeEventId);
   const dex = useCollectionStore((s) => s.dex);
   const [encounterNpcId, setEncounterNpcId] = useState<string | null>(null);
+  const T = useT();
 
   const magpie = REGIONAL_NPCS[0];
   const activeEvent = TOWN_EVENTS.find((e) => e.id === activeEventId) ?? null;
@@ -132,29 +134,34 @@ export function MapScreen() {
           }
           onStoreClick={openStore}
           onNpcClick={(spot) => {
-            const npcId = spot.variant === 'drummer' ? DRUMMER_MAGPIE.id : magpie.id;
-            const npcName = spot.variant === 'drummer' ? DRUMMER_MAGPIE.name : magpie.name;
+            const npc = spot.variant === 'drummer' ? DRUMMER_MAGPIE : magpie;
+            const npcId = npc.id;
+            const npcName = tr(npc.name, npc.nameEn ?? npc.name);
+            const spotLabel = tr(spot.label, spot.labelEn ?? spot.label);
             const dist = distanceM(position, spot);
             if (dist > CHECKIN_RADIUS_M) {
               toast(
-                `🐦 ${npcName}이(가) ${spot.label}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
+                tr(
+                  `🐦 ${npcName}이(가) ${spotLabel}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
+                  `🐦 ${npcName} is at ${spotLabel} — get ${formatDistance(dist)} closer to meet`,
+                ),
                 'info',
               );
               return;
             }
             if (dex.includes(npcId)) {
-              const npc = spot.variant === 'drummer' ? DRUMMER_MAGPIE : magpie;
-              toast(`🐦 ${npcName}: "${npc.lines[Math.floor(Math.random() * npc.lines.length)]}"`, 'info');
+              const lines = tr(npc.lines, npc.linesEn ?? npc.lines);
+              toast(`🐦 ${npcName}: "${lines[Math.floor(Math.random() * lines.length)]}"`, 'info');
               return;
             }
             setEncounterNpcId(npcId);
           }}
-          onLandmarkClick={(lm) => toast(`📍 ${lm.name} — ${lm.desc}`, 'info')}
+          onLandmarkClick={(lm) => toast(`📍 ${lmName(lm)} — ${lmDesc(lm)}`, 'info')}
           onMapClick={(latlng) => {
             if (clickTeleportArmed) {
               teleport(latlng);
               setClickTeleportArmed(false);
-              toast('🚶 내 위치를 이동했어요 (가상 GPS)', 'success');
+              toast(tr('🚶 내 위치를 이동했어요 (가상 GPS)', '🚶 Moved my location (virtual GPS)'), 'success');
               setTimeout(checkLandmarkDiscovery, 400);
             } else {
               selectStore(null);
@@ -167,7 +174,7 @@ export function MapScreen() {
       {clickTeleportArmed && (
         <div className="pointer-events-none absolute inset-x-0 top-24 z-[520] flex justify-center">
           <span className="pop-in rounded-full bg-town-ink/90 px-4 py-2 text-[12px] font-bold text-town-paper shadow-card">
-            🎯 지도를 클릭하면 내 위치가 이동해요
+            {T('🎯 지도를 클릭하면 내 위치가 이동해요', '🎯 Click the map to move your location')}
           </span>
         </div>
       )}
@@ -184,7 +191,7 @@ export function MapScreen() {
               <line x1={15.5} y1={15.5} x2={21} y2={21} stroke="#8C7B6E" strokeWidth={2.6} strokeLinecap="round" />
             </svg>
             <span className="text-[14px] font-medium text-town-inkSoft/70">
-              매장, 음식, 장소 검색
+              {T('매장, 음식, 장소 검색', 'Search stores, food, places')}
             </span>
           </button>
 
@@ -203,7 +210,7 @@ export function MapScreen() {
                   }`}
                 >
                   <span className="text-[11px]">{chip.emoji}</span>
-                  {chip.label}
+                  {T(chip.label, chip.labelEn)}
                 </button>
               );
             })}
@@ -220,13 +227,18 @@ export function MapScreen() {
               <span className="text-[18px]">🎪</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12.5px] font-extrabold text-[#5F4FA0]">
-                  {activeEvent.title} 진행 중
+                  {T(`${activeEvent.title} 진행 중`, `${activeEvent.titleEn ?? activeEvent.title} is live`)}
                 </span>
                 <span className="block truncate text-[10px] font-bold text-[#8B79C9]">
-                  극장 반경 {activeEvent.radiusM}m 한정 혜택 · 한정 NPC 출몰
+                  {T(
+                    `극장 반경 ${activeEvent.radiusM}m 한정 혜택 · 한정 NPC 출몰`,
+                    `Benefits within ${activeEvent.radiusM}m of the theatre · limited NPC`,
+                  )}
                 </span>
               </span>
-              <span className="shrink-0 text-[11px] font-extrabold text-[#8B79C9]">보기 →</span>
+              <span className="shrink-0 text-[11px] font-extrabold text-[#8B79C9]">
+                {T('보기 →', 'View →')}
+              </span>
             </button>
           )}
         </div>
@@ -267,7 +279,7 @@ export function MapScreen() {
           onClick={() => setSavedListOpen(true)}
           className="pop-in absolute bottom-24 left-1/2 z-[500] -translate-x-1/2 rounded-full bg-town-ink px-5 py-2.5 text-[13px] font-bold text-town-paper shadow-card"
         >
-          ❤️ 저장 목록 보기 ({savedIds.length})
+          {T(`❤️ 저장 목록 보기 (${savedIds.length})`, `❤️ View saved places (${savedIds.length})`)}
         </button>
       )}
 

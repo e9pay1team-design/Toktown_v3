@@ -23,6 +23,7 @@ import { StoreBuilding } from '../../assets/buildings';
 import { LandmarkSvg } from '../../assets/landmarks';
 import { MagpieSvg } from '../../assets/npcs';
 import { DecorSvg } from '../../assets/decor';
+import { decorName, lmName, sName, tr, useLang, useT } from '../../i18n';
 
 interface InvItem {
   kind: PlacementKind;
@@ -77,6 +78,8 @@ export function VillageScreen() {
   const [thingSheetId, setThingSheetId] = useState<number | null>(null);
   const [modal, setModal] = useState<VillageModal>(null);
   const gameRef = useRef<VillageGame | null>(null);
+  const T = useT();
+  const lang = useLang();
 
   /* 인증 방문(체크인/인증 리뷰)한 매장 → 건물 보유 */
   const certifiedStoreIds = useMemo(() => {
@@ -92,25 +95,25 @@ export function VillageScreen() {
     [placements],
   );
 
-  /* 인벤토리 = 획득 − 배치됨 */
+  /* 인벤토리 = 획득 − 배치됨 (라벨은 앱 언어) */
   const inventory = useMemo<InvItem[]>(() => {
     const items: InvItem[] = [];
     for (const id of certifiedStoreIds) {
       if (!placedKeys.has(`store:${id}`)) {
         const store = storeById(id);
-        if (store) items.push({ kind: 'store', refId: String(id), label: store.name, count: 1 });
+        if (store) items.push({ kind: 'store', refId: String(id), label: sName(store), count: 1 });
       }
     }
     for (const npcId of dex) {
       if (!placedKeys.has(`npc:${npcId}`)) {
-        const name = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE.name : REGIONAL_NPCS[0].name;
-        items.push({ kind: 'npc', refId: npcId, label: name, count: 1 });
+        const src = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+        items.push({ kind: 'npc', refId: npcId, label: tr(src.name, src.nameEn ?? src.name), count: 1 });
       }
     }
     for (const lmId of discovered) {
       if (!placedKeys.has(`landmark:${lmId}`)) {
         const lm = LANDMARKS.find((l) => l.id === lmId);
-        if (lm) items.push({ kind: 'landmark', refId: lmId, label: lm.name, count: 1 });
+        if (lm) items.push({ kind: 'landmark', refId: lmId, label: lmName(lm), count: 1 });
       }
     }
     for (const [decorId, owned] of Object.entries(decorOwned)) {
@@ -118,11 +121,12 @@ export function VillageScreen() {
       const remain = owned - placedCount;
       if (remain > 0) {
         const item = DECOR_ITEMS.find((d) => d.id === decorId);
-        if (item) items.push({ kind: 'decor', refId: decorId, label: item.name, count: remain });
+        if (item) items.push({ kind: 'decor', refId: decorId, label: decorName(item), count: remain });
       }
     }
     return items;
-  }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys, lang]);
 
   /* 마을 풍성도 → 입주 주민, 새 입주 토스트 */
   const richness = villageRichness(placements.length, dex.length, discovered.length);
@@ -131,7 +135,13 @@ export function VillageScreen() {
   useEffect(() => {
     if (residents.length > prevResidents.current) {
       const fresh = residents[residents.length - 1];
-      toast(`🎉 ${fresh.species} ${fresh.name}이(가) 마을에 입주했어요!`, 'success');
+      toast(
+        tr(
+          `🎉 ${fresh.species} ${fresh.name}이(가) 마을에 입주했어요!`,
+          `🎉 ${fresh.nameEn} the ${fresh.speciesEn} moved into your town!`,
+        ),
+        'success',
+      );
     }
     prevResidents.current = residents.length;
   }, [residents.length, residents, toast]);
@@ -156,10 +166,10 @@ export function VillageScreen() {
   const handleEditCommit = (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => {
     if (e.placementId === null) {
       place(e.kind as PlacementKind, e.refId, e.bx, e.by);
-      toast('마을에 배치했어요!', 'success');
+      toast(tr('마을에 배치했어요!', 'Placed in your town!'), 'success');
     } else {
       movePlacement(e.placementId, e.bx, e.by);
-      toast('위치를 옮겼어요', 'info');
+      toast(tr('위치를 옮겼어요', 'Moved'), 'info');
     }
   };
 
@@ -167,7 +177,7 @@ export function VillageScreen() {
   const handleEditReturn = (e: { placementId: number | null }) => {
     if (e.placementId !== null) {
       removePlacement(e.placementId);
-      toast('보관함으로 돌려놨어요', 'info');
+      toast(tr('보관함으로 돌려놨어요', 'Returned to storage'), 'info');
     }
   };
 
@@ -179,32 +189,42 @@ export function VillageScreen() {
       const drummer = p?.refId === DRUMMER_MAGPIE.id;
       const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
       setDialogue({
-        name: src.name,
-        title: drummer ? '한정 이웃' : '이웃',
+        name: tr(src.name, src.nameEn ?? src.name),
+        title: drummer ? tr('한정 이웃', 'Limited neighbor') : tr('이웃', 'Neighbor'),
         accent: drummer ? '#C2503F' : '#4A5568',
-        lines: src.lines,
+        lines: tr(src.lines, src.linesEn ?? src.lines),
       });
       return;
     }
     const def = VILLAGE_NPCS.find((n) => n.id === target.id);
     if (!def) return;
     setDialogue({
-      name: def.name,
-      title: def.title,
+      name: tr(def.name, def.nameEn),
+      title: tr(def.title, def.titleEn),
       accent: def.skin.body,
-      lines: def.dialogue,
+      lines: tr(def.dialogue, def.dialogueEn),
     });
   };
 
   const thingSheet = thingSheetId !== null ? placements.find((p) => p.id === thingSheetId) ?? null : null;
+  const thingSheetStore = thingSheet?.kind === 'store' ? storeById(Number(thingSheet.refId)) : undefined;
   const thingSheetLabel = thingSheet
     ? thingSheet.kind === 'store'
-      ? storeById(Number(thingSheet.refId))?.name
+      ? thingSheetStore && sName(thingSheetStore)
       : thingSheet.kind === 'landmark'
-        ? LANDMARKS.find((l) => l.id === thingSheet.refId)?.name
+        ? (() => {
+            const lm = LANDMARKS.find((l) => l.id === thingSheet.refId);
+            return lm && lmName(lm);
+          })()
         : thingSheet.kind === 'npc'
-          ? (thingSheet.refId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0]).name
-          : DECOR_ITEMS.find((d) => d.id === thingSheet.refId)?.name
+          ? (() => {
+              const src = thingSheet.refId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+              return tr(src.name, src.nameEn ?? src.name);
+            })()
+          : (() => {
+              const item = DECOR_ITEMS.find((d) => d.id === thingSheet.refId);
+              return item && decorName(item);
+            })()
     : null;
 
   const emptyVillage = placements.length === 0 && inventory.length === 0;
@@ -234,20 +254,24 @@ export function VillageScreen() {
             onClick={() => setTab('map')}
             className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 text-[12px] font-extrabold shadow-sm"
           >
-            🗺️ 지도
+            {T('🗺️ 지도', '🗺️ Map')}
           </button>
         )}
         <div className="rounded-2xl bg-town-paper/90 px-4 py-1.5 text-center shadow-sm backdrop-blur-sm">
           {editMode ? (
             <>
-              <h2 className="text-[15px] font-extrabold leading-tight">🔨 배치 모드</h2>
-              <p className="text-[10px] font-bold text-town-inkSoft">주민들은 잠시 자리를 비켜줬어요</p>
+              <h2 className="text-[15px] font-extrabold leading-tight">{T('🔨 배치 모드', '🔨 Edit Mode')}</h2>
+              <p className="text-[10px] font-bold text-town-inkSoft">
+                {T('주민들은 잠시 자리를 비켜줬어요', 'Residents stepped away for a moment')}
+              </p>
             </>
           ) : (
             <>
-              <h2 className="text-[15px] font-extrabold leading-tight">{nickname}의 마을</h2>
+              <h2 className="text-[15px] font-extrabold leading-tight">
+                {T(`${nickname}의 마을`, `${nickname}'s Town`)}
+              </h2>
               <p className="text-[10px] font-bold text-town-inkSoft">
-                주민 {populationCount}명 · 풍성도 {richness}
+                {T(`주민 ${populationCount}명 · 풍성도 ${richness}`, `${populationCount} residents · richness ${richness}`)}
               </p>
             </>
           )}
@@ -257,7 +281,7 @@ export function VillageScreen() {
             onClick={exitEdit}
             className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl bg-town-leafDark px-3 text-[12.5px] font-extrabold text-white shadow-pop"
           >
-            완료
+            {T('완료', 'Done')}
           </button>
         ) : (
           <span className="w-[60px]" />
@@ -269,10 +293,10 @@ export function VillageScreen() {
         <div className="pointer-events-none relative z-10 flex justify-center gap-2 px-4 py-2">
           {(
             [
-              ['card', '🪪', '주민증'],
-              ['dex', '📖', '도감'],
-              ['shop', '🏪', '상점'],
-              ['dressing', '🎨', '꾸미기'],
+              ['card', '🪪', T('주민증', 'ID Card')],
+              ['dex', '📖', T('도감', 'Dex')],
+              ['shop', '🏪', T('상점', 'Shop')],
+              ['dressing', '🎨', T('꾸미기', 'Style')],
             ] as const
           ).map(([id, emoji, label]) => (
             <button
@@ -292,10 +316,14 @@ export function VillageScreen() {
           <p className="rounded-full bg-town-ink/60 px-3 py-1 text-center text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
             {editSel ? (
               <>
-                <b className="text-town-sun">{editSel.label}</b> — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함
+                <b className="text-town-sun">{editSel.label}</b>
+                {T(' — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함', ' — drag to move · ✓ place · ✕ storage')}
               </>
             ) : (
-              '빈 곳 드래그 = 카메라 이동 · 오브젝트 탭 = 선택 · 아래 보관함에서 꺼내기'
+              T(
+                '빈 곳 드래그 = 카메라 이동 · 오브젝트 탭 = 선택 · 아래 보관함에서 꺼내기',
+                'Drag empty space = pan · tap object = select · pull from storage below',
+              )
             )}
           </p>
         </div>
@@ -305,14 +333,20 @@ export function VillageScreen() {
             <div className="pointer-events-none relative z-10 flex justify-center px-6">
               <p className="rounded-full bg-town-ink/55 px-3 py-1 text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
                 {emptyVillage
-                  ? '🕹️ 드래그로 산책 · 지도에서 체크인하면 건물이 생겨요'
-                  : '🕹️ 화면 드래그 또는 방향키(WASD)로 이동'}
+                  ? T(
+                      '🕹️ 드래그로 산책 · 지도에서 체크인하면 건물이 생겨요',
+                      '🕹️ Drag to stroll · check in on the map to earn buildings',
+                    )
+                  : T('🕹️ 화면 드래그 또는 방향키(WASD)로 이동', '🕹️ Drag or use arrow keys (WASD) to move')}
               </p>
             </div>
             {nextResident && (
               <div className="pointer-events-none relative z-10 mt-1 flex justify-center px-6">
                 <p className="rounded-full bg-town-paper/85 px-3 py-1 text-[10px] font-extrabold text-town-inkSoft shadow-sm">
-                  풍성도 {nextResident.unlockAt} 달성 시 {nextResident.species} <b>{nextResident.name}</b> 입주!
+                  {T(
+                    `풍성도 ${nextResident.unlockAt} 달성 시 ${nextResident.species} ${nextResident.name} 입주!`,
+                    `${nextResident.nameEn} the ${nextResident.speciesEn} moves in at richness ${nextResident.unlockAt}!`,
+                  )}
                 </p>
               </div>
             )}
@@ -332,7 +366,7 @@ export function VillageScreen() {
           >
             {interact.kind === 'npc' ? '💬' : '👀'} {interact.label}
             <span className="rounded-full bg-town-sun px-2 py-0.5 text-[10px]">
-              {interact.kind === 'npc' ? '말 걸기' : '살펴보기'}
+              {interact.kind === 'npc' ? T('말 걸기', 'Talk') : T('살펴보기', 'Inspect')}
             </span>
           </button>
         </div>
@@ -362,12 +396,12 @@ export function VillageScreen() {
               <p className="truncate text-[13.5px] font-extrabold">{thingSheetLabel}</p>
               <p className="text-[10.5px] font-bold text-town-inkSoft">
                 {thingSheet.kind === 'store'
-                  ? '인증 방문으로 얻은 건물'
+                  ? T('인증 방문으로 얻은 건물', 'Building earned by verified visit')
                   : thingSheet.kind === 'landmark'
-                    ? '랜드마크 미니어처'
+                    ? T('랜드마크 미니어처', 'Landmark miniature')
                     : thingSheet.kind === 'npc'
-                      ? '우리 마을 이웃'
-                      : '꾸미기 소품'}
+                      ? T('우리 마을 이웃', 'Town neighbor')
+                      : T('꾸미기 소품', 'Decor item')}
               </p>
             </div>
             <div className="flex shrink-0 gap-1.5">
@@ -383,7 +417,7 @@ export function VillageScreen() {
                   }}
                   className="rounded-lg bg-town-leafDark px-2.5 py-2 text-[11px] font-extrabold text-white"
                 >
-                  매장 보기
+                  {T('매장 보기', 'View store')}
                 </button>
               )}
               <button
@@ -393,7 +427,7 @@ export function VillageScreen() {
                 }}
                 className="rounded-lg bg-town-sun px-2.5 py-2 text-[11px] font-extrabold text-town-ink"
               >
-                🔨 배치
+                {T('🔨 배치', '🔨 Edit')}
               </button>
               <button
                 onClick={() => setThingSheetId(null)}
@@ -427,11 +461,12 @@ export function VillageScreen() {
         <div className="absolute inset-x-0 bottom-16 z-30 px-3 pb-2">
           <div className="rounded-2xl border border-town-line bg-town-paper/95 p-2.5 shadow-card backdrop-blur">
             <p className="mb-1.5 px-1 text-[10.5px] font-extrabold text-town-inkSoft">
-              🎒 보관함 {inventory.length > 0 ? '· 탭하면 화면 가운데에 꺼내져요' : ''}
+              {T('🎒 보관함', '🎒 Storage')}
+              {inventory.length > 0 ? T(' · 탭하면 화면 가운데에 꺼내져요', ' · tap to spawn at screen center') : ''}
             </p>
             {inventory.length === 0 ? (
               <p className="px-1 pb-1 text-[11.5px] font-bold text-town-inkSoft/70">
-                비어 있어요 — 방문·조우·구매로 오브젝트를 모아보세요
+                {T('비어 있어요 — 방문·조우·구매로 오브젝트를 모아보세요', 'Empty — collect objects by visiting, encountering, and shopping')}
               </p>
             ) : (
               <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">

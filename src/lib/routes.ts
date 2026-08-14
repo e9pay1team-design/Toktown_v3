@@ -5,6 +5,7 @@
 
 import type { LatLng } from '../types';
 import { distanceM } from '../mock/location';
+import { tr } from '../i18n';
 
 export type RouteMode = 'transit' | 'walk';
 
@@ -31,15 +32,15 @@ export interface RouteCandidate {
 
 /** 명동 도보권 가상 역/정류장 (경유점 목업) — 수단별 분리 */
 const SUBWAY_STATIONS = [
-  { name: '명동역', lat: 37.5609, lng: 126.9862 },
-  { name: '회현역', lat: 37.5586, lng: 126.9784 },
-  { name: '을지로입구역', lat: 37.566, lng: 126.9827 },
+  { name: '명동역', nameEn: 'Myeongdong Stn.', lat: 37.5609, lng: 126.9862 },
+  { name: '회현역', nameEn: 'Hoehyeon Stn.', lat: 37.5586, lng: 126.9784 },
+  { name: '을지로입구역', nameEn: 'Euljiro 1-ga Stn.', lat: 37.566, lng: 126.9827 },
 ];
 
 const BUS_STOPS = [
-  { name: '명동성당 정류장', lat: 37.5633, lng: 126.9873 },
-  { name: '롯데백화점 정류장', lat: 37.5648, lng: 126.9817 },
-  { name: '남대문시장 정류장', lat: 37.5594, lng: 126.9772 },
+  { name: '명동성당 정류장', nameEn: 'Myeongdong Cathedral stop', lat: 37.5633, lng: 126.9873 },
+  { name: '롯데백화점 정류장', nameEn: 'Lotte Dept. Store stop', lat: 37.5648, lng: 126.9817 },
+  { name: '남대문시장 정류장', nameEn: 'Namdaemun Market stop', lat: 37.5594, lng: 126.9772 },
 ];
 
 const nearestOf = <T extends LatLng>(list: T[], p: LatLng): T =>
@@ -95,16 +96,19 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
     id: 'walk',
     mode: 'walk',
     vehicle: 'walk',
-    label: '도보',
-    line: '도보',
+    label: tr('도보', 'Walk'),
+    line: tr('도보', 'Walk'),
     minutes: walkMinutes(dist),
     fare: 0,
     transfers: 0,
-    boardAt: '현재 위치',
-    alightAt: '도착지',
+    boardAt: tr('현재 위치', 'Current location'),
+    alightAt: tr('도착지', 'Destination'),
     steps: [
-      { icon: '🚶', text: `도보 ${walkMinutes(dist)}분 (${Math.round(dist)}m)` },
-      { icon: '🏁', text: '목적지 도착' },
+      {
+        icon: '🚶',
+        text: tr(`도보 ${walkMinutes(dist)}분 (${Math.round(dist)}m)`, `Walk ${walkMinutes(dist)} min (${Math.round(dist)}m)`),
+      },
+      { icon: '🏁', text: tr('목적지 도착', 'Arrive at destination') },
     ],
     polyline: curve(from, to, 0.18),
   };
@@ -114,18 +118,21 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
     id: 'subway',
     mode: 'transit',
     vehicle: 'subway',
-    label: '지하철',
-    line: '4호선',
+    label: tr('지하철', 'Subway'),
+    line: tr('4호선', 'Line 4'),
     minutes: Math.max(6, walkMinutes(dist) - 2),
     fare: 1500,
     transfers: 0,
-    boardAt: boardSt.name,
-    alightAt: alightSt.name,
+    boardAt: tr(boardSt.name, boardSt.nameEn),
+    alightAt: tr(alightSt.name, alightSt.nameEn),
     steps: [
-      { icon: '🚶', text: `${boardSt.name}까지 도보 2분` },
-      { icon: '🚇', text: `4호선 승차 → ${alightSt.name} 하차` },
-      { icon: '🚶', text: '출구에서 도착지까지 도보 2분' },
-      { icon: '🏁', text: '목적지 도착' },
+      { icon: '🚶', text: tr(`${boardSt.name}까지 도보 2분`, `Walk 2 min to ${boardSt.nameEn}`) },
+      {
+        icon: '🚇',
+        text: tr(`4호선 승차 → ${alightSt.name} 하차`, `Board Line 4 → alight at ${alightSt.nameEn}`),
+      },
+      { icon: '🚶', text: tr('출구에서 도착지까지 도보 2분', 'Walk 2 min from the exit') },
+      { icon: '🏁', text: tr('목적지 도착', 'Arrive at destination') },
     ],
     polyline: throughVia(from, boardSt, to),
   };
@@ -134,18 +141,21 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
     id: 'bus',
     mode: 'transit',
     vehicle: 'bus',
-    label: '버스',
-    line: '광역 0212',
+    label: tr('버스', 'Bus'),
+    line: tr('광역 0212', 'Bus 0212'),
     minutes: Math.max(7, walkMinutes(dist) - 1),
     fare: 1500,
     transfers: 0,
-    boardAt: boardBus.name,
-    alightAt: alightBus.name,
+    boardAt: tr(boardBus.name, boardBus.nameEn),
+    alightAt: tr(alightBus.name, alightBus.nameEn),
     steps: [
-      { icon: '🚶', text: `${boardBus.name}까지 도보 3분` },
-      { icon: '🚌', text: `0212번 승차 → ${alightBus.name} 하차` },
-      { icon: '🚶', text: '정류장에서 도착지까지 도보 2분' },
-      { icon: '🏁', text: '목적지 도착' },
+      { icon: '🚶', text: tr(`${boardBus.name}까지 도보 3분`, `Walk 3 min to ${boardBus.nameEn}`) },
+      {
+        icon: '🚌',
+        text: tr(`0212번 승차 → ${alightBus.name} 하차`, `Board bus 0212 → alight at ${alightBus.nameEn}`),
+      },
+      { icon: '🚶', text: tr('정류장에서 도착지까지 도보 2분', 'Walk 2 min from the stop') },
+      { icon: '🏁', text: tr('목적지 도착', 'Arrive at destination') },
     ],
     polyline: throughVia(from, boardBus, to),
   };

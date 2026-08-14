@@ -9,6 +9,7 @@ import { buildRoutes, type RouteCandidate, type RouteMode } from '../../lib/rout
 import { useVirtualLocation } from '../../mock/location';
 import { useJourneyStore } from '../../store/useJourneyStore';
 import { useUiStore } from '../../store/useUiStore';
+import { sName, useLang, useT } from '../../i18n';
 
 const VEHICLE_EMOJI = { subway: '🚇', bus: '🚌', walk: '🚶' } as const;
 
@@ -18,6 +19,8 @@ export function RouteSheet({ storeId }: { storeId: number }) {
   const setRouteSheetFor = useUiStore((s) => s.setRouteSheetFor);
   const startWaitTag = useJourneyStore((s) => s.startWaitTag);
   const startWalk = useJourneyStore((s) => s.startWalk);
+  const T = useT();
+  const lang = useLang();
 
   const [mode, setMode] = useState<RouteMode>('transit');
   const [swapped, setSwapped] = useState(false);
@@ -28,7 +31,8 @@ export function RouteSheet({ storeId }: { storeId: number }) {
     const from = swapped ? store : position;
     const to = swapped ? position : store;
     return buildRoutes({ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng });
-  }, [store, position, swapped]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, position, swapped, lang]);
 
   if (!store) return null;
   const candidates = routes.filter((r) => r.mode === mode);
@@ -44,14 +48,14 @@ export function RouteSheet({ storeId }: { storeId: number }) {
     else startWalk(selected, store.id);
   };
 
-  const fromLabel = swapped ? store.name : '내 위치';
-  const toLabel = swapped ? '내 위치' : store.name;
+  const fromLabel = swapped ? sName(store) : T('내 위치', 'My location');
+  const toLabel = swapped ? T('내 위치', 'My location') : sName(store);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[570] flex flex-col justify-end px-2 pb-2">
       <div className="sheet-up pointer-events-auto overflow-hidden rounded-[1.6rem] border border-town-line bg-town-paper shadow-sheet">
         <div className="relative flex items-center justify-center pb-1 pt-3">
-          <h3 className="text-[15px] font-extrabold">길찾기</h3>
+          <h3 className="text-[15px] font-extrabold">{T('길찾기', 'Directions')}</h3>
           <button
             onClick={close}
             className="absolute right-3 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-town-cream text-[13px] font-bold text-town-inkSoft"
@@ -86,8 +90,8 @@ export function RouteSheet({ storeId }: { storeId: number }) {
           <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-town-cream p-1.5">
             {(
               [
-                ['transit', '🚇 대중교통'],
-                ['walk', '🚶 도보'],
+                ['transit', T('🚇 대중교통', '🚇 Transit')],
+                ['walk', T('🚶 도보', '🚶 Walk')],
               ] as const
             ).map(([m, label]) => (
               <button
@@ -122,10 +126,15 @@ export function RouteSheet({ storeId }: { storeId: number }) {
                     {VEHICLE_EMOJI[r.vehicle]} {r.label}
                     <span className="ml-1.5 text-[11px] font-bold text-town-inkSoft">{r.line}</span>
                   </span>
-                  <span className="text-[15px] font-extrabold text-town-leafDark">{r.minutes}분</span>
+                  <span className="text-[15px] font-extrabold text-town-leafDark">
+                    {T(`${r.minutes}분`, `${r.minutes} min`)}
+                  </span>
                 </div>
                 <p className="mt-0.5 text-[11px] font-bold text-town-inkSoft">
-                  환승 {r.transfers}회 · {r.fare === 0 ? '무료' : `${r.fare.toLocaleString()}원`}
+                  {T(
+                    `환승 ${r.transfers}회 · ${r.fare === 0 ? '무료' : `${r.fare.toLocaleString()}원`}`,
+                    `${r.transfers} transfers · ${r.fare === 0 ? 'Free' : `₩${r.fare.toLocaleString()}`}`,
+                  )}
                 </p>
               </button>
             ))}
@@ -146,11 +155,11 @@ export function RouteSheet({ storeId }: { storeId: number }) {
             onClick={start}
             className="mt-3 w-full rounded-2xl bg-town-leafDark py-4 text-[15.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
           >
-            이동 시작
+            {T('이동 시작', 'Start Journey')}
           </button>
           {selected?.mode === 'transit' && (
             <p className="mt-2 text-center text-[10.5px] text-town-inkSoft/80">
-              이동 시작 후 <b>승차 태그</b>(데모 패널)로 탑승을 감지해요
+              {T('이동 시작 후 승차 태그(데모 패널)로 탑승을 감지해요', 'After starting, the ride tag (demo panel) detects boarding')}
             </p>
           )}
         </div>

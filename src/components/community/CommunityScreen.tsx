@@ -19,6 +19,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { CharacterSvg } from '../../assets/CharacterSvg';
 import { CATEGORY_COLORS } from '../../assets/buildings';
 import { CategoryGlyph } from '../../assets/misc';
+import { sName, tr, useLang, useT } from '../../i18n';
 
 function StoreTagChip({ storeId }: { storeId: number }) {
   const setTab = useUiStore((s) => s.setTab);
@@ -41,13 +42,14 @@ function StoreTagChip({ storeId }: { storeId: number }) {
       >
         <CategoryGlyph category={store.category} size={12} />
       </span>
-      📍 {store.name}
+      📍 {sName(store)}
     </button>
   );
 }
 
 /** 글 카드에 붙는 분류 태그 칩 (탭하면 해당 태그 필터) */
 function PostTagChips({ ids, onPick }: { ids: string[]; onPick: (id: string) => void }) {
+  const T = useT();
   if (ids.length === 0) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1">
@@ -61,7 +63,7 @@ function PostTagChips({ ids, onPick }: { ids: string[]; onPick: (id: string) => 
             className="rounded-full px-2 py-0.5 text-[10px] font-extrabold"
             style={{ background: tag.color, color: tag.text }}
           >
-            {tag.label}
+            {T(tag.label, tag.labelEn)}
           </button>
         );
       })}
@@ -69,15 +71,19 @@ function PostTagChips({ ids, onPick }: { ids: string[]; onPick: (id: string) => 
   );
 }
 
+/** 숨겨진 다른 언어 버전 토글 — 기본 표시가 번역본이면 '원문 보기'가 된다 */
 function TranslateToggle({
-  translated,
+  other,
+  otherIsOriginal,
   shown,
   onToggle,
 }: {
-  translated: string;
+  other: string;
+  otherIsOriginal: boolean;
   shown: boolean;
   onToggle: () => void;
 }) {
+  const T = useT();
   return (
     <div className="mt-1.5">
       <button
@@ -88,11 +94,16 @@ function TranslateToggle({
             : 'border border-town-sky bg-[#EAF4F8] text-town-skyDeep'
         }`}
       >
-        🌐 {shown ? '원문 보기' : '번역 보기'}
+        🌐{' '}
+        {shown
+          ? T('접기', 'Hide')
+          : otherIsOriginal
+            ? T('원문 보기', 'Show original')
+            : T('번역 보기', 'Show translation')}
       </button>
       {shown && (
         <p className="fade-in mt-1.5 rounded-xl border-l-4 border-town-skyDeep bg-[#EAF4F8] px-3 py-2 text-[12.5px] leading-relaxed text-town-ink/90">
-          {translated}
+          {other}
         </p>
       )}
     </div>
@@ -105,8 +116,14 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
   const [showTr, setShowTr] = useState(false);
   const [openComments, setOpenComments] = useState(false);
   const [trComments, setTrComments] = useState<Set<string>>(new Set());
+  const T = useT();
+  const lang = useLang();
 
   const liked = likedIds.includes(post.id);
+  // 앱 언어와 일치하는 버전을 기본 표시, 토글로 반대 버전 확인.
+  const primary = post.lang === lang ? post.text : post.translated;
+  const other = post.lang === lang ? post.translated : post.text;
+  const autoTranslated = post.lang !== lang;
 
   return (
     <article className="rounded-2xl border border-town-line bg-town-paper p-3.5 shadow-sm">
@@ -125,10 +142,14 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
         </div>
       </div>
 
-      <p className="mt-2.5 text-[13.5px] leading-relaxed text-town-ink/95">{post.text}</p>
+      <p className="mt-2.5 text-[13.5px] leading-relaxed text-town-ink/95">{primary}</p>
+      {autoTranslated && (
+        <p className="mt-0.5 text-[9.5px] font-bold text-town-skyDeep">{T('🌐 자동 번역됨', '🌐 Auto-translated')}</p>
+      )}
       <PostTagChips ids={post.tags} onPick={onPickTag} />
       <TranslateToggle
-        translated={post.translated}
+        other={other}
+        otherIsOriginal={autoTranslated}
         shown={showTr}
         onToggle={() => setShowTr(!showTr)}
       />
@@ -148,7 +169,8 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
             onClick={() => setOpenComments(!openComments)}
             className="flex items-center gap-1 text-[12px] font-extrabold text-town-inkSoft"
           >
-            💬 댓글 {post.comments.length} {openComments ? '접기' : '보기'}
+            💬 {T(`댓글 ${post.comments.length}`, `${post.comments.length} comments`)}{' '}
+            {openComments ? T('접기', 'Hide') : T('보기', 'Show')}
           </button>
         )}
       </div>
@@ -157,14 +179,17 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
         <ul className="fade-in mt-2 flex flex-col gap-2">
           {post.comments.map((c) => {
             const shown = trComments.has(c.id);
+            const cPrimary = c.lang === lang ? c.text : c.translated;
+            const cOther = c.lang === lang ? c.translated : c.text;
             return (
               <li key={c.id} className="rounded-xl bg-town-cream/70 p-2.5">
                 <p className="text-[11.5px] font-extrabold">
                   {c.flag} {c.author}
                 </p>
-                <p className="mt-0.5 text-[12.5px] leading-snug text-town-ink/90">{c.text}</p>
+                <p className="mt-0.5 text-[12.5px] leading-snug text-town-ink/90">{cPrimary}</p>
                 <TranslateToggle
-                  translated={c.translated}
+                  other={cOther}
+                  otherIsOriginal={c.lang !== lang}
                   shown={shown}
                   onToggle={() =>
                     setTrComments((prev) => {
@@ -201,6 +226,7 @@ export function CommunityScreen() {
   const myPosts = useCommunityStore((s) => s.myPosts);
   const addPost = useCommunityStore((s) => s.addPost);
   const toast = useToastStore((s) => s.show);
+  const T = useT();
 
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState<string | 'all'>('all');
@@ -239,7 +265,7 @@ export function CommunityScreen() {
     setDraftTags([]);
     setDraftStore(0);
     setComposing(false);
-    toast('커뮤니티에 글을 올렸어요!', 'success');
+    toast(tr('커뮤니티에 글을 올렸어요!', 'Posted to the community!'), 'success');
   };
 
   const toggleDraftTag = (id: string) =>
@@ -252,13 +278,13 @@ export function CommunityScreen() {
       <header className="px-5 pb-2 pt-12">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-[22px] font-extrabold">커뮤니티</h2>
+            <h2 className="text-[22px] font-extrabold">{T('커뮤니티', 'Community')}</h2>
             <p className="text-[11.5px] font-bold text-town-inkSoft">
-              🌏 전체 주민 통합 채널 · 내 위치는 노출되지 않아요
+              {T('🌏 전체 주민 통합 채널 · 내 위치는 노출되지 않아요', '🌏 All-residents channel · your location stays private')}
             </p>
           </div>
           <span className="rounded-full bg-town-leaf/15 px-2.5 py-1 text-[10.5px] font-extrabold text-town-leafDark">
-            주민 {COMMUNITY_POSTS.length + myPosts.length + 40}명
+            {T(`주민 ${COMMUNITY_POSTS.length + myPosts.length + 40}명`, `${COMMUNITY_POSTS.length + myPosts.length + 40} residents`)}
           </span>
         </div>
 
@@ -268,7 +294,7 @@ export function CommunityScreen() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="글·작성자·태그 검색"
+            placeholder={T('글·작성자·태그 검색', 'Search posts, authors, tags')}
             className="min-w-0 flex-1 bg-transparent text-[13px] font-bold outline-none placeholder:text-town-inkSoft/50"
             aria-label="커뮤니티 글 검색"
           />
@@ -293,7 +319,7 @@ export function CommunityScreen() {
                 : 'border border-town-line bg-town-paper text-town-inkSoft'
             }`}
           >
-            전체
+            {T('전체', 'All')}
           </button>
           {POST_TAGS.map((tag) => (
             <button
@@ -304,7 +330,7 @@ export function CommunityScreen() {
               }`}
               style={{ background: tag.color, color: tag.text }}
             >
-              {tag.label}
+              {T(tag.label, tag.labelEn)}
             </button>
           ))}
         </div>
@@ -316,10 +342,19 @@ export function CommunityScreen() {
           <p className="px-1 text-[11px] font-extrabold text-town-inkSoft">
             {q !== '' && (
               <>
-                ‘<span className="text-town-ink">{query.trim()}</span>’ 검색 ·{' '}
+                ‘<span className="text-town-ink">{query.trim()}</span>’ {T('검색', 'search')} ·{' '}
               </>
             )}
-            {tagFilter !== 'all' && <>{tagById(tagFilter)?.label} · </>}글 {total}건
+            {tagFilter !== 'all' && (
+              <>
+                {(() => {
+                  const tag = tagById(tagFilter);
+                  return tag ? T(tag.label, tag.labelEn) : null;
+                })()}{' '}
+                ·{' '}
+              </>
+            )}
+            {T(`글 ${total}건`, `${total} posts`)}
           </p>
         )}
 
@@ -336,10 +371,10 @@ export function CommunityScreen() {
                 <p className="flex items-center gap-1.5 text-[13px] font-extrabold">
                   {profile?.nickname}
                   <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-                    나
+                    {T('나', 'Me')}
                   </span>
                 </p>
-                <p className="text-[10px] font-bold text-town-inkSoft/70">방금</p>
+                <p className="text-[10px] font-bold text-town-inkSoft/70">{T('방금', 'Just now')}</p>
               </div>
             </div>
             <p className="mt-2.5 text-[13.5px] leading-relaxed">{p.text}</p>
@@ -355,9 +390,9 @@ export function CommunityScreen() {
         {total === 0 && (
           <div className="rounded-2xl border-2 border-dashed border-town-line bg-town-paper/70 p-6 text-center">
             <p className="text-[20px]">🔍</p>
-            <p className="mt-1 text-[13px] font-extrabold">검색 결과가 없어요</p>
+            <p className="mt-1 text-[13px] font-extrabold">{T('검색 결과가 없어요', 'No results')}</p>
             <p className="mt-0.5 text-[11.5px] font-bold text-town-inkSoft">
-              다른 검색어나 태그로 다시 찾아보세요
+              {T('다른 검색어나 태그로 다시 찾아보세요', 'Try a different keyword or tag')}
             </p>
           </div>
         )}
@@ -377,7 +412,7 @@ export function CommunityScreen() {
         <div className="absolute inset-0 z-[860] flex flex-col justify-end bg-town-ink/40 pb-16 fade-in">
           <div className="sheet-up rounded-[1.6rem] bg-town-paper p-5 pb-6 shadow-sheet mx-2 mb-1">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[16px] font-extrabold">커뮤니티에 글쓰기</h3>
+              <h3 className="text-[16px] font-extrabold">{T('커뮤니티에 글쓰기', 'Write a Post')}</h3>
               <button
                 onClick={() => setComposing(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-town-cream text-[13px] font-bold text-town-inkSoft"
@@ -389,7 +424,7 @@ export function CommunityScreen() {
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value.slice(0, 300))}
-              placeholder="주민들과 나누고 싶은 이야기를 적어보세요 (2자 이상)"
+              placeholder={T('주민들과 나누고 싶은 이야기를 적어보세요 (2자 이상)', 'Share something with fellow residents (2+ chars)')}
               rows={4}
               autoFocus
               className="w-full resize-none rounded-2xl border-2 border-town-line bg-town-cream/50 p-3.5 text-[14px] font-medium outline-none focus:border-town-leaf"
@@ -397,7 +432,7 @@ export function CommunityScreen() {
 
             {/* 분류 태그 선택 */}
             <div className="mt-2.5">
-              <p className="mb-1.5 text-[12px] font-extrabold text-town-inkSoft">태그 선택</p>
+              <p className="mb-1.5 text-[12px] font-extrabold text-town-inkSoft">{T('태그 선택', 'Pick tags')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {POST_TAGS.map((tag) => {
                   const on = draftTags.includes(tag.id);
@@ -410,7 +445,7 @@ export function CommunityScreen() {
                       }`}
                       style={{ background: tag.color, color: tag.text }}
                     >
-                      {tag.label}
+                      {T(tag.label, tag.labelEn)}
                     </button>
                   );
                 })}
@@ -418,17 +453,17 @@ export function CommunityScreen() {
             </div>
 
             <div className="mt-2.5 flex items-center gap-2">
-              <span className="shrink-0 text-[12px] font-extrabold text-town-inkSoft">장소 태그</span>
+              <span className="shrink-0 text-[12px] font-extrabold text-town-inkSoft">{T('장소 태그', 'Place tag')}</span>
               <select
                 value={draftStore}
                 onChange={(e) => setDraftStore(Number(e.target.value))}
                 className="min-w-0 flex-1 rounded-xl border border-town-line bg-town-cream px-2 py-2 text-[12.5px] font-bold outline-none"
                 aria-label="장소 태그 선택"
               >
-                <option value={0}>태그 없음</option>
+                <option value={0}>{T('태그 없음', 'No tag')}</option>
                 {STORES.map((s) => (
                   <option key={s.id} value={s.id}>
-                    📍 {s.name}
+                    📍 {sName(s)}
                   </option>
                 ))}
               </select>
@@ -438,7 +473,7 @@ export function CommunityScreen() {
               disabled={draft.trim().length < 2}
               className="mt-3.5 w-full rounded-2xl bg-town-leafDark py-3.5 text-[15px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none disabled:bg-town-line disabled:text-town-inkSoft/50 disabled:shadow-none"
             >
-              올리기
+              {T('올리기', 'Post')}
             </button>
           </div>
         </div>
