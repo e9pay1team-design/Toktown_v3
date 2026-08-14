@@ -317,6 +317,15 @@ export class VillageGame {
     return this.editMode;
   }
 
+  /** 편집 선택 해제 — 전체 회수 등 외부에서 배치 상태가 바뀔 때 호출 */
+  cancelEdit(): void {
+    if (!this.edit) return;
+    this.edit = null;
+    this.editDragging = false;
+    this.editPointer = null;
+    this.hooks.onEditSelection(null);
+  }
+
   /** 보관함에서 아이템을 꺼내 화면 중앙 근처 유효 타일에 스폰 */
   spawnFromTray(meta: EditMeta): void {
     if (!this.editMode) return;

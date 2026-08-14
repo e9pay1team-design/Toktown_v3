@@ -63,6 +63,7 @@ export function VillageScreen() {
   const place = useVillageStore((s) => s.place);
   const movePlacement = useVillageStore((s) => s.move);
   const removePlacement = useVillageStore((s) => s.remove);
+  const recallAllPlacements = useVillageStore((s) => s.recallAll);
   const events = useVisitStore((s) => s.events);
   const dex = useCollectionStore((s) => s.dex);
   const discovered = useCollectionStore((s) => s.landmarks);
@@ -181,6 +182,25 @@ export function VillageScreen() {
     }
   };
 
+  /* 🎒 전체 회수 — 배치된 모든 오브젝트를 보관함으로 */
+  const recallAll = () => {
+    const count = placements.length;
+    if (count === 0) {
+      toast(tr('회수할 오브젝트가 없어요', 'Nothing to recall'), 'info');
+      return;
+    }
+    if (!window.confirm(tr('배치된 모든 오브젝트를 보관함으로 되돌릴까요?', 'Return all placed objects to storage?'))) {
+      return;
+    }
+    gameRef.current?.cancelEdit();
+    setEditSel(null);
+    recallAllPlacements();
+    toast(
+      tr(`🎒 오브젝트 ${count}개를 보관함으로 회수했어요`, `🎒 Recalled ${count} object${count === 1 ? '' : 's'} to storage`),
+      'success',
+    );
+  };
+
   const openDialogueFor = (target: VInteractTarget) => {
     if (target.kind !== 'npc') return;
     if (target.id.startsWith('placed-')) {
@@ -248,7 +268,13 @@ export function VillageScreen() {
       {/* 헤더 */}
       <header className="pointer-events-none relative z-10 flex items-center justify-between px-4 pt-12">
         {editMode ? (
-          <span className="w-[60px]" />
+          <button
+            onClick={recallAll}
+            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-coral/60 bg-town-paper/95 px-2.5 text-[12px] font-extrabold text-town-coralDeep shadow-sm transition active:scale-95"
+            aria-label={T('모든 오브젝트 보관함으로 회수', 'Recall all objects to storage')}
+          >
+            {T('🎒 전체 회수', '🎒 Recall all')}
+          </button>
         ) : (
           <button
             onClick={() => setTab('map')}

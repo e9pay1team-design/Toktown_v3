@@ -35,6 +35,8 @@ interface VillageState {
   place: (kind: PlacementKind, refId: string, bx: number, by: number) => void;
   move: (placementId: number, bx: number, by: number) => void;
   remove: (placementId: number) => void;
+  /** 배치된 모든 오브젝트를 보관함으로 회수 (획득물은 유지) */
+  recallAll: () => void;
   buyDecor: (decorId: string) => void;
 }
 
@@ -60,6 +62,8 @@ export const useVillageStore = create<VillageState>()(
 
       remove: (placementId) =>
         set((s) => ({ placements: s.placements.filter((p) => p.id !== placementId) })),
+
+      recallAll: () => set({ placements: [] }),
 
       buyDecor: (decorId) =>
         set((s) => ({
