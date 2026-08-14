@@ -1,8 +1,9 @@
-// ─── 내 마을 게임 엔진 (V1 프로토타입 이식) ───────────────────────
-// 캔버스 rAF 루프: 플로팅 조이스틱/키보드 이동, 축분리 충돌 슬라이드,
-// 카메라 이징 추적, NPC 배회+말풍선, 상호작용 타깃 감지, 풋프린트
-// 배치 커서, 나비/갈매기 앰비언트, 밤 조명. React 는 오버레이 UI 만
-// 담당하고 월드 렌더는 전부 이 클래스가 그린다.
+// ─── 내 마을 게임 엔진 (V1 프로토타입 이식 + 배치 모드) ───────────
+// 걷기 모드: 플로팅 조이스틱/키보드 이동, 축분리 충돌 슬라이드, 카메라
+// 이징 추적, NPC 배회+말풍선, 상호작용 타깃 감지, 나비/갈매기, 밤 조명.
+// 배치 모드: 캐릭터·주민이 잠시 퇴장하고 오브젝트만 남는 편집 화면.
+// 빈 곳 드래그=카메라 패닝, 오브젝트 탭=선택, 드래그=이동, 캔버스에
+// 그려지는 ✓(확정)/✕(보관함 반환) 버튼으로 마무리한다.
 
 import {
   TW,
@@ -11,6 +12,7 @@ import {
   VH,
   VT,
   toScreen,
+  toWorld,
   vidx,
   vinBounds,
   canPlaceFootprint,
@@ -29,16 +31,17 @@ import {
   drawTemplateBuilding,
   drawVLandmark,
   drawVNameplate,
+  vTilePath,
   VPALETTE,
   type VCharSkin,
   type VFacing,
   type VBuildingSkin,
 } from './villageDraw';
 
-/** 마을에 놓인 것 (NPC 제외) — 컴포넌트가 렌더 준비된 형태로 넘긴다 */
+/** 마을에 놓인 것 — 컴포넌트가 렌더 준비된 형태로 넘긴다 */
 export interface PlacedThing {
   id: number;
-  kind: 'store' | 'landmark' | 'decor';
+  kind: 'store' | 'landmark' | 'decor' | 'npc';
   bx: number;
   by: number;
   w: number;
@@ -51,6 +54,8 @@ export interface PlacedThing {
   lmId?: string;
   /** decor 전용 — villageDraw prop type */
   decorType?: string;
+  /** npc 전용 — 배치 모드 정적 렌더용 */
+  npcSkin?: VCharSkin;
   blocking: boolean;
 }
 
@@ -68,9 +73,36 @@ export type VInteractTarget =
   | { kind: 'thing'; id: number; label: string }
   | { kind: 'npc'; id: string; label: string };
 
+/** 배치 모드에서 편집 중인 오브젝트의 렌더 정보 */
+export interface EditMeta {
+  kind: 'store' | 'landmark' | 'decor' | 'npc';
+  refId: string;
+  w: number;
+  h: number;
+  label: string;
+  emoji?: string;
+  skin?: VBuildingSkin;
+  lmId?: string;
+  decorType?: string;
+  npcSkin?: VCharSkin;
+}
+
+interface EditObject extends EditMeta {
+  /** null = 보관함에서 새로 꺼낸 것 */
+  placementId: number | null;
+  bx: number;
+  by: number;
+  ok: boolean;
+}
+
 export interface VillageHooks {
   onInteractChange(target: VInteractTarget | null): void;
-  onPlacementChange(tile: { bx: number; by: number; ok: boolean } | null): void;
+  /** ✓ — 배치 확정 (placementId null 이면 신규 place, 아니면 move) */
+  onEditCommit(e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }): void;
+  /** ✕ — 보관함 반환 (placementId null 이면 그냥 취소) */
+  onEditReturn(e: { placementId: number | null }): void;
+  /** 편집 선택 상태 변화 (React 힌트 문구용) */
+  onEditSelection(sel: { label: string; isNew: boolean } | null): void;
 }
 
 interface VillagerRuntime {
@@ -102,6 +134,7 @@ const INTERACT_RANGE = 1.6;
 const JOYSTICK_RADIUS = 58;
 const TAP_SLOP = 10;
 const ZOOM = 0.84;
+const EDIT_BTN_R = 16;
 
 export class VillageGame {
   private ctx: CanvasRenderingContext2D;
@@ -111,6 +144,8 @@ export class VillageGame {
   private dpr = 1;
   private vw = 0;
   private vh = 0;
+  private anchorX = 0;
+  private anchorY = 0;
 
   private player = { x: 0, y: 0, facing: 's' as VFacing, phase: 0, moving: false };
   private cam = { sx: 0, sy: 0 };
@@ -125,10 +160,19 @@ export class VillageGame {
 
   private things: PlacedThing[] = [];
   private dynBlocked = new Set<number>();
-  private placement: { w: number; h: number } | null = null;
-  private placementTile: { bx: number; by: number; ok: boolean } | null = null;
   private lastTarget: VInteractTarget | null = null;
   private playerSkin: VCharSkin;
+
+  private editMode = false;
+  private edit: EditObject | null = null;
+  private editDragging = false;
+  private editPointer: {
+    id: number;
+    mode: 'pan' | 'drag';
+    lastX: number;
+    lastY: number;
+    moved: boolean;
+  } | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -147,13 +191,15 @@ export class VillageGame {
     this.cam.sx = start.sx;
     this.cam.sy = start.sy;
 
-    // 나비 3마리 — 광장 주변 잔디에서 시작.
     const colors = ['#f2b3c9', '#ffd166', '#c7ddf2'];
     for (let i = 0; i < 3; i++) {
       const bx = world.plaza.tx - 3 + i * 3;
       const by = world.plaza.ty + 2 + (i % 2) * 3;
       this.butterflies.push({ x: bx, y: by, tx: bx, ty: by, flap: i * 2, color: colors[i] });
     }
+
+    // e2e 검증/디버깅 훅.
+    (window as unknown as Record<string, unknown>).__toktownVillage = this;
 
     this.attach();
     this.resize();
@@ -186,6 +232,8 @@ export class VillageGame {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.vw = Math.max(1, rect.width);
     this.vh = Math.max(1, rect.height);
+    this.anchorX = this.vw / 2;
+    this.anchorY = this.vh * 0.54;
     this.canvas.width = Math.round(this.vw * this.dpr);
     this.canvas.height = Math.round(this.vh * this.dpr);
   }
@@ -207,8 +255,7 @@ export class VillageGame {
         }
       }
     }
-    // 배치물이 플레이어를 깔고 앉았다면 근처 빈 칸으로 밀어낸다.
-    if (!this.canStand(this.player.x, this.player.y)) {
+    if (!this.editMode && !this.canStand(this.player.x, this.player.y)) {
       const spot = this.nearestWalkable(Math.floor(this.player.x), Math.floor(this.player.y));
       this.player.x = spot.tx + 0.5;
       this.player.y = spot.ty + 0.5;
@@ -239,21 +286,98 @@ export class VillageGame {
     });
   }
 
-  /** 배치 모드 시작/해제 — w×h 풋프린트 커서가 플레이어 앞을 따라다닌다 */
-  setPlacement(size: { w: number; h: number } | null): void {
-    this.placement = size;
-    if (!size) {
-      this.placementTile = null;
-      this.hooks.onPlacementChange(null);
+  /** 배치 모드 on/off — off 시 편집 중이던 오브젝트는 원위치(신규는 보관함 유지) */
+  setEditMode(on: boolean): void {
+    if (this.editMode === on) return;
+    this.editMode = on;
+    this.edit = null;
+    this.editDragging = false;
+    this.editPointer = null;
+    this.move.x = 0;
+    this.move.y = 0;
+    this.keys.clear();
+    this.stick = null;
+    this.stickView = null;
+    this.hooks.onEditSelection(null);
+    if (on && this.lastTarget) {
+      this.lastTarget = null;
+      this.hooks.onInteractChange(null);
     }
   }
 
-  getPlacementTile(): { bx: number; by: number; ok: boolean } | null {
-    return this.placementTile;
+  isEditMode(): boolean {
+    return this.editMode;
+  }
+
+  /** 보관함에서 아이템을 꺼내 화면 중앙 근처 유효 타일에 스폰 */
+  spawnFromTray(meta: EditMeta): void {
+    if (!this.editMode) return;
+    const center = toWorld(this.cam.sx, this.cam.sy);
+    let bx = Math.round(center.x - meta.w / 2);
+    let by = Math.round(center.y - meta.h / 2);
+    bx = Math.max(0, Math.min(VW - meta.w, bx));
+    by = Math.max(0, Math.min(VH - meta.h, by));
+    // 가까운 유효 자리 나선 탐색.
+    const occ = this.occupiedForEdit(null);
+    outer: for (let r = 0; r < 8; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          if (canPlaceFootprint(this.world, occ, bx + dx, by + dy, meta.w, meta.h)) {
+            bx += dx;
+            by += dy;
+            break outer;
+          }
+        }
+      }
+    }
+    this.edit = {
+      ...meta,
+      placementId: null,
+      bx,
+      by,
+      ok: canPlaceFootprint(this.world, occ, bx, by, meta.w, meta.h),
+    };
+    this.editDragging = false;
+    this.hooks.onEditSelection({ label: meta.label, isNew: true });
+    // 스폰 지점으로 카메라 살짝 이동.
+    const s = toScreen(bx + meta.w / 2, by + meta.h / 2);
+    this.cam.sx = s.sx;
+    this.cam.sy = s.sy;
   }
 
   getPlayerTile(): { tx: number; ty: number } {
     return { tx: Math.floor(this.player.x), ty: Math.floor(this.player.y) };
+  }
+
+  /** e2e 검증용 — 편집 상태·✓/✕ 버튼·타일의 캔버스 CSS 좌표 */
+  getEditDebug(): {
+    editMode: boolean;
+    edit: { bx: number; by: number; ok: boolean; placementId: number | null } | null;
+    buttons: { check: { x: number; y: number }; cancel: { x: number; y: number } } | null;
+    cam: { sx: number; sy: number };
+    tileToCss: (tx: number, ty: number) => { x: number; y: number };
+  } {
+    const toCss = (s: { x: number; y: number }) => ({
+      x: (s.x - this.cam.sx) * ZOOM + this.anchorX,
+      y: (s.y - this.cam.sy) * ZOOM + this.anchorY,
+    });
+    const rects = this.editButtonCenters();
+    return {
+      editMode: this.editMode,
+      edit: this.edit
+        ? { bx: this.edit.bx, by: this.edit.by, ok: this.edit.ok, placementId: this.edit.placementId }
+        : null,
+      buttons:
+        rects && !this.editDragging
+          ? { check: toCss(rects.check), cancel: toCss(rects.cancel) }
+          : null,
+      cam: { sx: this.cam.sx, sy: this.cam.sy },
+      tileToCss: (tx: number, ty: number) => {
+        const s = toScreen(tx, ty);
+        return toCss({ x: s.sx, y: s.sy });
+      },
+    };
   }
 
   // ------------------------------------------------------------ collision
@@ -287,6 +411,21 @@ export class VillageGame {
     return { tx, ty };
   }
 
+  /** 편집 검증용 점유 집합 — 편집 중인 자신(excludeId)의 발자국은 뺀다 */
+  private occupiedForEdit(excludeId: number | null): Set<number> {
+    const occ = new Set<number>();
+    for (const t of this.things) {
+      if (excludeId !== null && t.id === excludeId) continue;
+      // 비블로킹 소품(꽃밭)·NPC 자리도 편집 중 겹침은 막는다 — 시각적 겹침 방지.
+      for (let ty = t.by; ty < t.by + t.h; ty++) {
+        for (let tx = t.bx; tx < t.bx + t.w; tx++) {
+          if (vinBounds(tx, ty)) occ.add(vidx(tx, ty));
+        }
+      }
+    }
+    return occ;
+  }
+
   // ------------------------------------------------------------ input
 
   private attach(): void {
@@ -307,7 +446,22 @@ export class VillageGame {
     window.removeEventListener('keyup', this.onKeyUp);
   }
 
+  /** 클라이언트 좌표 → 월드 스크린 좌표(카메라 역변환) */
+  private clientToWorldScreen(cx: number, cy: number): { sx: number; sy: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = cx - rect.left;
+    const y = cy - rect.top;
+    return {
+      sx: (x - this.anchorX) / ZOOM + this.cam.sx,
+      sy: (y - this.anchorY) / ZOOM + this.cam.sy,
+    };
+  }
+
   private onDown = (e: PointerEvent) => {
+    if (this.editMode) {
+      this.onEditDown(e);
+      return;
+    }
     if (this.stick) return;
     const rect = this.canvas.getBoundingClientRect();
     this.stick = {
@@ -320,6 +474,10 @@ export class VillageGame {
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.editMode) {
+      this.onEditMove(e);
+      return;
+    }
     if (!this.stick || e.pointerId !== this.stick.id) return;
     const rect = this.canvas.getBoundingClientRect();
     const dx = e.clientX - rect.left - this.stick.ox;
@@ -346,6 +504,10 @@ export class VillageGame {
   };
 
   private onUp = (e: PointerEvent) => {
+    if (this.editMode) {
+      this.onEditUp(e);
+      return;
+    }
     if (!this.stick || e.pointerId !== this.stick.id) return;
     this.stick = null;
     this.stickView = null;
@@ -354,6 +516,7 @@ export class VillageGame {
   };
 
   private onKey = (e: KeyboardEvent) => {
+    if (this.editMode) return;
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     this.keys.add(e.key.toLowerCase());
@@ -363,9 +526,178 @@ export class VillageGame {
     this.keys.delete(e.key.toLowerCase());
   };
 
+  // ------------------------------------------------------------ 배치 모드 입력
+
+  private onEditDown(e: PointerEvent): void {
+    if (this.editPointer) return;
+    const ws = this.clientToWorldScreen(e.clientX, e.clientY);
+
+    // 1) ✓ / ✕ 버튼.
+    if (this.edit && !this.editDragging) {
+      const btn = this.editButtonCenters();
+      if (btn) {
+        const rr = EDIT_BTN_R / ZOOM + 4;
+        if (Math.hypot(ws.sx - btn.check.x, ws.sy - btn.check.y) < rr) {
+          this.commitEdit();
+          return;
+        }
+        if (Math.hypot(ws.sx - btn.cancel.x, ws.sy - btn.cancel.y) < rr) {
+          this.returnEdit();
+          return;
+        }
+      }
+    }
+
+    const w = toWorld(ws.sx, ws.sy);
+    const tx = Math.floor(w.x);
+    const ty = Math.floor(w.y);
+
+    // 2) 편집 중인 오브젝트를 잡으면 드래그 시작.
+    if (this.edit && tx >= this.edit.bx && tx < this.edit.bx + this.edit.w && ty >= this.edit.by && ty < this.edit.by + this.edit.h) {
+      this.editPointer = { id: e.pointerId, mode: 'drag', lastX: e.clientX, lastY: e.clientY, moved: false };
+      return;
+    }
+
+    // 3) 배치돼 있는 다른 오브젝트를 잡으면 그것을 편집 대상으로.
+    const hit = this.hitTestThing(tx, ty);
+    if (hit) {
+      // 이전 편집 대상은 조용히 원위치.
+      this.edit = {
+        placementId: hit.id,
+        kind: hit.kind,
+        refId: '',
+        w: hit.w,
+        h: hit.h,
+        label: hit.label,
+        emoji: hit.emoji,
+        skin: hit.skin,
+        lmId: hit.lmId,
+        decorType: hit.decorType,
+        npcSkin: hit.npcSkin,
+        bx: hit.bx,
+        by: hit.by,
+        ok: true,
+      };
+      this.hooks.onEditSelection({ label: hit.label, isNew: false });
+      this.editPointer = { id: e.pointerId, mode: 'drag', lastX: e.clientX, lastY: e.clientY, moved: false };
+      return;
+    }
+
+    // 4) 빈 곳 — 카메라 패닝. (신규 오브젝트 편집 중이면 선택 유지)
+    if (this.edit && this.edit.placementId !== null && !this.editDragging) {
+      // 기존 오브젝트 선택은 빈 곳 탭으로 해제(원위치 유지).
+      this.edit = null;
+      this.hooks.onEditSelection(null);
+    }
+    this.editPointer = { id: e.pointerId, mode: 'pan', lastX: e.clientX, lastY: e.clientY, moved: false };
+  }
+
+  private onEditMove(e: PointerEvent): void {
+    const p = this.editPointer;
+    if (!p || e.pointerId !== p.id) return;
+    const dx = e.clientX - p.lastX;
+    const dy = e.clientY - p.lastY;
+    if (Math.hypot(e.clientX - p.lastX, e.clientY - p.lastY) > 2) p.moved = true;
+
+    if (p.mode === 'pan') {
+      this.cam.sx -= dx / ZOOM;
+      this.cam.sy -= dy / ZOOM;
+      this.clampCam();
+    } else if (this.edit) {
+      this.editDragging = true;
+      const ws = this.clientToWorldScreen(e.clientX, e.clientY);
+      const w = toWorld(ws.sx, ws.sy);
+      let bx = Math.round(w.x - this.edit.w / 2);
+      let by = Math.round(w.y - this.edit.h / 2);
+      bx = Math.max(0, Math.min(VW - this.edit.w, bx));
+      by = Math.max(0, Math.min(VH - this.edit.h, by));
+      this.edit.bx = bx;
+      this.edit.by = by;
+      this.edit.ok = canPlaceFootprint(
+        this.world,
+        this.occupiedForEdit(this.edit.placementId),
+        bx,
+        by,
+        this.edit.w,
+        this.edit.h,
+      );
+    }
+    p.lastX = e.clientX;
+    p.lastY = e.clientY;
+  }
+
+  private onEditUp(e: PointerEvent): void {
+    const p = this.editPointer;
+    if (!p || e.pointerId !== p.id) return;
+    this.editPointer = null;
+    if (p.mode === 'drag') {
+      // 드래그 끝 — 선택 상태로 두고 ✓/✕ 표시.
+      this.editDragging = false;
+    }
+  }
+
+  private editButtonCenters(): { check: { x: number; y: number }; cancel: { x: number; y: number } } | null {
+    if (!this.edit) return null;
+    const top = toScreen(this.edit.bx + this.edit.w / 2, this.edit.by + this.edit.h / 2);
+    const lift = this.edit.kind === 'store' || this.edit.kind === 'landmark' ? 96 : 64;
+    const y = top.sy - lift;
+    return {
+      cancel: { x: top.sx - 30, y },
+      check: { x: top.sx + 30, y },
+    };
+  }
+
+  private commitEdit(): void {
+    if (!this.edit || !this.edit.ok) return;
+    const { placementId, kind, refId, bx, by } = this.edit;
+    this.edit = null;
+    this.editDragging = false;
+    this.hooks.onEditSelection(null);
+    this.hooks.onEditCommit({ placementId, kind, refId, bx, by });
+  }
+
+  private returnEdit(): void {
+    if (!this.edit) return;
+    const { placementId } = this.edit;
+    this.edit = null;
+    this.editDragging = false;
+    this.hooks.onEditSelection(null);
+    this.hooks.onEditReturn({ placementId });
+  }
+
+  private clampCam(): void {
+    const corners = [toScreen(0, 0), toScreen(VW, 0), toScreen(VW, VH), toScreen(0, VH)];
+    const xs = corners.map((c) => c.sx);
+    const ys = corners.map((c) => c.sy);
+    const pad = 80;
+    this.cam.sx = Math.max(Math.min(...xs) + pad, Math.min(Math.max(...xs) - pad, this.cam.sx));
+    this.cam.sy = Math.max(Math.min(...ys) + pad, Math.min(Math.max(...ys) - pad, this.cam.sy));
+  }
+
+  /** 타일 좌표에 놓인 배치물 (앞에 그려지는 것 우선) */
+  private hitTestThing(tx: number, ty: number): PlacedThing | null {
+    let best: PlacedThing | null = null;
+    let bestD = -Infinity;
+    for (const t of this.things) {
+      if (tx >= t.bx && tx < t.bx + t.w && ty >= t.by && ty < t.by + t.h) {
+        const d = t.bx + t.w + t.by + t.h;
+        if (d > bestD) {
+          bestD = d;
+          best = t;
+        }
+      }
+    }
+    return best;
+  }
+
   // ------------------------------------------------------------ update
 
   private update(dt: number): void {
+    if (this.editMode) {
+      // 배치 모드: 세계는 멈추지 않지만(파도·시간) 배우들은 무대 뒤에서 대기.
+      return;
+    }
+
     let mx = this.move.x;
     let my = this.move.y;
     const k = this.keys;
@@ -383,7 +715,6 @@ export class VillageGame {
     this.player.moving = moving;
 
     if (moving) {
-      // 화면 드래그 방향 → 월드 방향 (위로 끌면 북쪽으로 걷는다).
       const a = mx / (TW / 2);
       const b = my / (TH / 2);
       let dx = (b + a) / 2;
@@ -404,7 +735,6 @@ export class VillageGame {
       this.player.phase = 0;
     }
 
-    // 카메라 이징.
     const goal = toScreen(this.player.x, this.player.y);
     const ease = 1 - Math.pow(0.0015, dt);
     this.cam.sx += (goal.sx - this.cam.sx) * ease;
@@ -413,7 +743,6 @@ export class VillageGame {
     this.updateVillagers(dt);
     this.updateAmbient(dt);
     this.updateInteract();
-    this.updatePlacement();
   }
 
   private updateVillagers(dt: number): void {
@@ -467,7 +796,6 @@ export class VillageGame {
   }
 
   private updateAmbient(dt: number): void {
-    // 나비: 목표 칸으로 흐느적 이동, 도착하면 근처 새 목표.
     for (const b of this.butterflies) {
       b.flap += dt * 14;
       const dx = b.tx - b.x;
@@ -488,7 +816,6 @@ export class VillageGame {
         b.y += (dy / d) * sp;
       }
     }
-    // 갈매기: 앞바다 상공을 크게 돈다.
     this.gull.angle += dt * 0.25;
   }
 
@@ -497,8 +824,8 @@ export class VillageGame {
     let bestD = INTERACT_RANGE;
 
     for (const t of this.things) {
-      // 건물은 문 앞, 소품은 중심이 기준.
-      const px = t.kind === 'decor' ? t.bx + t.w / 2 : t.bx + t.w / 2;
+      if (t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 담당
+      const px = t.bx + t.w / 2;
       const py = t.kind === 'decor' ? t.by + t.h / 2 : t.by + t.h + 0.5;
       const dist = Math.hypot(px - this.player.x, py - this.player.y);
       if (dist < bestD) {
@@ -520,45 +847,6 @@ export class VillageGame {
     }
   }
 
-  /** 배치 커서: 플레이어가 보는 방향 앞 칸을 원점으로 풋프린트를 편다 */
-  private updatePlacement(): void {
-    if (!this.placement) return;
-    const { w, h } = this.placement;
-    const { tx, ty } = this.getPlayerTile();
-    const co = -Math.floor((w - 1) / 2);
-    const ro = -Math.floor((h - 1) / 2);
-    const byFacing: Record<VFacing, [number, number]> = {
-      e: [tx + 1, ty + ro],
-      w: [tx - w, ty + ro],
-      s: [tx + co, ty + 1],
-      n: [tx + co, ty - h],
-    };
-    const primary = byFacing[this.player.facing];
-    const candidates: [number, number][] = [
-      primary,
-      byFacing.s,
-      byFacing.e,
-      byFacing.w,
-      byFacing.n,
-    ];
-    let bx = primary[0];
-    let by = primary[1];
-    let ok = false;
-    for (const [cx, cy] of candidates) {
-      if (canPlaceFootprint(this.world, this.dynBlocked, cx, cy, w, h)) {
-        bx = cx;
-        by = cy;
-        ok = true;
-        break;
-      }
-    }
-    const prev = this.placementTile;
-    if (!prev || prev.bx !== bx || prev.by !== by || prev.ok !== ok) {
-      this.placementTile = { bx, by, ok };
-      this.hooks.onPlacementChange(this.placementTile);
-    }
-  }
-
   // ------------------------------------------------------------ render
 
   private nightFactor(): number {
@@ -570,19 +858,55 @@ export class VillageGame {
     return 0;
   }
 
+  private drawThing(t: PlacedThing | (EditObject & { id?: number }), focus: number, asEdit = false): void {
+    const ctx = this.ctx;
+    if (t.kind === 'store') {
+      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, {
+        focus,
+        label: t.label,
+        emoji: t.emoji ?? '🏪',
+        time: this.time,
+      });
+    } else if (t.kind === 'landmark') {
+      drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, {
+        focus,
+        label: t.label,
+        time: this.time,
+      });
+    } else if (t.kind === 'npc') {
+      drawVCharacter(ctx, t.bx + 0.5, t.by + 0.72, {
+        facing: 's',
+        phase: 0,
+        moving: false,
+        skin: t.npcSkin ?? { body: '#343B4A', bodyDark: '#232936', fur: '#F2F4F8', furDark: '#2F3541', ear: 'bird' },
+        scale: 0.94,
+      });
+      if (asEdit || focus > 0.55) {
+        const { sx, sy } = toScreen(t.bx + 0.5, t.by + 0.5);
+        drawVNameplate(ctx, sx, sy - 76, t.label, { alpha: 0.9, accent: '#4A5568' });
+      }
+    } else {
+      const cx = t.bx + 0.5;
+      const cy = t.by + 0.5;
+      const seed = 'id' in t && t.id !== undefined ? t.id : 7;
+      drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v: (Number(seed) % 97) / 97 }, this.time);
+      if (!asEdit && focus > 0.55) {
+        const { sx, sy } = toScreen(cx, cy);
+        drawVNameplate(ctx, sx, sy - 52, t.label, { alpha: focus * 0.9, accent: '#8b5a37' });
+      }
+    }
+  }
+
   private render(): void {
     const ctx = this.ctx;
-    const night = this.nightFactor();
+    const night = this.editMode ? 0 : this.nightFactor();
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = VPALETTE.waterDeep;
     ctx.fillRect(0, 0, this.vw, this.vh);
 
-    // 플레이어를 화면 중앙보다 살짝 아래에 두어 앞쪽이 더 보이게.
-    const anchorX = this.vw / 2;
-    const anchorY = this.vh * 0.54;
     const applyCamera = () => {
-      ctx.translate(anchorX, anchorY);
+      ctx.translate(this.anchorX, this.anchorY);
       ctx.scale(ZOOM, ZOOM);
       ctx.translate(-this.cam.sx, -this.cam.sy);
     };
@@ -590,8 +914,8 @@ export class VillageGame {
     applyCamera();
 
     const visible = (sx: number, sy: number, pad = 120) => {
-      const vx = (sx - this.cam.sx) * ZOOM + anchorX;
-      const vy = (sy - this.cam.sy) * ZOOM + anchorY;
+      const vx = (sx - this.cam.sx) * ZOOM + this.anchorX;
+      const vy = (sy - this.cam.sy) * ZOOM + this.anchorY;
       return vx > -pad && vx < this.vw + pad && vy > -pad * 2 && vy < this.vh + pad;
     };
 
@@ -612,16 +936,23 @@ export class VillageGame {
       drawVFoam(ctx, tx, ty, this.time);
     }
 
-    if (this.placement && this.placementTile) {
-      drawVPlacementCursor(
-        ctx,
-        this.placementTile.bx,
-        this.placementTile.by,
-        this.placement.w,
-        this.placement.h,
-        this.placementTile.ok,
-        this.time,
-      );
+    // 배치 모드: 잔디 위 옅은 그리드 + 편집 오브젝트 발밑 커서.
+    if (this.editMode) {
+      ctx.strokeStyle = 'rgba(60,90,50,0.1)';
+      ctx.lineWidth = 1;
+      for (let ty = 0; ty < VH; ty++) {
+        for (let tx = 0; tx < VW; tx++) {
+          const terr = this.world.terrain[vidx(tx, ty)];
+          if (terr !== VT.Grass && terr !== VT.GrassDark) continue;
+          const { sx, sy } = toScreen(tx + 0.5, ty + 0.5);
+          if (!visible(sx, sy, 40)) continue;
+          vTilePath(ctx, tx + 0.5, ty + 0.5, -1);
+          ctx.stroke();
+        }
+      }
+      if (this.edit) {
+        drawVPlacementCursor(ctx, this.edit.bx, this.edit.by, this.edit.w, this.edit.h, this.edit.ok, this.time);
+      }
     }
 
     // 깊이 정렬 렌더 패스.
@@ -629,47 +960,16 @@ export class VillageGame {
     const items: Item[] = [];
 
     for (const t of this.things) {
+      if (this.editMode && this.edit?.placementId === t.id) continue; // 편집 중 원본 숨김
+      if (!this.editMode && t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 그린다
       const front = toScreen(t.bx + t.w, t.by + t.h);
       if (!visible(front.sx, front.sy, 220)) continue;
       const px = t.bx + t.w / 2;
       const py = t.by + t.h + 0.5;
-      const dist = Math.hypot(px - this.player.x, py - this.player.y);
+      const dist = this.editMode ? 99 : Math.hypot(px - this.player.x, py - this.player.y);
       const focus = clamp01(1 - (dist - INTERACT_RANGE) / 3.5);
-      if (t.kind === 'store') {
-        items.push({
-          d: t.bx + t.w + t.by + t.h,
-          draw: () =>
-            drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, {
-              focus,
-              label: t.label,
-              emoji: t.emoji ?? '🏪',
-              time: this.time,
-            }),
-        });
-      } else if (t.kind === 'landmark') {
-        items.push({
-          d: t.bx + t.w + t.by + t.h,
-          draw: () =>
-            drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, {
-              focus,
-              label: t.label,
-              time: this.time,
-            }),
-        });
-      } else {
-        const cx = t.bx + 0.5;
-        const cy = t.by + 0.5;
-        items.push({
-          d: this.entityDepth(cx, cy),
-          draw: () => {
-            drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v: (t.id % 97) / 97 }, this.time);
-            if (focus > 0.55) {
-              const { sx, sy } = toScreen(cx, cy);
-              drawVNameplate(ctx, sx, sy - 52, t.label, { alpha: focus * 0.9, accent: '#8b5a37' });
-            }
-          },
-        });
-      }
+      const depth = t.kind === 'decor' || t.kind === 'npc' ? this.entityDepth(t.bx + 0.5, t.by + 0.5) : t.bx + t.w + t.by + t.h;
+      items.push({ d: depth, draw: () => this.drawThing(t, focus) });
     }
 
     for (const p of this.world.props) {
@@ -678,70 +978,124 @@ export class VillageGame {
       items.push({ d: this.entityDepth(p.x, p.y), draw: () => drawVProp(ctx, p, this.time) });
     }
 
-    for (const n of this.villagers) {
-      const { sx, sy } = toScreen(n.x, n.y);
-      if (!visible(sx, sy, 160)) continue;
-      const near = Math.hypot(n.x - this.player.x, n.y - this.player.y) < 4.5;
-      items.push({
-        d: this.entityDepth(n.x, n.y),
-        draw: () => {
-          drawVCharacter(ctx, n.x, n.y, {
-            facing: n.facing,
-            phase: n.phase,
-            moving: n.moving,
-            skin: n.def.skin,
-            scale: 0.94,
-          });
-          if (near && n.def.chatter.length > 0) {
-            drawVBubble(ctx, n.x, n.y, n.def.chatter[n.chatterIdx], this.time);
-          }
-        },
-      });
-    }
-
-    items.push({
-      d: this.entityDepth(this.player.x, this.player.y) + 0.001,
-      draw: () =>
-        drawVCharacter(ctx, this.player.x, this.player.y, {
-          facing: this.player.facing,
-          phase: this.player.phase,
-          moving: this.player.moving,
-          skin: this.playerSkin,
-        }),
-    });
-
-    // 나비 (지면 위 개체보다 위에 뜨도록 깊이 보정).
-    for (const b of this.butterflies) {
-      const { sx, sy } = toScreen(b.x, b.y);
-      if (!visible(sx, sy, 80)) continue;
-      const hover = Math.sin(b.flap * 0.35) * 4;
-      items.push({
-        d: this.entityDepth(b.x, b.y) + 0.5,
-        draw: () => drawVButterfly(ctx, b.x, b.y, hover, b.flap, b.color),
-      });
-    }
-
-    // 갈매기 — 앞바다 상공 선회.
-    {
-      const cx = VW - 4.5;
-      const cy = VH - 4.5;
-      const gx = cx + Math.cos(this.gull.angle) * 4.5;
-      const gy = cy + Math.sin(this.gull.angle) * 3.2;
-      const { sx, sy } = toScreen(gx, gy);
-      if (visible(sx, sy, 120)) {
+    if (!this.editMode) {
+      for (const n of this.villagers) {
+        const { sx, sy } = toScreen(n.x, n.y);
+        if (!visible(sx, sy, 160)) continue;
+        const near = Math.hypot(n.x - this.player.x, n.y - this.player.y) < 4.5;
         items.push({
-          d: this.entityDepth(gx, gy) + 3,
-          draw: () => drawVGull(ctx, gx, gy, 58 + Math.sin(this.time * 1.3) * 6, this.time * 5),
+          d: this.entityDepth(n.x, n.y),
+          draw: () => {
+            drawVCharacter(ctx, n.x, n.y, {
+              facing: n.facing,
+              phase: n.phase,
+              moving: n.moving,
+              skin: n.def.skin,
+              scale: 0.94,
+            });
+            if (near && n.def.chatter.length > 0) {
+              drawVBubble(ctx, n.x, n.y, n.def.chatter[n.chatterIdx], this.time);
+            }
+          },
         });
       }
+
+      items.push({
+        d: this.entityDepth(this.player.x, this.player.y) + 0.001,
+        draw: () =>
+          drawVCharacter(ctx, this.player.x, this.player.y, {
+            facing: this.player.facing,
+            phase: this.player.phase,
+            moving: this.player.moving,
+            skin: this.playerSkin,
+          }),
+      });
+
+      for (const b of this.butterflies) {
+        const { sx, sy } = toScreen(b.x, b.y);
+        if (!visible(sx, sy, 80)) continue;
+        const hover = Math.sin(b.flap * 0.35) * 4;
+        items.push({
+          d: this.entityDepth(b.x, b.y) + 0.5,
+          draw: () => drawVButterfly(ctx, b.x, b.y, hover, b.flap, b.color),
+        });
+      }
+
+      {
+        const cx = VW - 4.5;
+        const cy = VH - 4.5;
+        const gx = cx + Math.cos(this.gull.angle) * 4.5;
+        const gy = cy + Math.sin(this.gull.angle) * 3.2;
+        const { sx, sy } = toScreen(gx, gy);
+        if (visible(sx, sy, 120)) {
+          items.push({
+            d: this.entityDepth(gx, gy) + 3,
+            draw: () => drawVGull(ctx, gx, gy, 58 + Math.sin(this.time * 1.3) * 6, this.time * 5),
+          });
+        }
+      }
+    }
+
+    // 편집 중 오브젝트 — 항상 최상단 근처에.
+    if (this.editMode && this.edit) {
+      const e = this.edit;
+      items.push({
+        d: e.bx + e.w + e.by + e.h + 50,
+        draw: () => {
+          ctx.save();
+          ctx.globalAlpha = this.editDragging ? 0.82 : 1;
+          this.drawThing(e, 1, true);
+          ctx.restore();
+        },
+      });
     }
 
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.draw();
 
+    // ✓ / ✕ 버튼 (편집 오브젝트 위, 드래그 중엔 숨김).
+    if (this.editMode && this.edit && !this.editDragging) {
+      const btn = this.editButtonCenters();
+      if (btn) {
+        const r = EDIT_BTN_R / ZOOM;
+        // ✕ — 항상 활성.
+        ctx.beginPath();
+        ctx.arc(btn.cancel.x, btn.cancel.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#E2554A';
+        ctx.fill();
+        ctx.strokeStyle = '#fffdf7';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3.4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(btn.cancel.x - r * 0.36, btn.cancel.y - r * 0.36);
+        ctx.lineTo(btn.cancel.x + r * 0.36, btn.cancel.y + r * 0.36);
+        ctx.moveTo(btn.cancel.x + r * 0.36, btn.cancel.y - r * 0.36);
+        ctx.lineTo(btn.cancel.x - r * 0.36, btn.cancel.y + r * 0.36);
+        ctx.stroke();
+        // ✓ — 자리가 유효할 때만 초록.
+        ctx.beginPath();
+        ctx.arc(btn.check.x, btn.check.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = this.edit.ok ? '#4E9B58' : '#b9bec7';
+        ctx.fill();
+        ctx.strokeStyle = '#fffdf7';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3.4;
+        ctx.beginPath();
+        ctx.moveTo(btn.check.x - r * 0.4, btn.check.y + r * 0.02);
+        ctx.lineTo(btn.check.x - r * 0.08, btn.check.y + r * 0.34);
+        ctx.lineTo(btn.check.x + r * 0.42, btn.check.y - r * 0.3);
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
 
-    // 밤: 남색 틴트 + 가로등 광원.
+    // 밤: 남색 틴트 + 가로등 광원 (배치 모드에선 항상 낮).
     if (night > 0.01) {
       ctx.fillStyle = `rgba(22,31,74,${0.55 * night})`;
       ctx.fillRect(0, 0, this.vw, this.vh);
@@ -769,23 +1123,25 @@ export class VillageGame {
       ctx.restore();
     }
 
-    // 비네트.
-    const vg = ctx.createRadialGradient(
-      this.vw / 2,
-      this.vh / 2,
-      Math.min(this.vw, this.vh) * 0.42,
-      this.vw / 2,
-      this.vh / 2,
-      Math.max(this.vw, this.vh) * 0.78,
-    );
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(20,30,20,0.28)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, this.vw, this.vh);
+    // 비네트 (배치 모드에선 뷰를 가리지 않게 생략).
+    if (!this.editMode) {
+      const vg = ctx.createRadialGradient(
+        this.vw / 2,
+        this.vh / 2,
+        Math.min(this.vw, this.vh) * 0.42,
+        this.vw / 2,
+        this.vh / 2,
+        Math.max(this.vw, this.vh) * 0.78,
+      );
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(20,30,20,0.28)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, this.vw, this.vh);
+    }
 
-    // 플로팅 조이스틱.
+    // 플로팅 조이스틱 (걷기 모드 전용).
     const sv = this.stickView;
-    if (sv) {
+    if (sv && !this.editMode) {
       ctx.beginPath();
       ctx.arc(sv.ox, sv.oy, JOYSTICK_RADIUS, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255,255,255,0.14)';
@@ -810,7 +1166,7 @@ export class VillageGame {
   private entityDepth(x: number, y: number): number {
     let d = x + y;
     for (const t of this.things) {
-      if (t.kind === 'decor') continue;
+      if (t.kind === 'decor' || t.kind === 'npc') continue;
       const bx1 = t.bx + t.w;
       const by1 = t.by + t.h;
       const bd = bx1 + by1;

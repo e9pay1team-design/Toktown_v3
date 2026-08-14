@@ -33,6 +33,7 @@ interface VillageState {
   decorOwned: Record<string, number>;
 
   place: (kind: PlacementKind, refId: string, bx: number, by: number) => void;
+  move: (placementId: number, bx: number, by: number) => void;
   remove: (placementId: number) => void;
   buyDecor: (decorId: string) => void;
 }
@@ -51,6 +52,11 @@ export const useVillageStore = create<VillageState>()(
           placements: [...s.placements, { id: ++placementSeq, kind, refId, bx, by, w, h }],
         }));
       },
+
+      move: (placementId, bx, by) =>
+        set((s) => ({
+          placements: s.placements.map((p) => (p.id === placementId ? { ...p, bx, by } : p)),
+        })),
 
       remove: (placementId) =>
         set((s) => ({ placements: s.placements.filter((p) => p.id !== placementId) })),

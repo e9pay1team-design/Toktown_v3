@@ -1,18 +1,17 @@
-// ─── 내 마을 (기획 §6 화면 9 · M4 전면 개편) ──────────────────────
-// 동물의숲풍 걷는 마을: 2.5D 캔버스 월드 위를 내 캐릭터가 돌아다니고
-// 카메라가 따라온다. 뒤쪽은 숲, 앞쪽은 바다. 기본 NPC 는 마을이 풍성해질
-// 수록 입주하고, 말을 걸면 대화가 진행된다. 획득물은 보관함에서 꺼내
-// 캐릭터 앞 타일에 배치(건물 2×2). 주민증/도감/상점/꾸미기 메뉴 유지.
+// ─── 내 마을 (기획 §6 화면 9 · M4 걷는 월드 + M5 배치 모드) ───────
+// 걷기 모드: 캐릭터 산책·NPC 대화·상호작용. 배치 모드: 캐릭터/주민이
+// 잠시 퇴장하고 카메라 패닝 + 오브젝트 드래그 배치, ✓ 확정 / ✕ 보관함.
+// 주민증/도감/상점/꾸미기 메뉴 유지.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
-import { useVillageStore, footprintOf, type PlacementKind } from '../../store/useVillageStore';
+import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useVisitStore } from '../../store/useVisitStore';
 import { useProfileStore } from '../../store/useProfileStore';
 import { useUiStore } from '../../store/useUiStore';
 import { useToastStore } from '../../store/useToastStore';
-import { VillageWorldCanvas } from './VillageWorld';
+import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
 import type { VillageGame, VInteractTarget } from '../../lib/villageGame';
 import { residentNpcs, villageRichness, VILLAGE_NPCS } from '../../data/villageNpcs';
@@ -61,6 +60,7 @@ export function VillageScreen() {
   const placements = useVillageStore((s) => s.placements);
   const decorOwned = useVillageStore((s) => s.decorOwned);
   const place = useVillageStore((s) => s.place);
+  const movePlacement = useVillageStore((s) => s.move);
   const removePlacement = useVillageStore((s) => s.remove);
   const events = useVisitStore((s) => s.events);
   const dex = useCollectionStore((s) => s.dex);
@@ -70,12 +70,11 @@ export function VillageScreen() {
   const requestFlyTo = useUiStore((s) => s.requestFlyTo);
   const toast = useToastStore((s) => s.show);
 
-  const [placing, setPlacing] = useState<{ kind: PlacementKind; refId: string; label: string } | null>(null);
-  const [placeTile, setPlaceTile] = useState<{ bx: number; by: number; ok: boolean } | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editSel, setEditSel] = useState<{ label: string; isNew: boolean } | null>(null);
   const [interact, setInteract] = useState<VInteractTarget | null>(null);
   const [dialogue, setDialogue] = useState<DialogueData | null>(null);
   const [thingSheetId, setThingSheetId] = useState<number | null>(null);
-  const [trayOpen, setTrayOpen] = useState(false);
   const [modal, setModal] = useState<VillageModal>(null);
   const gameRef = useRef<VillageGame | null>(null);
 
@@ -139,24 +138,37 @@ export function VillageScreen() {
 
   const placedNpcCount = placements.filter((p) => p.kind === 'npc').length;
   const populationCount = 1 + residents.length + placedNpcCount;
-
-  /* 다음 입주까지 남은 풍성도 */
   const nextResident = VILLAGE_NPCS.find((n) => n.unlockAt > richness);
 
-  const startPlacing = (item: InvItem) => {
-    setTrayOpen(false);
-    setThingSheetId(null);
+  /* 배치 모드 진입/종료 */
+  const enterEdit = () => {
     setDialogue(null);
-    setPlacing({ kind: item.kind, refId: item.refId, label: item.label });
+    setThingSheetId(null);
+    setInteract(null);
+    setEditMode(true);
+  };
+  const exitEdit = () => {
+    setEditMode(false);
+    setEditSel(null);
   };
 
-  const confirmPlace = () => {
-    if (!placing) return;
-    const tile = gameRef.current?.getPlacementTile();
-    if (!tile?.ok) return;
-    place(placing.kind, placing.refId, tile.bx, tile.by);
-    toast(`${placing.label}을(를) 마을에 배치했어요!`, 'success');
-    setPlacing(null);
+  /* ✓ 확정 */
+  const handleEditCommit = (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => {
+    if (e.placementId === null) {
+      place(e.kind as PlacementKind, e.refId, e.bx, e.by);
+      toast('마을에 배치했어요!', 'success');
+    } else {
+      movePlacement(e.placementId, e.bx, e.by);
+      toast('위치를 옮겼어요', 'info');
+    }
+  };
+
+  /* ✕ 보관함 반환 */
+  const handleEditReturn = (e: { placementId: number | null }) => {
+    if (e.placementId !== null) {
+      removePlacement(e.placementId);
+      toast('보관함으로 돌려놨어요', 'info');
+    }
   };
 
   const openDialogueFor = (target: VInteractTarget) => {
@@ -190,7 +202,9 @@ export function VillageScreen() {
       ? storeById(Number(thingSheet.refId))?.name
       : thingSheet.kind === 'landmark'
         ? LANDMARKS.find((l) => l.id === thingSheet.refId)?.name
-        : DECOR_ITEMS.find((d) => d.id === thingSheet.refId)?.name
+        : thingSheet.kind === 'npc'
+          ? (thingSheet.refId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0]).name
+          : DECOR_ITEMS.find((d) => d.id === thingSheet.refId)?.name
     : null;
 
   const emptyVillage = placements.length === 0 && inventory.length === 0;
@@ -200,9 +214,11 @@ export function VillageScreen() {
       {/* 월드 캔버스 (전면) */}
       <div className="absolute inset-0">
         <VillageWorldCanvas
-          placingSize={placing ? footprintOf(placing.kind) : null}
+          editMode={editMode}
           onInteract={setInteract}
-          onPlacementTile={setPlaceTile}
+          onEditCommit={handleEditCommit}
+          onEditReturn={handleEditReturn}
+          onEditSelection={setEditSel}
           onGame={(g) => {
             gameRef.current = g;
           }}
@@ -211,71 +227,101 @@ export function VillageScreen() {
 
       {/* 헤더 */}
       <header className="pointer-events-none relative z-10 flex items-center justify-between px-4 pt-12">
-        <button
-          onClick={() => setTab('map')}
-          className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 text-[12px] font-extrabold shadow-sm"
-        >
-          🗺️ 지도
-        </button>
+        {editMode ? (
+          <span className="w-[60px]" />
+        ) : (
+          <button
+            onClick={() => setTab('map')}
+            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 text-[12px] font-extrabold shadow-sm"
+          >
+            🗺️ 지도
+          </button>
+        )}
         <div className="rounded-2xl bg-town-paper/90 px-4 py-1.5 text-center shadow-sm backdrop-blur-sm">
-          <h2 className="text-[15px] font-extrabold leading-tight">{nickname}의 마을</h2>
-          <p className="text-[10px] font-bold text-town-inkSoft">주민 {populationCount}명 · 풍성도 {richness}</p>
+          {editMode ? (
+            <>
+              <h2 className="text-[15px] font-extrabold leading-tight">🔨 배치 모드</h2>
+              <p className="text-[10px] font-bold text-town-inkSoft">주민들은 잠시 자리를 비켜줬어요</p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-[15px] font-extrabold leading-tight">{nickname}의 마을</h2>
+              <p className="text-[10px] font-bold text-town-inkSoft">
+                주민 {populationCount}명 · 풍성도 {richness}
+              </p>
+            </>
+          )}
         </div>
-        <div className="w-[60px]" />
+        {editMode ? (
+          <button
+            onClick={exitEdit}
+            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl bg-town-leafDark px-3 text-[12.5px] font-extrabold text-white shadow-pop"
+          >
+            완료
+          </button>
+        ) : (
+          <span className="w-[60px]" />
+        )}
       </header>
 
-      {/* 기능 버튼 */}
-      <div className="pointer-events-none relative z-10 flex justify-center gap-2 px-4 py-2">
-        {(
-          [
-            ['card', '🪪', '주민증'],
-            ['dex', '📖', '도감'],
-            ['shop', '🏪', '상점'],
-            ['dressing', '🎨', '꾸미기'],
-          ] as const
-        ).map(([id, emoji, label]) => (
-          <button
-            key={id}
-            onClick={() => setModal(id)}
-            className="pointer-events-auto flex items-center gap-1 rounded-full border border-town-line bg-town-paper/95 px-3 py-1.5 text-[12px] font-extrabold shadow-sm transition active:scale-95"
-          >
-            <span>{emoji}</span> {label}
-          </button>
-        ))}
-      </div>
+      {/* 기능 버튼 (걷기 모드) */}
+      {!editMode && (
+        <div className="pointer-events-none relative z-10 flex justify-center gap-2 px-4 py-2">
+          {(
+            [
+              ['card', '🪪', '주민증'],
+              ['dex', '📖', '도감'],
+              ['shop', '🏪', '상점'],
+              ['dressing', '🎨', '꾸미기'],
+            ] as const
+          ).map(([id, emoji, label]) => (
+            <button
+              key={id}
+              onClick={() => setModal(id)}
+              className="pointer-events-auto flex items-center gap-1 rounded-full border border-town-line bg-town-paper/95 px-3 py-1.5 text-[12px] font-extrabold shadow-sm transition active:scale-95"
+            >
+              <span>{emoji}</span> {label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* 조작 안내 / 빈 마을 가이드 */}
-      {!placing && !dialogue && (
-        <div className="pointer-events-none relative z-10 flex justify-center px-6">
-          <p className="rounded-full bg-town-ink/55 px-3 py-1 text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
-            {emptyVillage
-              ? '🕹️ 드래그로 산책 · 지도에서 체크인하면 건물이 생겨요'
-              : '🕹️ 화면 드래그 또는 방향키(WASD)로 이동'}
+      {/* 안내 필 */}
+      {editMode ? (
+        <div className="pointer-events-none relative z-10 mt-2 flex justify-center px-6">
+          <p className="rounded-full bg-town-ink/60 px-3 py-1 text-center text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
+            {editSel ? (
+              <>
+                <b className="text-town-sun">{editSel.label}</b> — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함
+              </>
+            ) : (
+              '빈 곳 드래그 = 카메라 이동 · 오브젝트 탭 = 선택 · 아래 보관함에서 꺼내기'
+            )}
           </p>
         </div>
+      ) : (
+        !dialogue && (
+          <>
+            <div className="pointer-events-none relative z-10 flex justify-center px-6">
+              <p className="rounded-full bg-town-ink/55 px-3 py-1 text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
+                {emptyVillage
+                  ? '🕹️ 드래그로 산책 · 지도에서 체크인하면 건물이 생겨요'
+                  : '🕹️ 화면 드래그 또는 방향키(WASD)로 이동'}
+              </p>
+            </div>
+            {nextResident && (
+              <div className="pointer-events-none relative z-10 mt-1 flex justify-center px-6">
+                <p className="rounded-full bg-town-paper/85 px-3 py-1 text-[10px] font-extrabold text-town-inkSoft shadow-sm">
+                  풍성도 {nextResident.unlockAt} 달성 시 {nextResident.species} <b>{nextResident.name}</b> 입주!
+                </p>
+              </div>
+            )}
+          </>
+        )
       )}
 
-      {/* 다음 입주 힌트 */}
-      {nextResident && !placing && !dialogue && (
-        <div className="pointer-events-none relative z-10 mt-1 flex justify-center px-6">
-          <p className="rounded-full bg-town-paper/85 px-3 py-1 text-[10px] font-extrabold text-town-inkSoft shadow-sm">
-            풍성도 {nextResident.unlockAt} 달성 시 {nextResident.species} <b>{nextResident.name}</b> 입주!
-          </p>
-        </div>
-      )}
-
-      {/* 배치 모드 배너 */}
-      {placing && (
-        <div className="pointer-events-none relative z-10 flex justify-center px-4 pt-1">
-          <div className="pop-in rounded-2xl bg-town-ink/90 px-4 py-2 text-center text-[11.5px] font-bold text-town-paper shadow-card">
-            <b className="text-town-sun">{placing.label}</b> 배치 중 — 캐릭터가 바라보는{' '}
-            {footprintOf(placing.kind).w > 1 ? '2×2 ' : ''}칸에 표시돼요
-          </div>
-        </div>
-      )}
-
-      {/* 상호작용 버튼 */}
-      {interact && !placing && !dialogue && !thingSheet && (
+      {/* 상호작용 버튼 (걷기 모드) */}
+      {!editMode && interact && !dialogue && !thingSheet && (
         <div className="absolute inset-x-0 bottom-40 z-20 flex justify-center">
           <button
             onClick={() => {
@@ -293,7 +339,7 @@ export function VillageScreen() {
       )}
 
       {/* 대화 오버레이 */}
-      {dialogue && (
+      {!editMode && dialogue && (
         <DialogueOverlay
           name={dialogue.name}
           title={dialogue.title}
@@ -303,8 +349,8 @@ export function VillageScreen() {
         />
       )}
 
-      {/* 배치물 살펴보기 시트 */}
-      {thingSheet && (
+      {/* 배치물 살펴보기 시트 (걷기 모드) */}
+      {!editMode && thingSheet && (
         <div className="absolute inset-x-4 bottom-40 z-20">
           <div className="sheet-up flex items-center gap-3 rounded-2xl border border-town-line bg-town-paper p-3 shadow-card">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-town-cream">
@@ -315,7 +361,13 @@ export function VillageScreen() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13.5px] font-extrabold">{thingSheetLabel}</p>
               <p className="text-[10.5px] font-bold text-town-inkSoft">
-                {thingSheet.kind === 'store' ? '인증 방문으로 얻은 건물' : thingSheet.kind === 'landmark' ? '랜드마크 미니어처' : '꾸미기 소품'}
+                {thingSheet.kind === 'store'
+                  ? '인증 방문으로 얻은 건물'
+                  : thingSheet.kind === 'landmark'
+                    ? '랜드마크 미니어처'
+                    : thingSheet.kind === 'npc'
+                      ? '우리 마을 이웃'
+                      : '꾸미기 소품'}
               </p>
             </div>
             <div className="flex shrink-0 gap-1.5">
@@ -336,13 +388,12 @@ export function VillageScreen() {
               )}
               <button
                 onClick={() => {
-                  removePlacement(thingSheet.id);
                   setThingSheetId(null);
-                  toast('보관함으로 이동했어요', 'info');
+                  enterEdit();
                 }}
-                className="rounded-lg border border-town-line bg-town-paper px-2.5 py-2 text-[11px] font-bold text-town-inkSoft"
+                className="rounded-lg bg-town-sun px-2.5 py-2 text-[11px] font-extrabold text-town-ink"
               >
-                보관
+                🔨 배치
               </button>
               <button
                 onClick={() => setThingSheetId(null)}
@@ -355,31 +406,12 @@ export function VillageScreen() {
         </div>
       )}
 
-      {/* 배치 확정 바 */}
-      {placing && (
-        <div className="absolute inset-x-4 bottom-24 z-20 flex gap-2">
-          <button
-            onClick={confirmPlace}
-            disabled={!placeTile?.ok}
-            className="flex-1 rounded-2xl bg-town-leafDark py-3 text-[14px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none disabled:bg-town-line disabled:text-town-inkSoft/50 disabled:shadow-none"
-          >
-            {placeTile?.ok ? '여기에 배치' : '빈 잔디를 향해 서 주세요'}
-          </button>
-          <button
-            onClick={() => setPlacing(null)}
-            className="rounded-2xl border border-town-line bg-town-paper px-4 py-3 text-[13px] font-extrabold text-town-inkSoft shadow-sm"
-          >
-            취소
-          </button>
-        </div>
-      )}
-
-      {/* 보관함 FAB */}
-      {!placing && (
+      {/* 배치 모드 진입 FAB (걷기 모드) */}
+      {!editMode && (
         <button
-          onClick={() => setTrayOpen(!trayOpen)}
+          onClick={enterEdit}
           className="absolute bottom-24 right-4 z-20 flex h-14 w-14 flex-col items-center justify-center rounded-full border-2 border-town-line bg-town-paper text-[20px] shadow-card transition active:scale-95"
-          aria-label="보관함"
+          aria-label="배치 모드"
         >
           🎒
           {inventory.length > 0 && (
@@ -390,22 +422,13 @@ export function VillageScreen() {
         </button>
       )}
 
-      {/* 보관함 트레이 */}
-      {trayOpen && !placing && (
+      {/* 배치 모드: 하단 도킹 보관함 */}
+      {editMode && (
         <div className="absolute inset-x-0 bottom-16 z-30 px-3 pb-2">
-          <div className="sheet-up rounded-2xl border border-town-line bg-town-paper/97 p-2.5 shadow-card backdrop-blur">
-            <div className="mb-1.5 flex items-center justify-between px-1">
-              <p className="text-[10.5px] font-extrabold text-town-inkSoft">
-                보관함 {inventory.length > 0 ? '· 탭해서 배치 시작' : ''}
-              </p>
-              <button
-                onClick={() => setTrayOpen(false)}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-town-cream text-[11px] font-bold text-town-inkSoft"
-                aria-label="보관함 닫기"
-              >
-                ✕
-              </button>
-            </div>
+          <div className="rounded-2xl border border-town-line bg-town-paper/97 p-2.5 shadow-card backdrop-blur">
+            <p className="mb-1.5 px-1 text-[10.5px] font-extrabold text-town-inkSoft">
+              🎒 보관함 {inventory.length > 0 ? '· 탭하면 화면 가운데에 꺼내져요' : ''}
+            </p>
             {inventory.length === 0 ? (
               <p className="px-1 pb-1 text-[11.5px] font-bold text-town-inkSoft/70">
                 비어 있어요 — 방문·조우·구매로 오브젝트를 모아보세요
@@ -415,7 +438,7 @@ export function VillageScreen() {
                 {inventory.map((item) => (
                   <button
                     key={`${item.kind}:${item.refId}`}
-                    onClick={() => startPlacing(item)}
+                    onClick={() => gameRef.current?.spawnFromTray(trayMetaFor(item.kind, item.refId, item.label))}
                     className="relative flex w-[76px] shrink-0 flex-col items-center gap-1 rounded-xl border-2 border-town-line bg-town-cream/60 p-1.5 pt-2 transition active:scale-95"
                   >
                     <div className="flex h-11 items-end justify-center overflow-hidden">
@@ -439,11 +462,11 @@ export function VillageScreen() {
         </div>
       )}
 
-      {/* 모달 */}
-      {modal === 'shop' && <ShopModal onClose={() => setModal(null)} />}
-      {modal === 'dex' && <DexModal onClose={() => setModal(null)} />}
-      {modal === 'card' && <ResidentCardModal onClose={() => setModal(null)} />}
-      {modal === 'dressing' && <DressingModal onClose={() => setModal(null)} />}
+      {/* 모달 (걷기 모드) */}
+      {!editMode && modal === 'shop' && <ShopModal onClose={() => setModal(null)} />}
+      {!editMode && modal === 'dex' && <DexModal onClose={() => setModal(null)} />}
+      {!editMode && modal === 'card' && <ResidentCardModal onClose={() => setModal(null)} />}
+      {!editMode && modal === 'dressing' && <DressingModal onClose={() => setModal(null)} />}
     </div>
   );
 }

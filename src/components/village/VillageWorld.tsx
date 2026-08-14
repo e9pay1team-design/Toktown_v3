@@ -1,25 +1,22 @@
 // ─── 내 마을 월드 캔버스 (React ↔ 엔진 브리지) ────────────────────
 // 월드는 1회 생성해 재사용하고, 스토어 상태(배치·도감·프로필)가 바뀔
 // 때마다 엔진에 흘려보낸다. 렌더/입력/AI 는 VillageGame 이 rAF 로 돌고,
-// React 는 캔버스 생명주기와 데이터 동기화만 담당한다.
+// React 는 캔버스 생명주기·데이터 동기화·배치 모드 토글만 담당한다.
 
 import { useEffect, useMemo, useRef } from 'react';
 import { buildVillageWorld } from '../../lib/villageWorld';
 import {
   VillageGame,
+  type EditMeta,
   type PlacedThing,
   type VillagerDef,
   type VInteractTarget,
 } from '../../lib/villageGame';
 import { CATEGORY_SKINS, CATEGORY_EMOJI, type VCharSkin } from '../../lib/villageDraw';
-import {
-  magpieSkin,
-  residentNpcs,
-  villageRichness,
-} from '../../data/villageNpcs';
+import { magpieSkin, residentNpcs, villageRichness } from '../../data/villageNpcs';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
 import { SKIN_TONES, HAIR_COLORS, OUTFIT_COLORS, shade } from '../../assets/characterParts';
-import { useVillageStore, type Placement } from '../../store/useVillageStore';
+import { useVillageStore, footprintOf, type Placement, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useProfileStore } from '../../store/useProfileStore';
 
@@ -40,6 +37,27 @@ export function playerSkinFromProfile(): VCharSkin {
     hairStyle: c.hairStyle,
     ear: 'none',
   };
+}
+
+/** 보관함 아이템 → 엔진 편집 메타 (렌더 정보 포함) */
+export function trayMetaFor(kind: PlacementKind, refId: string, label: string): EditMeta {
+  const { w, h } = footprintOf(kind);
+  if (kind === 'store') {
+    const store = storeById(Number(refId));
+    return {
+      kind,
+      refId,
+      w,
+      h,
+      label,
+      emoji: store ? CATEGORY_EMOJI[store.category] : '🏪',
+      skin: store ? CATEGORY_SKINS[store.category] : undefined,
+    };
+  }
+  if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId };
+  if (kind === 'npc')
+    return { kind, refId, w, h, label, npcSkin: magpieSkin(refId === DRUMMER_MAGPIE.id) };
+  return { kind, refId, w, h, label, decorType: refId === 'tree' ? 'maple' : refId };
 }
 
 function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
@@ -87,6 +105,21 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         decorType: p.refId === 'tree' ? 'maple' : p.refId,
         blocking: p.refId !== 'flower',
       });
+    } else if (p.kind === 'npc') {
+      const drummer = p.refId === DRUMMER_MAGPIE.id;
+      const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+      // 걷기 모드에선 배회 주민으로 그려지고, 배치 모드에서만 정적 표시.
+      things.push({
+        id: p.id,
+        kind: 'npc',
+        bx: p.bx,
+        by: p.by,
+        w: p.w,
+        h: p.h,
+        label: src.name,
+        npcSkin: magpieSkin(drummer),
+        blocking: false,
+      });
     }
   }
   return things;
@@ -123,18 +156,21 @@ function villagersFromState(placements: Placement[], dexCount: number, lmCount: 
 }
 
 interface VillageWorldProps {
-  /** 배치 대기 중인 아이템의 풋프린트 (없으면 걷기 모드) */
-  placingSize: { w: number; h: number } | null;
+  editMode: boolean;
   onInteract: (target: VInteractTarget | null) => void;
-  onPlacementTile: (tile: { bx: number; by: number; ok: boolean } | null) => void;
-  /** 부모가 배치 확정 시 좌표를 읽을 수 있게 게임 인스턴스를 넘긴다 */
+  onEditCommit: (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => void;
+  onEditReturn: (e: { placementId: number | null }) => void;
+  onEditSelection: (sel: { label: string; isNew: boolean } | null) => void;
+  /** 부모가 spawnFromTray 등을 호출할 수 있게 게임 인스턴스를 넘긴다 */
   onGame: (game: VillageGame | null) => void;
 }
 
 export function VillageWorldCanvas({
-  placingSize,
+  editMode,
   onInteract,
-  onPlacementTile,
+  onEditCommit,
+  onEditReturn,
+  onEditSelection,
   onGame,
 }: VillageWorldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -145,8 +181,8 @@ export function VillageWorldCanvas({
   const landmarks = useCollectionStore((s) => s.landmarks);
   const profile = useProfileStore((s) => s.profile);
 
-  const hooksRef = useRef({ onInteract, onPlacementTile });
-  hooksRef.current = { onInteract, onPlacementTile };
+  const hooksRef = useRef({ onInteract, onEditCommit, onEditReturn, onEditSelection });
+  hooksRef.current = { onInteract, onEditCommit, onEditReturn, onEditSelection };
 
   // 게임 생명주기 (마운트 1회).
   useEffect(() => {
@@ -157,7 +193,9 @@ export function VillageWorldCanvas({
       WORLD,
       {
         onInteractChange: (t) => hooksRef.current.onInteract(t),
-        onPlacementChange: (t) => hooksRef.current.onPlacementTile(t),
+        onEditCommit: (e) => hooksRef.current.onEditCommit(e),
+        onEditReturn: (e) => hooksRef.current.onEditReturn(e),
+        onEditSelection: (s) => hooksRef.current.onEditSelection(s),
       },
       playerSkinFromProfile(),
     );
@@ -196,8 +234,8 @@ export function VillageWorldCanvas({
   }, [profile]);
 
   useEffect(() => {
-    gameRef.current?.setPlacement(placingSize);
-  }, [placingSize]);
+    gameRef.current?.setEditMode(editMode);
+  }, [editMode]);
 
   return (
     <canvas
