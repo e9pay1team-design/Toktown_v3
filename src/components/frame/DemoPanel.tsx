@@ -40,6 +40,8 @@ export function DemoPanel() {
   const toggleEvent = useEventStore((s) => s.toggleEvent);
 
   const [target, setTarget] = useState('s:1');
+  // 리셋 2단계 확인 — window.confirm 은 웹 공유 샌드박스에서 차단되므로 쓰지 않는다.
+  const [resetArmed, setResetArmed] = useState(false);
 
   const magpie = REGIONAL_NPCS[0];
   const suspicious = suspiciousUntil > Date.now();
@@ -64,7 +66,12 @@ export function DemoPanel() {
   };
 
   const reset = () => {
-    if (!window.confirm('모든 데모 데이터(캐릭터·마을·톡큰)가 초기화됩니다. 계속할까요?')) return;
+    if (!resetArmed) {
+      setResetArmed(true);
+      toast('⚠️ 모든 데모 데이터(캐릭터·마을·톡큰)가 초기화됩니다 — 한 번 더 누르면 실행돼요', 'info');
+      setTimeout(() => setResetArmed(false), 4000);
+      return;
+    }
     Object.keys(localStorage)
       .filter((k) => k.startsWith('toktown:'))
       .forEach((k) => localStorage.removeItem(k));
@@ -206,8 +213,8 @@ export function DemoPanel() {
           >
             {eventOn ? '🎪 Event Map 진행 중 (끄기)' : '🎪 Event Map 토글 (난타 위크)'}
           </button>
-          <button onClick={reset} className={`${btn} bg-town-coral text-white`}>
-            데모 리셋 (localStorage 초기화)
+          <button onClick={reset} className={`${btn} ${resetArmed ? 'bg-town-coralDeep animate-pulse' : 'bg-town-coral'} text-white`}>
+            {resetArmed ? '⚠️ 한 번 더 누르면 초기화!' : '데모 리셋 (localStorage 초기화)'}
           </button>
         </Row>
       </div>

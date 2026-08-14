@@ -73,6 +73,7 @@ export function VillageScreen() {
   const toast = useToastStore((s) => s.show);
 
   const [editMode, setEditMode] = useState(false);
+  const [confirmingRecall, setConfirmingRecall] = useState(false);
   const [editSel, setEditSel] = useState<{ label: string; isNew: boolean } | null>(null);
   const [interact, setInteract] = useState<VInteractTarget | null>(null);
   const [dialogue, setDialogue] = useState<DialogueData | null>(null);
@@ -161,6 +162,7 @@ export function VillageScreen() {
   const exitEdit = () => {
     setEditMode(false);
     setEditSel(null);
+    setConfirmingRecall(false);
   };
 
   /* ✓ 확정 */
@@ -182,16 +184,19 @@ export function VillageScreen() {
     }
   };
 
-  /* 🎒 전체 회수 — 배치된 모든 오브젝트를 보관함으로 */
+  /* 🎒 전체 회수 — 배치된 모든 오브젝트를 보관함으로.
+     window.confirm 은 웹 공유 샌드박스(iframe)에서 차단되므로 앱 내 확인 모달을 쓴다. */
   const recallAll = () => {
-    const count = placements.length;
-    if (count === 0) {
+    if (placements.length === 0) {
       toast(tr('회수할 오브젝트가 없어요', 'Nothing to recall'), 'info');
       return;
     }
-    if (!window.confirm(tr('배치된 모든 오브젝트를 보관함으로 되돌릴까요?', 'Return all placed objects to storage?'))) {
-      return;
-    }
+    setConfirmingRecall(true);
+  };
+
+  const doRecallAll = () => {
+    const count = placements.length;
+    setConfirmingRecall(false);
     gameRef.current?.cancelEdit();
     setEditSel(null);
     recallAllPlacements();
@@ -519,6 +524,38 @@ export function VillageScreen() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 전체 회수 확인 모달 (배치 모드) */}
+      {editMode && confirmingRecall && (
+        <div className="absolute inset-0 z-[870] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 text-center shadow-sheet">
+            <p className="text-[30px]">🎒</p>
+            <h3 className="mt-1 text-[17px] font-extrabold">{T('전체 회수', 'Recall All')}</h3>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+              {T(
+                `배치된 오브젝트 ${placements.length}개를 모두 보관함으로 되돌릴까요?`,
+                `Return all ${placements.length} placed objects to storage?`,
+              )}
+              <br />
+              {T('획득한 오브젝트는 사라지지 않아요.', 'You will not lose any of them.')}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setConfirmingRecall(false)}
+                className="w-1/3 rounded-xl border border-town-line bg-town-paper py-3 text-[13px] font-extrabold text-town-inkSoft"
+              >
+                {T('취소', 'Cancel')}
+              </button>
+              <button
+                onClick={doRecallAll}
+                className="flex-1 rounded-xl bg-town-coral py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+              >
+                {T('🎒 전체 회수하기', '🎒 Recall everything')}
+              </button>
+            </div>
           </div>
         </div>
       )}
