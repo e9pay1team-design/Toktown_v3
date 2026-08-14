@@ -70,7 +70,7 @@ React 18 · Vite · TypeScript · Zustand(+persist) · Tailwind CSS · Leaflet(O
 ```
 src/
   assets/      코드 생성 SVG (캐릭터 파츠, NPC(까미·드러머·기본 4종), 건물, 랜드마크, 마커,
-               차량, 톡페이 선불카드, 꾸미기 소품 8종)
+               차량, 톡페이 선불카드, 꾸미기 소품 9종)
   components/  frame(프레임·데모 패널) / onboarding / character / map / store / saved /
                journey / wallet / village(걷는 2.5D 마을·대화·상점·도감·주민증·꾸미기) /
                community / shell

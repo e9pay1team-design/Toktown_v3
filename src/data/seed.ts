@@ -719,12 +719,13 @@ export const TOKKEN_ECONOMY: TokkenEconomy = {
   rideTag: 5,
 };
 
-/** Tokken 상점 소품 (M3 사용, 가격 50~500) */
+/** Tokken 상점 소품 (M3 사용, 가격 1~500 — 바닥 타일은 부담 없이 깔도록 1) */
 export const DECOR_ITEMS: DecorItem[] = [
   { id: 'bench', name: '나무 벤치', price: 80 },
   { id: 'lamp', name: '가로등', price: 120 },
   { id: 'flower', name: '꽃밭', price: 50 },
-  { id: 'plaza-tile', name: '광장 돌바닥 타일', price: 60 },
+  { id: 'plaza-tile', name: '광장 돌바닥 타일', price: 1 },
+  { id: 'grass-tile', name: '기본 초록 타일', price: 1 },
   { id: 'fountain', name: '분수대', price: 500 },
   { id: 'mailbox', name: '빨간 우체통', price: 150 },
   { id: 'tree', name: '단풍나무', price: 200 },

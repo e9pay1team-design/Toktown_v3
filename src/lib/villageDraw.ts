@@ -872,6 +872,11 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       drawVTile(ctx, Math.floor(p.x), Math.floor(p.y), VT.Path, time);
       return;
     }
+    case 'grass-tile': {
+      // 기본 잔디와 동일한 초록 타일 — 짙은 잔디 얼룩을 덮어 고르게 만들 때.
+      drawVTile(ctx, Math.floor(p.x), Math.floor(p.y), VT.Grass, time);
+      return;
+    }
     case 'nanta-drum': {
       shadow(ctx, sx, sy + 1, 13);
       // 드럼통 화분.

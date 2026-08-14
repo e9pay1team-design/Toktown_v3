@@ -131,6 +131,9 @@ interface Butterfly {
   color: string;
 }
 
+/** 바닥에 깔리는 소품 — 지형 패스 직후에 그리고 깊이 정렬에서 제외 */
+const GROUND_DECOR = new Set(['plaza-tile', 'grass-tile']);
+
 const PLAYER_SPEED = 3.6;
 const NPC_SPEED = 1.4;
 const PLAYER_RADIUS = 0.28;
@@ -954,13 +957,13 @@ export class VillageGame {
       drawVFoam(ctx, tx, ty, this.time);
     }
 
-    // 바닥 소품(광장 돌바닥 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
+    // 바닥 소품(광장 돌바닥·기본 초록 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
     for (const t of this.things) {
-      if (t.kind !== 'decor' || t.decorType !== 'plaza-tile') continue;
+      if (t.kind !== 'decor' || !GROUND_DECOR.has(t.decorType ?? '')) continue;
       if (this.editMode && this.edit?.placementId === t.id) continue;
       const { sx, sy } = toScreen(t.bx + 0.5, t.by + 0.5);
       if (!visible(sx, sy)) continue;
-      drawVTile(ctx, t.bx, t.by, VT.Path, this.time);
+      drawVProp(ctx, { type: t.decorType!, x: t.bx + 0.5, y: t.by + 0.5, v: 0 }, this.time);
     }
 
     // 배치 모드: 잔디 위 옅은 그리드 + 편집 오브젝트 발밑 커서.
@@ -989,7 +992,7 @@ export class VillageGame {
     for (const t of this.things) {
       if (this.editMode && this.edit?.placementId === t.id) continue; // 편집 중 원본 숨김
       if (!this.editMode && t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 그린다
-      if (t.kind === 'decor' && t.decorType === 'plaza-tile') continue; // 바닥 패스에서 이미 그림
+      if (t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '')) continue; // 바닥 패스에서 이미 그림
       const front = toScreen(t.bx + t.w, t.by + t.h);
       if (!visible(front.sx, front.sy, 220)) continue;
       const px = t.bx + t.w / 2;

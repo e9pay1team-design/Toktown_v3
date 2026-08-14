@@ -104,6 +104,15 @@ export function DecorSvg({ id, size = 56 }: { id: string; size?: number }) {
           <path d="M40 10 L66 24 L40 38 L14 24 Z" fill="none" stroke="#D8CBB1" strokeWidth={1.6} />
         </svg>
       );
+    case 'grass-tile':
+      return (
+        <svg width={size} height={size * 0.62} viewBox="0 0 80 50" style={{ display: 'block' }} aria-label="기본 초록 타일">
+          <ellipse cx={40} cy={44} rx={27} ry={4} fill="rgba(74,59,50,0.10)" />
+          <path d="M40 5 L75 24 L40 43 L5 24 Z" fill="#8ED071" />
+          <path d="M40 5 L75 24 L40 43 L5 24 Z" fill="none" stroke="#84C766" strokeWidth={2.5} />
+          <path d="M31 28 l-2 -7 M38 30 l1 -7 M49 23 l3 -6" stroke="#6FAE52" strokeWidth={2.2} strokeLinecap="round" fill="none" />
+        </svg>
+      );
     case 'nanta-drum':
       return (
         <svg width={size * 0.85} height={size} viewBox="0 0 66 80" style={{ display: 'block' }} aria-label="난타 드럼 화분">
