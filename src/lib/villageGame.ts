@@ -29,7 +29,9 @@ import {
   drawVGull,
   drawVPlacementCursor,
   drawTemplateBuilding,
+  drawVBuildingLabel,
   drawVLandmark,
+  drawVLandmarkLabel,
   drawVNameplate,
   vTilePath,
   VPALETTE,
@@ -114,6 +116,8 @@ interface VillagerRuntime {
   moving: boolean;
   restUntil: number;
   target: { x: number; y: number } | null;
+  /** 목표로 못 가고 제자리걸음한 누적 시간 — 길막힘 감지용 */
+  stuck: number;
   chatterIdx: number;
   chatterUntil: number;
 }
@@ -280,6 +284,7 @@ export class VillageGame {
         moving: false,
         restUntil: 1 + Math.random() * 3,
         target: null,
+        stuck: 0,
         chatterIdx: Math.floor(Math.random() * def.chatter.length),
         chatterUntil: 0,
       };
@@ -769,20 +774,45 @@ export class VillageGame {
           n.target = null;
           n.moving = false;
           n.phase = 0;
+          n.stuck = 0;
         } else {
           const step = Math.min(d, NPC_SPEED * dt);
           const ux = dx / d;
           const uy = dy / d;
+          const prevX = n.x;
+          const prevY = n.y;
           const nx = n.x + ux * step;
           const ny = n.y + uy * step;
           const blockedX = this.solid(Math.floor(nx), Math.floor(n.y));
           const blockedY = this.solid(Math.floor(n.x), Math.floor(ny));
           if (!blockedX) n.x = nx;
           if (!blockedY) n.y = ny;
-          if (blockedX && blockedY) n.target = null;
-          n.moving = true;
-          n.phase += dt * 9;
-          n.facing = facingFromWorldDelta(ux, uy);
+          // 길막힘 감지 — 양축이 막혔거나 실제 이동량이 계속 미미하면
+          // 벽에 갖다 박는 대신 목표를 버리고 곧 다른 방향을 잡는다.
+          const moved = Math.hypot(n.x - prevX, n.y - prevY);
+          if (blockedX && blockedY) {
+            n.target = null;
+            n.stuck = 0;
+            n.restUntil = 0.3 + Math.random() * 0.6;
+            n.moving = false;
+            n.phase = 0;
+          } else if (moved < step * 0.45) {
+            n.stuck += dt;
+            if (n.stuck > 0.4) {
+              n.target = null;
+              n.stuck = 0;
+              n.restUntil = 0.3 + Math.random() * 0.6;
+              n.moving = false;
+              n.phase = 0;
+            }
+          } else {
+            n.stuck = 0;
+          }
+          if (n.target) {
+            n.moving = true;
+            n.phase += dt * 9;
+            n.facing = facingFromWorldDelta(ux, uy);
+          }
         }
       } else {
         n.moving = false;
@@ -861,18 +891,9 @@ export class VillageGame {
   private drawThing(t: PlacedThing | (EditObject & { id?: number }), focus: number, asEdit = false): void {
     const ctx = this.ctx;
     if (t.kind === 'store') {
-      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, {
-        focus,
-        label: t.label,
-        emoji: t.emoji ?? '🏪',
-        time: this.time,
-      });
+      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, { emoji: t.emoji ?? '🏪' });
     } else if (t.kind === 'landmark') {
-      drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, {
-        focus,
-        label: t.label,
-        time: this.time,
-      });
+      drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, { time: this.time });
     } else if (t.kind === 'npc') {
       drawVCharacter(ctx, t.bx + 0.5, t.by + 0.72, {
         facing: 's',
@@ -886,14 +907,11 @@ export class VillageGame {
         drawVNameplate(ctx, sx, sy - 76, t.label, { alpha: 0.9, accent: '#4A5568' });
       }
     } else {
+      // 소품은 이름 말풍선 없이 오브젝트만 그린다.
       const cx = t.bx + 0.5;
       const cy = t.by + 0.5;
       const seed = 'id' in t && t.id !== undefined ? t.id : 7;
       drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v: (Number(seed) % 97) / 97 }, this.time);
-      if (!asEdit && focus > 0.55) {
-        const { sx, sy } = toScreen(cx, cy);
-        drawVNameplate(ctx, sx, sy - 52, t.label, { alpha: focus * 0.9, accent: '#8b5a37' });
-      }
     }
   }
 
@@ -936,6 +954,15 @@ export class VillageGame {
       drawVFoam(ctx, tx, ty, this.time);
     }
 
+    // 바닥 소품(광장 돌바닥 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
+    for (const t of this.things) {
+      if (t.kind !== 'decor' || t.decorType !== 'plaza-tile') continue;
+      if (this.editMode && this.edit?.placementId === t.id) continue;
+      const { sx, sy } = toScreen(t.bx + 0.5, t.by + 0.5);
+      if (!visible(sx, sy)) continue;
+      drawVTile(ctx, t.bx, t.by, VT.Path, this.time);
+    }
+
     // 배치 모드: 잔디 위 옅은 그리드 + 편집 오브젝트 발밑 커서.
     if (this.editMode) {
       ctx.strokeStyle = 'rgba(60,90,50,0.1)';
@@ -962,6 +989,7 @@ export class VillageGame {
     for (const t of this.things) {
       if (this.editMode && this.edit?.placementId === t.id) continue; // 편집 중 원본 숨김
       if (!this.editMode && t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 그린다
+      if (t.kind === 'decor' && t.decorType === 'plaza-tile') continue; // 바닥 패스에서 이미 그림
       const front = toScreen(t.bx + t.w, t.by + t.h);
       if (!visible(front.sx, front.sy, 220)) continue;
       const px = t.bx + t.w / 2;
@@ -1052,6 +1080,31 @@ export class VillageGame {
 
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.draw();
+
+    // 건물/랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 항상 최상단에.
+    for (const t of this.things) {
+      if (t.kind !== 'store' && t.kind !== 'landmark') continue;
+      if (this.editMode && this.edit?.placementId === t.id) continue;
+      const front = toScreen(t.bx + t.w, t.by + t.h);
+      if (!visible(front.sx, front.sy, 220)) continue;
+      const px = t.bx + t.w / 2;
+      const py = t.by + t.h + 0.5;
+      const dist = this.editMode ? 99 : Math.hypot(px - this.player.x, py - this.player.y);
+      const focus = clamp01(1 - (dist - INTERACT_RANGE) / 3.5);
+      if (t.kind === 'store') {
+        drawVBuildingLabel(ctx, t.bx, t.by, t.w, t.h, t.label, t.skin?.accent ?? '#8b5a37', focus, this.time);
+      } else {
+        drawVLandmarkLabel(ctx, t.lmId ?? 'cathedral', t.bx, t.by, t.label, focus, this.time);
+      }
+    }
+    if (this.editMode && this.edit && (this.edit.kind === 'store' || this.edit.kind === 'landmark')) {
+      const e = this.edit;
+      if (e.kind === 'store') {
+        drawVBuildingLabel(ctx, e.bx, e.by, e.w, e.h, e.label, e.skin?.accent ?? '#8b5a37', 1, this.time);
+      } else {
+        drawVLandmarkLabel(ctx, e.lmId ?? 'cathedral', e.bx, e.by, e.label, 1, this.time);
+      }
+    }
 
     // ✓ / ✕ 버튼 (편집 오브젝트 위, 드래그 중엔 숨김).
     if (this.editMode && this.edit && !this.editDragging) {

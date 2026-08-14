@@ -95,6 +95,15 @@ export function DecorSvg({ id, size = 56 }: { id: string; size?: number }) {
           <path d="M62 56 q4 4 2 9 M14 58 q-3 4 -1 8" stroke="#D96C4A" strokeWidth={3} fill="none" strokeLinecap="round" />
         </svg>
       );
+    case 'plaza-tile':
+      return (
+        <svg width={size} height={size * 0.62} viewBox="0 0 80 50" style={{ display: 'block' }} aria-label="광장 돌바닥 타일">
+          <ellipse cx={40} cy={44} rx={27} ry={4} fill="rgba(74,59,50,0.10)" />
+          <path d="M40 5 L75 24 L40 43 L5 24 Z" fill="#F0E7D6" />
+          <path d="M40 5 L75 24 L40 43 L5 24 Z" fill="none" stroke="#E6DBC5" strokeWidth={2.5} />
+          <path d="M40 10 L66 24 L40 38 L14 24 Z" fill="none" stroke="#D8CBB1" strokeWidth={1.6} />
+        </svg>
+      );
     case 'nanta-drum':
       return (
         <svg width={size * 0.85} height={size} viewBox="0 0 66 80" style={{ display: 'block' }} aria-label="난타 드럼 화분">

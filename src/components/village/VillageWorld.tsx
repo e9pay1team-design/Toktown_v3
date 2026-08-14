@@ -103,7 +103,8 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         label: item?.name ?? p.refId,
         // 상점의 '단풍나무'는 숲 나무와 다른 단풍 팔레트로 그린다.
         decorType: p.refId === 'tree' ? 'maple' : p.refId,
-        blocking: p.refId !== 'flower',
+        // 1×1 소품은 히트박스 없음 — 캐릭터/주민이 끼지 않는다.
+        blocking: false,
       });
     } else if (p.kind === 'npc') {
       const drummer = p.refId === DRUMMER_MAGPIE.id;

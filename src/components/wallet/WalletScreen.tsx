@@ -1,6 +1,6 @@
 // ─── 지갑 (기획 §6 화면 8) ────────────────────────────────────────
-// 톡페이 잔액(충전) / 교통 잔액(톡페이 → 교통 이동 충전, 와우패스 방식) /
-// Tokken 잔액·획득 내역 / Town Key 연동 상태.
+// 톡페이 잔액(충전) / 교통 잔액(폰 태그로 톡페이 → 선불카드 즉시 충전) /
+// Tokken 잔액·획득 내역 / 톡페이 선불카드 연동 상태.
 
 import {
   TOKKEN_REASON_EMOJI,
@@ -10,7 +10,7 @@ import {
 import { useToastStore } from '../../store/useToastStore';
 import { mockTokpay } from '../../mock/payment';
 import { TokkenCoin } from '../../assets/misc';
-import { TownKeyringSvg } from '../../assets/journey';
+import { TokpayCardSvg } from '../../assets/journey';
 
 const won = (n: number) => `${n.toLocaleString()}원`;
 
@@ -22,7 +22,7 @@ export function WalletScreen() {
     <div className="flex h-full flex-col bg-town-cream">
       <header className="px-5 pb-3 pt-12">
         <h2 className="text-[22px] font-extrabold">지갑</h2>
-        <p className="text-[12px] font-bold text-town-inkSoft">톡페이 · Town Key · 톡큰</p>
+        <p className="text-[12px] font-bold text-town-inkSoft">톡페이 · 선불카드 · 톡큰</p>
       </header>
 
       <div className="no-scrollbar flex-1 overflow-y-auto px-4 pb-28">
@@ -45,19 +45,19 @@ export function WalletScreen() {
           </div>
         </section>
 
-        {/* Town Key + 교통 잔액 */}
+        {/* 톡페이 선불카드 + 교통 잔액 */}
         <section className="mt-3 rounded-2xl border border-town-line bg-town-paper p-4 shadow-card">
           <div className="flex items-center gap-4">
-            <TownKeyringSvg size={64} />
+            <TokpayCardSvg size={92} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <p className="text-[13.5px] font-extrabold">Town Key</p>
+                <p className="text-[13.5px] font-extrabold">톡페이 선불카드</p>
                 <span className="rounded-full bg-town-leaf/15 px-2 py-0.5 text-[9.5px] font-extrabold text-town-leafDark">
                   계정 연동됨 ✓
                 </span>
               </div>
               <p className="mt-0.5 text-[11px] leading-snug text-town-inkSoft">
-                키링형 교통카드 · 승차 태그 시 톡큰 적립
+                핸드폰에 갖다 대면 충전 · 승차 태그 시 톡큰 적립
               </p>
               <p className="mt-2 text-[11.5px] font-extrabold text-town-inkSoft">교통 잔액</p>
               <p className="text-[20px] font-extrabold leading-tight">{won(eco.transitBalance)}</p>
@@ -66,17 +66,17 @@ export function WalletScreen() {
           <button
             onClick={() => {
               if (eco.transferToTransit(mockTokpay.TRANSFER_UNIT)) {
-                toast(`톡페이 → 교통 잔액 ${won(mockTokpay.TRANSFER_UNIT)} 이동 완료`, 'success');
+                toast(`📳 선불카드에 ${won(mockTokpay.TRANSFER_UNIT)} 충전 완료 (톡페이 차감)`, 'success');
               } else {
                 toast('톡페이 잔액이 부족해요. 먼저 충전하세요!', 'error');
               }
             }}
             className="mt-3 w-full rounded-xl bg-town-leafDark py-3 text-[13px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
           >
-            톡페이 → 교통 잔액 {won(mockTokpay.TRANSFER_UNIT)} 이동
+            📳 폰에 갖다 대고 {won(mockTokpay.TRANSFER_UNIT)} 충전
           </button>
           <p className="mt-2 text-center text-[10px] text-town-inkSoft/70">
-            앱 내 선불 잔액 → 교통 잔액 즉시 충전 방식 (기획 §3.4)
+            폰 NFC 태그 → 톡페이 잔액에서 선불카드로 즉시 충전 (기획 §3.4)
           </p>
         </section>
 

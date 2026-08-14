@@ -49,7 +49,7 @@ export function DialogueOverlay({ name, title, accent = '#7BA55C', lines, onClos
   return (
     <div className="absolute inset-x-3 bottom-36 z-30 fade-in" role="dialog" aria-label={`${name} 대화`}>
       <button onClick={advance} className="block w-full text-left">
-        <div className="relative rounded-[1.4rem] border-[3px] bg-town-paper/97 p-4 pb-3.5 shadow-card" style={{ borderColor: accent }}>
+        <div className="relative rounded-[1.4rem] border-[3px] bg-town-paper p-4 pb-3.5 shadow-card" style={{ borderColor: accent }}>
           {/* 이름표 */}
           <span
             className="absolute -top-3.5 left-4 rounded-full px-3 py-1 text-[12px] font-extrabold text-white shadow-sm"

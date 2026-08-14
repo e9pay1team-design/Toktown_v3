@@ -188,15 +188,14 @@ export function buildVillageWorld(): VillageWorld {
         else if (roll < 0.08) addProp('pine', cx, cy, true);
         continue;
       }
-      // 중심부는 비워 두고(배치 공간), 외곽으로 갈수록 조금씩.
+      // 잔디(초록 타일) 위에는 이동을 막는 돌·수풀을 두지 않는다 —
+      // 노는 공간과 배치 공간을 넓게, 장식은 비충돌 꽃만.
       const centerDist = Math.hypot(tx - PLAZA.tx, ty - PLAZA.ty);
       if (centerDist < 4) {
         if (roll < 0.1) addProp('flower', cx, cy, false);
         continue;
       }
-      if (roll < 0.045) addProp('bush', cx, cy, true);
-      else if (roll < 0.135) addProp('flower', cx, cy, false);
-      else if (roll < 0.155) addProp('rock', cx, cy, true);
+      if (roll < 0.135) addProp('flower', cx, cy, false);
     }
   }
 

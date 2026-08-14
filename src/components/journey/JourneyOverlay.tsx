@@ -12,8 +12,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { useVirtualLocation } from '../../mock/location';
 import { pointAlong } from '../../lib/routes';
 import { checkLandmarkDiscovery, tryRideTag, withinRadius } from '../../lib/actions';
-import { BusSvg, SubwaySvg } from '../../assets/journey';
-import { TownKeyringSvg } from '../../assets/journey';
+import { BusSvg, SubwaySvg, TokpayCardSvg } from '../../assets/journey';
 
 const RIDE_MS = { transit: 12000, walk: 9000 } as const;
 
@@ -70,13 +69,13 @@ export function JourneyOverlay() {
           <div className="sheet-up pointer-events-auto rounded-[1.6rem] border-2 border-town-sky bg-town-paper p-5 shadow-sheet">
             <div className="flex items-center gap-4">
               <div className="char-bob shrink-0">
-                <TownKeyringSvg size={58} />
+                <TokpayCardSvg size={76} />
               </div>
               <div className="min-w-0">
                 <p className="text-[15px] font-extrabold">승차 태그를 기다리고 있어요</p>
                 <p className="mt-1 text-[12px] leading-snug text-town-inkSoft">
                   {route.boardAt}에서 <b>{route.line}</b> 탑승 —
-                  Town Key·선불카드를 단말기에 태그하세요
+                  톡페이 선불카드를 단말기에 태그하세요
                 </p>
               </div>
             </div>

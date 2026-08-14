@@ -425,7 +425,7 @@ export function VillageScreen() {
       {/* 배치 모드: 하단 도킹 보관함 */}
       {editMode && (
         <div className="absolute inset-x-0 bottom-16 z-30 px-3 pb-2">
-          <div className="rounded-2xl border border-town-line bg-town-paper/97 p-2.5 shadow-card backdrop-blur">
+          <div className="rounded-2xl border border-town-line bg-town-paper/95 p-2.5 shadow-card backdrop-blur">
             <p className="mb-1.5 px-1 text-[10.5px] font-extrabold text-town-inkSoft">
               🎒 보관함 {inventory.length > 0 ? '· 탭하면 화면 가운데에 꺼내져요' : ''}
             </p>

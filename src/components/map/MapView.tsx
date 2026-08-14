@@ -1,8 +1,10 @@
 // ─── Leaflet 지도 뷰 ──────────────────────────────────────────────
 // 기본 타일은 깔끔하게 유지(길찾기 정확성 우선)하고, 핵심 오브젝트만
 // 톡타운 아트스타일 SVG 로 오버레이한다 (기획 §3.1 이중 공간).
-// ⚠ 지도 타일: Leaflet + OpenStreetMap (API 키 불필요, 영어 지도).
-//   실서비스 전환 시 네이버/카카오 지도 SDK 로 교체 예정.
+// ⚠ 지도 타일: Leaflet + CARTO 무라벨 타일 (매장 POI 아이콘 없음 —
+//   매장 표시는 톡타운 자체 마커가 전담). 타일 서버에 접근할 수 없는
+//   환경(웹 공유 샌드박스·사내 프록시)에서는 코드로 그린 종이 질감
+//   배경 레이어가 대신 보인다. 실서비스 전환 시 네이버/카카오 SDK 교체 예정.
 
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
@@ -75,6 +77,44 @@ function landmarkIcon(lm: Landmark): L.DivIcon {
   });
 }
 
+/** 오프라인 폴백 배경 — 실제 지리와 무관한 종이 질감 타일을 코드로 그린다 */
+function drawPaperTile(g: CanvasRenderingContext2D, coords: L.Coords, w: number, h: number): void {
+  g.fillStyle = '#EFF2E3';
+  g.fillRect(0, 0, w, h);
+  let s = (coords.x * 73856093) ^ (coords.y * 19349663) ^ (coords.z * 83492791);
+  const rnd = () => {
+    s = (Math.imul(s, 1664525) + 1013904223) | 0;
+    return ((s >>> 8) & 0xffff) / 0x10000;
+  };
+  // 부드러운 풀빛 얼룩 — 타일 경계 이음새가 없도록 안쪽에만 그린다.
+  for (let i = 0; i < 6; i++) {
+    const r = 26 + rnd() * 52;
+    const cx = r + rnd() * Math.max(1, w - r * 2);
+    const cy = r + rnd() * Math.max(1, h - r * 2);
+    g.fillStyle = i % 2 ? 'rgba(214,226,190,0.45)' : 'rgba(233,239,216,0.6)';
+    g.beginPath();
+    g.ellipse(cx, cy, r, r * (0.55 + rnd() * 0.45), rnd() * Math.PI, 0, Math.PI * 2);
+    g.fill();
+  }
+  // 잔점 텍스처.
+  g.fillStyle = 'rgba(148,170,120,0.16)';
+  for (let i = 0; i < 42; i++) {
+    g.fillRect(4 + rnd() * (w - 8), 4 + rnd() * (h - 8), 2, 2);
+  }
+}
+
+const PaperTileLayer = L.GridLayer.extend({
+  createTile(this: L.GridLayer, coords: L.Coords): HTMLElement {
+    const size = this.getTileSize();
+    const tile = document.createElement('canvas');
+    tile.width = size.x;
+    tile.height = size.y;
+    const g = tile.getContext('2d');
+    if (g) drawPaperTile(g, coords, size.x, size.y);
+    return tile;
+  },
+}) as unknown as new (options?: L.GridLayerOptions) => L.GridLayer;
+
 function myIcon(character: CharacterConfig): L.DivIcon {
   const char = renderToStaticMarkup(<CharacterSvg config={character} size={58} shadow={false} />);
   return L.divIcon({
@@ -116,8 +156,14 @@ export function MapView(props: MapViewProps) {
       maxBoundsViscosity: 0.8,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
+    // 1) 종이 질감 폴백 배경 (항상 깔림 — 타일 서버 차단 환경에서도 지도가 비어 보이지 않게)
+    new PaperTileLayer({ zIndex: 1 }).addTo(map);
+    // 2) CARTO 무라벨 래스터 — OSM 기반이지만 매장 POI 아이콘·라벨이 없어 깔끔하다.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png', {
+      subdomains: 'abcd',
+      maxZoom: 19,
+      zIndex: 2,
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
     }).addTo(map);
 
     map.on('click', (e) => cbRef.current.onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng }));

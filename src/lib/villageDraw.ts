@@ -239,11 +239,7 @@ function faceQuad(
 }
 
 export interface VBuildingOpts {
-  /** 0..1 — 가까이 갈수록 이름표가 또렷해진다 */
-  focus: number;
-  label: string;
   emoji: string;
-  time: number;
 }
 
 /**
@@ -358,14 +354,26 @@ export function drawTemplateBuilding(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(opts.emoji, signAnchor.x, signAnchor.y + 4);
+}
 
-  // 떠 있는 이름표.
-  const top = toScreen((x0 + x1) / 2, (y0 + y1) / 2);
-  const plateY = top.sy - WALL_H - ROOF_T - 24 + Math.sin(opts.time * 1.6) * 1.5;
-  drawVNameplate(ctx, top.sx, plateY, opts.label, {
-    alpha: 0.45 + opts.focus * 0.55,
-    accent: s.accent,
-    scale: 1 + opts.focus * 0.08,
+/** 템플릿 건물 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */
+export function drawVBuildingLabel(
+  ctx: CanvasRenderingContext2D,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+  label: string,
+  accent: string,
+  focus: number,
+  time: number,
+): void {
+  const top = toScreen(bx + bw / 2, by + bh / 2);
+  const plateY = top.sy - WALL_H - ROOF_T - 24 + Math.sin(time * 1.6) * 1.5;
+  drawVNameplate(ctx, top.sx, plateY, label, {
+    alpha: 0.45 + focus * 0.55,
+    accent,
+    scale: 1 + focus * 0.08,
   });
 }
 
@@ -414,7 +422,7 @@ export function drawVLandmark(
   id: string,
   bx: number,
   by: number,
-  opts: { focus: number; label: string; time: number },
+  opts: { time: number },
 ): void {
   const x0 = bx;
   const y0 = by;
@@ -432,10 +440,7 @@ export function drawVLandmark(
   ctx.fill();
   ctx.restore();
 
-  let accent = '#8a8f98';
-
   if (id === 'cathedral') {
-    accent = '#9a8f85';
     // 몸체 (석조).
     faceQuad(ctx, D, C, 0, 1, 0, 40);
     ctx.fillStyle = '#f4efe8';
@@ -477,7 +482,6 @@ export function drawVLandmark(
     ctx.lineTo(top.sx + 4, top.sy - 102);
     ctx.stroke();
   } else if (id === 'namsan') {
-    accent = '#5f9037';
     // 언덕.
     vFootprintPath(ctx, x0, y0, x1, y1);
     ctx.fillStyle = VPALETTE.leafDark;
@@ -512,7 +516,6 @@ export function drawVLandmark(
     ellipse(ctx, top.sx, top.sy - 103, 2.5, 2.5);
     ctx.fill();
   } else if (id === 'cheonggyecheon') {
-    accent = '#4489bb';
     // 개울 수면 (낮은 랜드마크).
     vFootprintPath(ctx, x0, y0, x1, y1, 2);
     ctx.fillStyle = '#7ccbe8';
@@ -565,7 +568,6 @@ export function drawVLandmark(
     }
   } else {
     // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
-    accent = '#8d4f3f';
     faceQuad(ctx, D, C, 0, 1, 0, 24);
     ctx.fillStyle = '#e8e0d2';
     ctx.fill();
@@ -609,12 +611,31 @@ export function drawVLandmark(
     ctx.lineTo(top.sx + 14, top.sy - 63);
     ctx.stroke();
   }
+}
 
-  const plateY = top.sy - 96 - 14 + Math.sin(opts.time * 1.6) * 1.5;
-  drawVNameplate(ctx, top.sx, id === 'cheonggyecheon' ? top.sy - 46 : plateY, opts.label, {
-    alpha: 0.45 + opts.focus * 0.55,
-    accent,
-    scale: 1 + opts.focus * 0.08,
+export const LANDMARK_ACCENTS: Record<string, string> = {
+  cathedral: '#9a8f85',
+  namsan: '#5f9037',
+  cheonggyecheon: '#4489bb',
+  gwanghwamun: '#8d4f3f',
+};
+
+/** 랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */
+export function drawVLandmarkLabel(
+  ctx: CanvasRenderingContext2D,
+  id: string,
+  bx: number,
+  by: number,
+  label: string,
+  focus: number,
+  time: number,
+): void {
+  const top = toScreen(bx + 1, by + 1);
+  const plateY = top.sy - 96 - 14 + Math.sin(time * 1.6) * 1.5;
+  drawVNameplate(ctx, top.sx, id === 'cheonggyecheon' ? top.sy - 46 : plateY, label, {
+    alpha: 0.45 + focus * 0.55,
+    accent: LANDMARK_ACCENTS[id] ?? '#8a8f98',
+    scale: 1 + focus * 0.08,
   });
 }
 
@@ -763,32 +784,34 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       return;
     }
     case 'bench': {
-      shadow(ctx, sx, sy + 1, 18);
+      // 공원 벤치 — 가로등/우체통과 같은 정면 빌보드 스타일.
+      shadow(ctx, sx, sy + 1, 16, 0.15);
+      // 다리.
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.fillRect(sx - 13, sy - 12, 3.5, 12);
+      ctx.fillRect(sx + 9.5, sy - 12, 3.5, 12);
+      // 등받이 기둥.
+      ctx.fillRect(sx - 13, sy - 31, 3.5, 19);
+      ctx.fillRect(sx + 9.5, sy - 31, 3.5, 19);
+      // 등받이 가로판 2장.
       ctx.fillStyle = VPALETTE.trunk;
-      ctx.beginPath();
-      ctx.moveTo(sx - 20, sy - 8);
-      ctx.lineTo(sx, sy - 18);
-      ctx.lineTo(sx + 20, sy - 8);
-      ctx.lineTo(sx, sy + 2);
-      ctx.closePath();
+      roundRect(ctx, sx - 17, sy - 32, 34, 5, 2.5);
+      ctx.fill();
+      roundRect(ctx, sx - 17, sy - 25, 34, 5, 2.5);
+      ctx.fill();
+      // 좌판 + 밑면 두께.
+      roundRect(ctx, sx - 18, sy - 15, 36, 6.5, 3);
       ctx.fill();
       ctx.fillStyle = VPALETTE.trunkDark;
-      ctx.beginPath();
-      ctx.moveTo(sx - 20, sy - 8);
-      ctx.lineTo(sx, sy + 2);
-      ctx.lineTo(sx, sy + 6);
-      ctx.lineTo(sx - 20, sy - 4);
-      ctx.closePath();
+      roundRect(ctx, sx - 18, sy - 9.5, 36, 3, 1.5);
       ctx.fill();
-      ctx.fillStyle = VPALETTE.trunk;
-      ctx.fillRect(sx - 2, sy - 30, 4, 14);
+      // 좌판 나뭇결 슬랫 라인.
+      ctx.strokeStyle = 'rgba(139,90,55,0.4)';
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.moveTo(sx - 18, sy - 26);
-      ctx.lineTo(sx + 2, sy - 34);
-      ctx.lineTo(sx + 2, sy - 28);
-      ctx.lineTo(sx - 18, sy - 20);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(sx - 14, sy - 11.8);
+      ctx.lineTo(sx + 14, sy - 11.8);
+      ctx.stroke();
       return;
     }
     case 'fountain': {
@@ -841,6 +864,12 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       ctx.fillStyle = VPALETTE.paper;
       roundRect(ctx, sx - 5, sy - 34, 10, 3.5, 1.5);
       ctx.fill();
+      return;
+    }
+    case 'plaza-tile': {
+      // 마을 중앙 광장과 동일한 돌바닥 타일 — 지형 드로어를 그대로 사용해
+      // 광장(VT.Path)과 픽셀 단위로 같은 룩을 보장한다.
+      drawVTile(ctx, Math.floor(p.x), Math.floor(p.y), VT.Path, time);
       return;
     }
     case 'nanta-drum': {

@@ -724,6 +724,7 @@ export const DECOR_ITEMS: DecorItem[] = [
   { id: 'bench', name: '나무 벤치', price: 80 },
   { id: 'lamp', name: '가로등', price: 120 },
   { id: 'flower', name: '꽃밭', price: 50 },
+  { id: 'plaza-tile', name: '광장 돌바닥 타일', price: 60 },
   { id: 'fountain', name: '분수대', price: 500 },
   { id: 'mailbox', name: '빨간 우체통', price: 150 },
   { id: 'tree', name: '단풍나무', price: 200 },
