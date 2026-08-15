@@ -16,7 +16,6 @@ import {
   vidx,
   vinBounds,
   canPlaceFootprint,
-  type PlaceOpts,
   type VillageWorld,
   type VTerrainId,
 } from './villageWorld';
@@ -143,8 +142,9 @@ interface Butterfly {
   color: string;
 }
 
-/** 바닥에 깔리는 소품 — 지형 패스 직후에 그리고 깊이 정렬에서 제외. 광장 위 배치 허용 대상. */
-export const GROUND_DECOR = new Set(['plaza-tile', 'grass-tile']);
+/** 바닥에 깔리는 소품 — 지형 패스 직후에 그리고 깊이 정렬에서 제외.
+    바닥 타일 위에는 1×1 소품·NPC 를 겹쳐 올릴 수 있다(건물·랜드마크 제외). */
+export const GROUND_DECOR = new Set(['plaza-tile']);
 
 const PLAYER_SPEED = 3.6;
 const NPC_SPEED = 1.4;
@@ -338,14 +338,6 @@ export class VillageGame {
     this.hooks.onEditSelection(null);
   }
 
-  /** 배치 판정 옵션 — 바닥 타일은 광장 허용, 건물은 방향별 문 앞 판정 */
-  private placeOptsFor(e: { kind: string; decorType?: string; facing?: VBuildingFacing }): PlaceOpts {
-    return {
-      onPath: e.kind === 'decor' && GROUND_DECOR.has(e.decorType ?? ''),
-      doorFacing: e.facing,
-    };
-  }
-
   /** 보관함에서 아이템을 꺼내 유효 타일에 스폰 — near 를 주면 그 주변(연속 배치), 없으면 화면 중앙 */
   spawnFromTray(meta: EditMeta, near?: { bx: number; by: number }): void {
     if (!this.editMode) return;
@@ -472,26 +464,37 @@ export class VillageGame {
   }
 
   /** 편집 검증용 점유 집합 — 편집 중인 자신(excludeId)의 발자국은 뺀다.
-      occ: 모든 배치물(시각적 겹침 방지) / doorOcc: 문 앞 판정용 — 걸을 수 있는 바닥 타일 제외 */
-  private occupiedForEdit(excludeId: number | null): { occ: Set<number>; doorOcc: Set<number> } {
-    const occ = new Set<number>();
-    const doorOcc = new Set<number>();
+      ground: 바닥 타일 / obj: 그 외 전부(문 앞 판정 겸용) / big: 건물·랜드마크 */
+  private occupiedForEdit(excludeId: number | null): {
+    ground: Set<number>;
+    obj: Set<number>;
+    big: Set<number>;
+  } {
+    const ground = new Set<number>();
+    const obj = new Set<number>();
+    const big = new Set<number>();
     for (const t of this.things) {
       if (excludeId !== null && t.id === excludeId) continue;
-      const walkable = t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '');
+      const isGround = t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '');
+      const isBig = t.kind === 'store' || t.kind === 'landmark';
       for (let ty = t.by; ty < t.by + t.h; ty++) {
         for (let tx = t.bx; tx < t.bx + t.w; tx++) {
           if (!vinBounds(tx, ty)) continue;
           const i = vidx(tx, ty);
-          occ.add(i);
-          if (!walkable) doorOcc.add(i);
+          if (isGround) ground.add(i);
+          else {
+            obj.add(i);
+            if (isBig) big.add(i);
+          }
         }
       }
     }
-    return { occ, doorOcc };
+    return { ground, obj, big };
   }
 
-  /** canPlaceFootprint 호출 한 벌 — 점유 집합과 옵션을 함께 구성 */
+  /** canPlaceFootprint 호출 한 벌 — 겹침 규칙:
+      바닥 타일과 1×1 소품·NPC 는 같은 칸에 겹칠 수 있다(타일 위에 소품).
+      바닥 타일끼리, 그리고 건물·랜드마크가 낀 조합은 겹칠 수 없다. */
   private canPlaceEdit(
     e: { kind: string; decorType?: string; facing?: VBuildingFacing },
     excludeId: number | null,
@@ -500,10 +503,15 @@ export class VillageGame {
     w: number,
     h: number,
   ): boolean {
-    const { occ, doorOcc } = this.occupiedForEdit(excludeId);
-    return canPlaceFootprint(this.world, occ, bx, by, w, h, {
-      ...this.placeOptsFor(e),
-      doorOccupied: doorOcc,
+    const { ground, obj, big } = this.occupiedForEdit(excludeId);
+    const isGround = e.kind === 'decor' && GROUND_DECOR.has(e.decorType ?? '');
+    const isBig = e.kind === 'store' || e.kind === 'landmark';
+    const blocked = new Set(isGround ? ground : obj);
+    if (isGround) for (const i of big) blocked.add(i);
+    if (isBig) for (const i of ground) blocked.add(i);
+    return canPlaceFootprint(this.world, blocked, bx, by, w, h, {
+      doorFacing: e.facing,
+      doorOccupied: obj,
     });
   }
 
@@ -784,7 +792,9 @@ export class VillageGame {
     let bestD = -Infinity;
     for (const t of this.things) {
       if (tx >= t.bx && tx < t.bx + t.w && ty >= t.by && ty < t.by + t.h) {
-        const d = t.bx + t.w + t.by + t.h;
+        // 같은 칸에 바닥 타일과 소품이 겹쳐 있으면 위에 얹힌 소품을 먼저 잡는다.
+        const onTop = !(t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? ''));
+        const d = t.bx + t.w + t.by + t.h + (onTop ? 0.5 : 0);
         if (d > bestD) {
           bestD = d;
           best = t;
@@ -954,6 +964,7 @@ export class VillageGame {
 
     for (const t of this.things) {
       if (t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 담당
+      if (t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '')) continue; // 바닥 타일은 밟는 것 — 살펴보기 대상 아님
       const se = (t.kind === 'store' || t.kind === 'landmark') && t.facing === 'se';
       const px = se ? t.bx + t.w + 0.5 : t.bx + t.w / 2;
       const py = se ? t.by + t.h / 2 : t.kind === 'decor' ? t.by + t.h / 2 : t.by + t.h + 0.5;
@@ -1054,7 +1065,7 @@ export class VillageGame {
       drawVFoam(ctx, tx, ty, this.time);
     }
 
-    // 바닥 소품(광장 돌바닥·기본 초록 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
+    // 바닥 소품(광장 돌바닥 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
     for (const t of this.things) {
       if (t.kind !== 'decor' || !GROUND_DECOR.has(t.decorType ?? '')) continue;
       if (this.editMode && this.edit?.placementId === t.id) continue;

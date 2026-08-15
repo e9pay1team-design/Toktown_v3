@@ -132,8 +132,10 @@ export function VillageScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys, lang]);
 
-  /* 마을 풍성도 → 입주 주민, 새 입주 토스트 */
-  const richness = villageRichness(placements.length, dex.length, discovered.length);
+  /* 마을 풍성도 → 입주 주민, 새 입주 토스트.
+     기본 광장 구성물(preset)은 세지 않는다 — 풍성도는 직접 모아 배치한 것만. */
+  const userPlacementCount = placements.filter((p) => !p.preset).length;
+  const richness = villageRichness(userPlacementCount, dex.length, discovered.length);
   const residents = residentNpcs(richness);
   const prevResidents = useRef(residents.length);
   useEffect(() => {
@@ -284,7 +286,7 @@ export function VillageScreen() {
             })()
     : null;
 
-  const emptyVillage = placements.length === 0 && inventory.length === 0;
+  const emptyVillage = userPlacementCount === 0 && inventory.length === 0;
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-[#3f9fc8]">

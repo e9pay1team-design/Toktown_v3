@@ -888,14 +888,9 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       return;
     }
     case 'plaza-tile': {
-      // 마을 중앙 광장과 동일한 돌바닥 타일 — 지형 드로어를 그대로 사용해
-      // 광장(VT.Path)과 픽셀 단위로 같은 룩을 보장한다.
+      // 광장 돌바닥 타일 — 지형 드로어(VT.Path)를 그대로 사용해 타일끼리
+      // 이어 깔면 원래 광장과 픽셀 단위로 같은 룩이 된다.
       drawVTile(ctx, Math.floor(p.x), Math.floor(p.y), VT.Path, time);
-      return;
-    }
-    case 'grass-tile': {
-      // 기본 잔디와 동일한 초록 타일 — 짙은 잔디 얼룩을 덮어 고르게 만들 때.
-      drawVTile(ctx, Math.floor(p.x), Math.floor(p.y), VT.Grass, time);
       return;
     }
     case 'nanta-drum': {

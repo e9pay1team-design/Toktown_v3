@@ -124,26 +124,21 @@ export function buildVillageWorld(): VillageWorld {
     }
   }
 
-  // 2. 광장 (돌바닥) — 마을 중심.
-  for (let ty = 0; ty < VH; ty++) {
-    for (let tx = 0; tx < VW; tx++) {
-      if (isVillagePlaza(tx, ty) && terrain[vidx(tx, ty)] !== VT.Water) {
-        terrain[vidx(tx, ty)] = VT.Path;
-      }
-    }
-  }
+  // 광장 돌바닥·가로등은 지형/고정 소품이 아니라 '회수 가능한 기본 배치물'
+  // 이다(useVillageStore 기본 상태, defaultPlazaTiles/DEFAULT_LAMP_TILES).
+  // 걷어내면 아래 잔디가 드러난다.
 
   // 물은 못 걷는다.
   for (let i = 0; i < terrain.length; i++) {
     if (terrain[i] === VT.Water) blocked[i] = 1;
   }
 
-  // 3. 뒤쪽 숲 벽: 좌상단(x=0 변)·우상단(y=0 변)을 나무로 막는다.
+  // 2. 뒤쪽 숲 벽: 좌상단(x=0 변)·우상단(y=0 변)을 나무로 막는다.
   //    벽 안쪽으로 갈수록 드문드문 — 숲 가장자리의 자연스러운 밀도 감쇠.
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
       const i = vidx(tx, ty);
-      if (terrain[i] === VT.Water || terrain[i] === VT.Path) continue;
+      if (terrain[i] === VT.Water) continue;
       const backDist = Math.min(tx, ty);
       const along = backDist === tx ? ty : tx;
       const depth = forestDepthAt(along);
@@ -160,25 +155,13 @@ export function buildVillageWorld(): VillageWorld {
     }
   }
 
-  // 4. 광장 소품: 가로등 4개 (밤 조명 포인트).
-  const lampSpots: [number, number][] = [
-    [PLAZA.tx - 2, PLAZA.ty],
-    [PLAZA.tx + 2, PLAZA.ty - 2],
-    [PLAZA.tx, PLAZA.ty + 2],
-    [PLAZA.tx + 2, PLAZA.ty + 2],
-  ];
-  for (const [tx, ty] of lampSpots) {
-    if (vinBounds(tx, ty) && !blocked[vidx(tx, ty)]) {
-      addProp('lamp', tx + 0.5, ty + 0.5, false, rng());
-    }
-  }
-
-  // 5. 잔여 지면에 수풀·꽃·바위 산포.
+  // 3. 잔여 지면에 수풀·꽃·바위 산포. 광장 원판은 돌바닥 타일이 깔릴
+  //    자리라 비워 둔다.
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
       const i = vidx(tx, ty);
       const t = terrain[i];
-      if (blocked[i] || t === VT.Water || t === VT.Path) continue;
+      if (blocked[i] || t === VT.Water) continue;
       if (isVillagePlaza(tx, ty)) continue;
       const roll = rng();
       const cx = tx + 0.5;
@@ -199,7 +182,7 @@ export function buildVillageWorld(): VillageWorld {
     }
   }
 
-  // 6. 파도 거품 대상 해안 타일.
+  // 4. 파도 거품 대상 해안 타일.
   const shore: number[] = [];
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
@@ -232,9 +215,26 @@ export function buildVillageWorld(): VillageWorld {
   };
 }
 
+/** 기본 광장 돌바닥 타일 자리 — 광장 원판 21칸. 회수 가능한 기본 배치물의 시드. */
+export function defaultPlazaTiles(): { bx: number; by: number }[] {
+  const tiles: { bx: number; by: number }[] = [];
+  for (let ty = 0; ty < VH; ty++) {
+    for (let tx = 0; tx < VW; tx++) {
+      if (isVillagePlaza(tx, ty)) tiles.push({ bx: tx, by: ty });
+    }
+  }
+  return tiles;
+}
+
+/** 기본 가로등 4개 자리 (밤 조명 포인트) — 역시 회수 가능한 기본 배치물 */
+export const DEFAULT_LAMP_TILES: ReadonlyArray<{ bx: number; by: number }> = [
+  { bx: PLAZA.tx - 2, by: PLAZA.ty },
+  { bx: PLAZA.tx + 2, by: PLAZA.ty - 2 },
+  { bx: PLAZA.tx, by: PLAZA.ty + 2 },
+  { bx: PLAZA.tx + 2, by: PLAZA.ty + 2 },
+];
+
 export interface PlaceOpts {
-  /** 바닥 타일(광장 돌바닥·기본 초록)은 광장(Path) 위에도 깔 수 있다 */
-  onPath?: boolean;
   /** 건물 방향 — 문 앞 보행 칸 판정에 사용 (기본 sw = 좌측 하단) */
   doorFacing?: 'sw' | 'se';
   /** 문 앞 판정 전용 점유 집합 — 걸을 수 있는 바닥 타일을 뺀 것. 없으면 occupiedDyn 사용 */
@@ -256,8 +256,7 @@ export function canPlaceFootprint(
       if (!vinBounds(tx, ty)) return false;
       const i = vidx(tx, ty);
       const t = world.terrain[i];
-      const terrainOk = t === VT.Grass || t === VT.GrassDark || (opts.onPath === true && t === VT.Path);
-      if (!terrainOk) return false;
+      if (t !== VT.Grass && t !== VT.GrassDark) return false;
       if (world.blocked[i] || occupiedDyn.has(i)) return false;
     }
   }
