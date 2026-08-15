@@ -1,10 +1,12 @@
 // ─── 커뮤니티 (기획 §3.3, §6 화면 10) ─────────────────────────────
-// 전체 통합 피드(지역 구분 없음). 글은 분류 태그(#도움요청 #동네정보 …)로
+// 전체 통합 피드(지역 구분 없음). 글은 분류 태그(#SOS #info #맛집)로
 // 구분하고, 상단 검색창으로 본문·번역문·작성자·태그를 검색한다.
+// 언어 태그는 없다 — 무슨 언어로 쓰든 자동 번역이 처리한다.
+// 사진 첨부: 앨범 업로드(캔버스 다운스케일→dataURL) 또는 데모 사진(SVG).
 // 글·댓글 단위 '번역 보기'(사전 번역 페어 목업), 장소 태그 → 매장 상세.
 // 위치 프라이버시: 외부에 보이는 위치 정보는 장소 태그뿐.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   COMMUNITY_POSTS,
   POST_TAGS,
@@ -19,6 +21,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { CharacterSvg } from '../../assets/CharacterSvg';
 import { CATEGORY_COLORS } from '../../assets/buildings';
 import { CategoryGlyph } from '../../assets/misc';
+import { DEMO_PHOTOS, PostPhotoSvg } from '../../assets/postPhotos';
 import { sName, tr, useLang, useT } from '../../i18n';
 
 function StoreTagChip({ storeId }: { storeId: number }) {
@@ -44,6 +47,20 @@ function StoreTagChip({ storeId }: { storeId: number }) {
       </span>
       📍 {sName(store)}
     </button>
+  );
+}
+
+/** 게시글 사진 — 업로드(dataURL)는 img, 데모 사진은 코드 SVG */
+function PostPhoto({ photo, photoId }: { photo?: string; photoId?: string }) {
+  if (!photo && !photoId) return null;
+  return (
+    <div className="mt-2.5 overflow-hidden rounded-xl border border-town-line bg-town-cream/40">
+      {photo ? (
+        <img src={photo} alt="첨부 사진" className="max-h-56 w-full object-cover" />
+      ) : (
+        <PostPhotoSvg id={photoId!} />
+      )}
+    </div>
   );
 }
 
@@ -146,6 +163,7 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
       {autoTranslated && (
         <p className="mt-0.5 text-[9.5px] font-bold text-town-skyDeep">{T('🌐 자동 번역됨', '🌐 Auto-translated')}</p>
       )}
+      <PostPhoto photoId={post.photoId} />
       <PostTagChips ids={post.tags} onPick={onPickTag} />
       <TranslateToggle
         other={other}
@@ -209,13 +227,20 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
   );
 }
 
+/** 태그 라벨 매칭 — 한/영 라벨 모두 본다 */
+function tagMatches(needle: string, tagId: string): boolean {
+  const tag = tagById(tagId);
+  if (!tag) return false;
+  return tag.label.toLowerCase().includes(needle) || tag.labelEn.toLowerCase().includes(needle);
+}
+
 /** 검색어가 글에 걸리는지 — 본문·번역문·작성자·태그 라벨·댓글까지 본다 */
 function postMatches(q: string, post: CommunityPost): boolean {
   const needle = q.toLowerCase();
   if (post.text.toLowerCase().includes(needle)) return true;
   if (post.translated.toLowerCase().includes(needle)) return true;
   if (post.author.toLowerCase().includes(needle)) return true;
-  if (post.tags.some((id) => tagById(id)?.label.toLowerCase().includes(needle))) return true;
+  if (post.tags.some((id) => tagMatches(needle, id))) return true;
   return post.comments.some(
     (c) => c.text.toLowerCase().includes(needle) || c.author.toLowerCase().includes(needle),
   );
@@ -234,6 +259,9 @@ export function CommunityScreen() {
   const [draft, setDraft] = useState('');
   const [draftTags, setDraftTags] = useState<string[]>([]);
   const [draftStore, setDraftStore] = useState<number | 0>(0);
+  const [draftPhoto, setDraftPhoto] = useState<string | null>(null); // 업로드 dataURL
+  const [draftPhotoId, setDraftPhotoId] = useState<string | null>(null); // 데모 사진 id
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const q = query.trim().toLowerCase();
 
@@ -250,20 +278,59 @@ export function CommunityScreen() {
       myPosts
         .filter((p) => tagFilter === 'all' || p.tags.includes(tagFilter))
         .filter(
-          (p) =>
-            q === '' ||
-            p.text.toLowerCase().includes(q) ||
-            p.tags.some((id) => tagById(id)?.label.toLowerCase().includes(q)),
+          (p) => q === '' || p.text.toLowerCase().includes(q) || p.tags.some((id) => tagMatches(q, id)),
         ),
     [myPosts, tagFilter, q],
   );
 
+  /** 앨범 사진 → 960px 이하 JPEG dataURL 로 다운스케일 (localStorage 용량 보호) */
+  const onPickFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const fail = () => {
+      URL.revokeObjectURL(url);
+      toast(tr('사진을 불러오지 못했어요', 'Could not load that photo'), 'error');
+    };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const max = 960;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('2D canvas unavailable');
+        ctx.fillStyle = '#fff'; // PNG 투명 배경 → JPEG 흰 배경
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        setDraftPhoto(canvas.toDataURL('image/jpeg', 0.78));
+        setDraftPhotoId(null);
+      } catch {
+        fail();
+      }
+    };
+    img.onerror = fail;
+    img.src = url;
+  };
+
   const submit = () => {
     if (draft.trim().length < 2) return;
-    addPost(draft.trim(), draftTags, draftStore || undefined);
+    addPost(draft.trim(), draftTags, {
+      storeTagId: draftStore || undefined,
+      photo: draftPhoto ?? undefined,
+      photoId: draftPhotoId ?? undefined,
+    });
     setDraft('');
     setDraftTags([]);
     setDraftStore(0);
+    setDraftPhoto(null);
+    setDraftPhotoId(null);
     setComposing(false);
     toast(tr('커뮤니티에 글을 올렸어요!', 'Posted to the community!'), 'success');
   };
@@ -378,6 +445,7 @@ export function CommunityScreen() {
               </div>
             </div>
             <p className="mt-2.5 text-[13.5px] leading-relaxed">{p.text}</p>
+            <PostPhoto photo={p.photo} photoId={p.photoId} />
             <PostTagChips ids={p.tags} onPick={(id) => setTagFilter(id)} />
             {p.storeTagId && <StoreTagChip storeId={p.storeTagId} />}
           </article>
@@ -450,6 +518,61 @@ export function CommunityScreen() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* 사진 첨부 — 앨범 업로드(자동 축소) 또는 데모 사진 */}
+            <div className="mt-2.5">
+              <p className="mb-1.5 text-[12px] font-extrabold text-town-inkSoft">{T('사진 첨부', 'Attach a photo')}</p>
+              {draftPhoto || draftPhotoId ? (
+                <div className="relative w-fit">
+                  <div className="w-[172px] overflow-hidden rounded-xl border border-town-line bg-town-cream/40">
+                    {draftPhoto ? (
+                      <img src={draftPhoto} alt="첨부할 사진" className="h-24 w-full object-cover" />
+                    ) : (
+                      <PostPhotoSvg id={draftPhotoId!} />
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDraftPhoto(null);
+                      setDraftPhotoId(null);
+                    }}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-town-ink text-[10px] font-bold text-white shadow-sm"
+                    aria-label="사진 제거"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    className="rounded-full border border-town-skyDeep bg-[#EAF4F8] px-2.5 py-1 text-[11px] font-extrabold text-town-skyDeep"
+                  >
+                    {T('📷 앨범에서 선택', '📷 From album')}
+                  </button>
+                  {DEMO_PHOTOS.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setDraftPhotoId(p.id);
+                        setDraftPhoto(null);
+                      }}
+                      className="rounded-full border border-town-line bg-town-cream px-2.5 py-1 text-[11px] font-extrabold text-town-inkSoft"
+                    >
+                      🖼️ {T(p.label, p.labelEn)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                onChange={onPickFile}
+                className="hidden"
+                aria-label="사진 파일 선택"
+              />
             </div>
 
             <div className="mt-2.5 flex items-center gap-2">
