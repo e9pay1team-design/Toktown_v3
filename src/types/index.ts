@@ -136,4 +136,6 @@ export interface DecorItem {
   price: number;
   /** 이벤트 한정 여부 */
   eventOnly?: string;
+  /** 상점 미판매 — 마을 기본 지급 오브젝트 (예: 광장 돌바닥 타일) */
+  shopHidden?: boolean;
 }

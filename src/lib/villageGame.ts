@@ -11,11 +11,13 @@ import {
   VW,
   VH,
   VT,
+  STONE_TILE,
   toScreen,
   toWorld,
   vidx,
   vinBounds,
   canPlaceFootprint,
+  type FootprintItem,
   type VillageWorld,
   type VTerrainId,
 } from './villageWorld';
@@ -160,6 +162,8 @@ export class VillageGame {
 
   private things: PlacedThing[] = [];
   private dynBlocked = new Set<number>();
+  /** 광장 돌바닥 타일이 깔린 칸 → 배치 id — 지형 오버레이(VT.Path)로 그린다 */
+  private floorByTile = new Map<number, number>();
   private lastTarget: VInteractTarget | null = null;
   private playerSkin: VCharSkin;
 
@@ -247,7 +251,9 @@ export class VillageGame {
   setThings(things: PlacedThing[]): void {
     this.things = things;
     this.dynBlocked = new Set();
+    this.floorByTile = new Map();
     for (const t of things) {
+      if (isFloorTile(t) && vinBounds(t.bx, t.by)) this.floorByTile.set(vidx(t.bx, t.by), t.id);
       if (!t.blocking) continue;
       for (let ty = t.by; ty < t.by + t.h; ty++) {
         for (let tx = t.bx; tx < t.bx + t.w; tx++) {
@@ -319,11 +325,12 @@ export class VillageGame {
     by = Math.max(0, Math.min(VH - meta.h, by));
     // 가까운 유효 자리 나선 탐색.
     const occ = this.occupiedForEdit(null);
+    const opts = { floor: this.floorForEdit(null), item: itemKindOf(meta) };
     outer: for (let r = 0; r < 8; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          if (canPlaceFootprint(this.world, occ, bx + dx, by + dy, meta.w, meta.h)) {
+          if (canPlaceFootprint(this.world, occ, bx + dx, by + dy, meta.w, meta.h, opts)) {
             bx += dx;
             by += dy;
             break outer;
@@ -336,7 +343,7 @@ export class VillageGame {
       placementId: null,
       bx,
       by,
-      ok: canPlaceFootprint(this.world, occ, bx, by, meta.w, meta.h),
+      ok: canPlaceFootprint(this.world, occ, bx, by, meta.w, meta.h, opts),
     };
     this.editDragging = false;
     this.hooks.onEditSelection({ label: meta.label, isNew: true });
@@ -416,6 +423,8 @@ export class VillageGame {
     const occ = new Set<number>();
     for (const t of this.things) {
       if (excludeId !== null && t.id === excludeId) continue;
+      // 돌바닥 타일은 점유가 아니라 바닥(floorForEdit) — 위에 소형 오브젝트를 놓을 수 있다.
+      if (isFloorTile(t)) continue;
       // 비블로킹 소품(꽃밭)·NPC 자리도 편집 중 겹침은 막는다 — 시각적 겹침 방지.
       for (let ty = t.by; ty < t.by + t.h; ty++) {
         for (let tx = t.bx; tx < t.bx + t.w; tx++) {
@@ -424,6 +433,17 @@ export class VillageGame {
       }
     }
     return occ;
+  }
+
+  /** 편집 검증용 바닥 집합 — 돌바닥 타일이 깔린 칸 (편집 중인 자신 제외) */
+  private floorForEdit(excludeId: number | null): Set<number> {
+    const floor = new Set<number>();
+    for (const t of this.things) {
+      if (!isFloorTile(t)) continue;
+      if (excludeId !== null && t.id === excludeId) continue;
+      if (vinBounds(t.bx, t.by)) floor.add(vidx(t.bx, t.by));
+    }
+    return floor;
   }
 
   // ------------------------------------------------------------ input
@@ -620,6 +640,7 @@ export class VillageGame {
         by,
         this.edit.w,
         this.edit.h,
+        { floor: this.floorForEdit(this.edit.placementId), item: itemKindOf(this.edit) },
       );
     }
     p.lastX = e.clientX;
@@ -674,12 +695,17 @@ export class VillageGame {
     this.cam.sy = Math.max(Math.min(...ys) + pad, Math.min(Math.max(...ys) - pad, this.cam.sy));
   }
 
-  /** 타일 좌표에 놓인 배치물 (앞에 그려지는 것 우선) */
+  /** 타일 좌표에 놓인 배치물 (앞에 그려지는 것 우선, 돌바닥 타일은 그 위가 비었을 때만) */
   private hitTestThing(tx: number, ty: number): PlacedThing | null {
     let best: PlacedThing | null = null;
     let bestD = -Infinity;
+    let floorHit: PlacedThing | null = null;
     for (const t of this.things) {
       if (tx >= t.bx && tx < t.bx + t.w && ty >= t.by && ty < t.by + t.h) {
+        if (isFloorTile(t)) {
+          floorHit = t;
+          continue;
+        }
         const d = t.bx + t.w + t.by + t.h;
         if (d > bestD) {
           bestD = d;
@@ -687,7 +713,7 @@ export class VillageGame {
         }
       }
     }
-    return best;
+    return best ?? floorHit;
   }
 
   // ------------------------------------------------------------ update
@@ -825,6 +851,7 @@ export class VillageGame {
 
     for (const t of this.things) {
       if (t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 담당
+      if (isFloorTile(t)) continue; // 바닥은 밟는 것이지 살펴보는 것이 아니다
       const px = t.bx + t.w / 2;
       const py = t.kind === 'decor' ? t.by + t.h / 2 : t.by + t.h + 0.5;
       const dist = Math.hypot(px - this.player.x, py - this.player.y);
@@ -885,6 +912,9 @@ export class VillageGame {
         const { sx, sy } = toScreen(t.bx + 0.5, t.by + 0.5);
         drawVNameplate(ctx, sx, sy - 76, t.label, { alpha: 0.9, accent: '#4A5568' });
       }
+    } else if (t.decorType === STONE_TILE) {
+      // 편집 고스트 전용 — 확정된 돌바닥은 지형 오버레이(render)가 그린다.
+      drawVTile(ctx, t.bx, t.by, VT.Path, this.time);
     } else {
       const cx = t.bx + 0.5;
       const cy = t.by + 0.5;
@@ -919,12 +949,18 @@ export class VillageGame {
       return vx > -pad && vx < this.vw + pad && vy > -pad * 2 && vy < this.vh + pad;
     };
 
-    // 지형.
+    // 지형 (+ 광장 돌바닥 오버레이 — 편집 중 들어 올린 타일은 잔디를 드러낸다).
     for (let ty = 0; ty < VH; ty++) {
       for (let tx = 0; tx < VW; tx++) {
         const { sx, sy } = toScreen(tx + 0.5, ty + 0.5);
         if (!visible(sx, sy)) continue;
-        drawVTile(ctx, tx, ty, this.world.terrain[vidx(tx, ty)] as VTerrainId, this.time);
+        const i = vidx(tx, ty);
+        let terr = this.world.terrain[i] as VTerrainId;
+        const floorOwner = this.floorByTile.get(i);
+        if (floorOwner !== undefined && !(this.editMode && this.edit?.placementId === floorOwner)) {
+          terr = VT.Path;
+        }
+        drawVTile(ctx, tx, ty, terr, this.time);
       }
     }
     for (let i = 0; i < this.world.shore.length; i++) {
@@ -962,6 +998,7 @@ export class VillageGame {
     for (const t of this.things) {
       if (this.editMode && this.edit?.placementId === t.id) continue; // 편집 중 원본 숨김
       if (!this.editMode && t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 그린다
+      if (isFloorTile(t)) continue; // 돌바닥은 지형 오버레이로 이미 그렸다
       const front = toScreen(t.bx + t.w, t.by + t.h);
       if (!visible(front.sx, front.sy, 220)) continue;
       const px = t.bx + t.w / 2;
@@ -1178,6 +1215,17 @@ export class VillageGame {
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/** 광장 돌바닥 타일인가 — 바닥 레이어로 취급(지형 오버레이 렌더, 위에 소형 배치 허용) */
+function isFloorTile(t: { kind: string; decorType?: string }): boolean {
+  return t.kind === 'decor' && t.decorType === STONE_TILE;
+}
+
+/** 배치 판정용 아이템 구분 — 건물·랜드마크만 돌바닥 위 배치가 막힌다 */
+function itemKindOf(e: { kind: string; decorType?: string }): FootprintItem {
+  if (e.kind === 'store' || e.kind === 'landmark') return 'building';
+  return e.decorType === STONE_TILE ? 'floor' : 'small';
 }
 
 /** 월드 방향 → 바라보는 방향 (화면 기준 판정) */

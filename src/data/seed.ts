@@ -719,7 +719,7 @@ export const TOKKEN_ECONOMY: TokkenEconomy = {
   rideTag: 5,
 };
 
-/** Tokken 상점 소품 (M3 사용, 가격 50~500) */
+/** Tokken 상점 소품 (M3 사용, 가격 50~500) — shopHidden 은 기본 지급품이라 상점 미판매 */
 export const DECOR_ITEMS: DecorItem[] = [
   { id: 'bench', name: '나무 벤치', price: 80 },
   { id: 'lamp', name: '가로등', price: 120 },
@@ -728,6 +728,7 @@ export const DECOR_ITEMS: DecorItem[] = [
   { id: 'mailbox', name: '빨간 우체통', price: 150 },
   { id: 'tree', name: '단풍나무', price: 200 },
   { id: 'nanta-drum', name: '난타 드럼 화분', price: 300, eventOnly: 'nanta-week' },
+  { id: 'stone-tile', name: '돌바닥 타일', price: 0, shopHidden: true },
 ];
 
 export const storeById = (id: number): Store | undefined =>

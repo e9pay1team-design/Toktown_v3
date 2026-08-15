@@ -4,6 +4,7 @@
 // 배치 지점을 앵커로 함께 배회한다.
 
 import { BASIC_NPCS } from './seed';
+import { STONE_TILE } from '../lib/villageWorld';
 import type { VCharSkin } from '../lib/villageDraw';
 
 export interface VillageNpcDef {
@@ -115,6 +116,17 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
     anchorOffset: { x: -2, y: 5 },
   },
 ];
+
+/**
+ * 풍성도에 반영되는 배치 수 — 기본 지급 인프라(광장 돌바닥·가로등)는
+ * '현실에서 얻어 온 것'이 아니므로 제외한다. (가로등은 기본분과 구매분을
+ * 배치 후 구분할 수 없어 함께 제외.)
+ */
+export function richnessPlacementCount(placements: { kind: string; refId: string }[]): number {
+  return placements.filter(
+    (p) => !(p.kind === 'decor' && (p.refId === STONE_TILE || p.refId === 'lamp')),
+  ).length;
+}
 
 /** 마을 풍성도 = 배치물 수 + 도감 등록 수 + 발견 랜드마크 수 */
 export function villageRichness(

@@ -4,7 +4,7 @@
 // React 는 캔버스 생명주기·데이터 동기화·배치 모드 토글만 담당한다.
 
 import { useEffect, useMemo, useRef } from 'react';
-import { buildVillageWorld } from '../../lib/villageWorld';
+import { buildVillageWorld, STONE_TILE } from '../../lib/villageWorld';
 import {
   VillageGame,
   type EditMeta,
@@ -13,7 +13,7 @@ import {
   type VInteractTarget,
 } from '../../lib/villageGame';
 import { CATEGORY_SKINS, CATEGORY_EMOJI, type VCharSkin } from '../../lib/villageDraw';
-import { magpieSkin, residentNpcs, villageRichness } from '../../data/villageNpcs';
+import { magpieSkin, residentNpcs, richnessPlacementCount, villageRichness } from '../../data/villageNpcs';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
 import { SKIN_TONES, HAIR_COLORS, OUTFIT_COLORS, shade } from '../../assets/characterParts';
 import { useVillageStore, footprintOf, type Placement, type PlacementKind } from '../../store/useVillageStore';
@@ -103,7 +103,8 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         label: item?.name ?? p.refId,
         // 상점의 '단풍나무'는 숲 나무와 다른 단풍 팔레트로 그린다.
         decorType: p.refId === 'tree' ? 'maple' : p.refId,
-        blocking: p.refId !== 'flower',
+        // 꽃밭·돌바닥 타일은 밟고 지나갈 수 있다.
+        blocking: p.refId !== 'flower' && p.refId !== STONE_TILE,
       });
     } else if (p.kind === 'npc') {
       const drummer = p.refId === DRUMMER_MAGPIE.id;
@@ -126,7 +127,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
 }
 
 function villagersFromState(placements: Placement[], dexCount: number, lmCount: number): VillagerDef[] {
-  const richness = villageRichness(placements.length, dexCount, lmCount);
+  const richness = villageRichness(richnessPlacementCount(placements), dexCount, lmCount);
   const defs: VillagerDef[] = residentNpcs(richness).map((n) => ({
     id: n.id,
     name: n.name,

@@ -55,7 +55,7 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="no-scrollbar grid max-h-[420px] grid-cols-2 gap-2.5 overflow-y-auto p-4 pb-8">
-          {DECOR_ITEMS.map((item) => {
+          {DECOR_ITEMS.filter((item) => !item.shopHidden).map((item) => {
             const eventLocked = Boolean(item.eventOnly) && activeEventId !== item.eventOnly;
             const eventTitle = TOWN_EVENTS.find((e) => e.id === item.eventOnly)?.title;
             const affordable = tokken >= item.price;

@@ -14,7 +14,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
 import type { VillageGame, VInteractTarget } from '../../lib/villageGame';
-import { residentNpcs, villageRichness, VILLAGE_NPCS } from '../../data/villageNpcs';
+import { residentNpcs, richnessPlacementCount, villageRichness, VILLAGE_NPCS } from '../../data/villageNpcs';
 import { ShopModal } from './ShopModal';
 import { DexModal } from './DexModal';
 import { ResidentCardModal } from './ResidentCardModal';
@@ -124,8 +124,8 @@ export function VillageScreen() {
     return items;
   }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys]);
 
-  /* 마을 풍성도 → 입주 주민, 새 입주 토스트 */
-  const richness = villageRichness(placements.length, dex.length, discovered.length);
+  /* 마을 풍성도 → 입주 주민, 새 입주 토스트 (기본 지급 돌바닥·가로등은 제외) */
+  const richness = villageRichness(richnessPlacementCount(placements), dex.length, discovered.length);
   const residents = residentNpcs(richness);
   const prevResidents = useRef(residents.length);
   useEffect(() => {
@@ -207,7 +207,8 @@ export function VillageScreen() {
           : DECOR_ITEMS.find((d) => d.id === thingSheet.refId)?.name
     : null;
 
-  const emptyVillage = placements.length === 0 && inventory.length === 0;
+  /* 기본 지급물만 있는 마을은 '빈 마을' 안내를 유지한다 */
+  const emptyVillage = richnessPlacementCount(placements) === 0 && inventory.length === 0;
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-[#3f9fc8]">

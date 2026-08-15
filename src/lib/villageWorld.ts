@@ -96,6 +96,32 @@ export function isVillagePlaza(tx: number, ty: number): boolean {
   return Math.hypot(tx + 0.5 - (PLAZA.tx + 0.5), ty + 0.5 - (PLAZA.ty + 0.5)) < PLAZA.r;
 }
 
+/** 광장 돌바닥 타일의 decor refId — 기본 지급·회수 가능 오브젝트 */
+export const STONE_TILE = 'stone-tile';
+
+/** 기본 광장 돌바닥 타일 21칸 — 최초 시드 배치(useVillageStore)가 사용 */
+export const DEFAULT_PLAZA_TILES: { tx: number; ty: number }[] = (() => {
+  const tiles: { tx: number; ty: number }[] = [];
+  for (let ty = 0; ty < VH; ty++) {
+    for (let tx = 0; tx < VW; tx++) {
+      if (isVillagePlaza(tx, ty)) tiles.push({ tx, ty });
+    }
+  }
+  return tiles;
+})();
+
+/** 기본 가로등 4개 자리 — 최초 시드 배치(useVillageStore)가 사용 */
+export const DEFAULT_LAMP_SPOTS: { tx: number; ty: number }[] = [
+  { tx: PLAZA.tx - 2, ty: PLAZA.ty },
+  { tx: PLAZA.tx + 2, ty: PLAZA.ty - 2 },
+  { tx: PLAZA.tx, ty: PLAZA.ty + 2 },
+  { tx: PLAZA.tx + 2, ty: PLAZA.ty + 2 },
+];
+
+function isDefaultLampSpot(tx: number, ty: number): boolean {
+  return DEFAULT_LAMP_SPOTS.some((s) => s.tx === tx && s.ty === ty);
+}
+
 export function buildVillageWorld(): VillageWorld {
   const terrain = new Uint8Array(VW * VH);
   const blocked = new Uint8Array(VW * VH);
@@ -104,9 +130,12 @@ export function buildVillageWorld(): VillageWorld {
   let pid = 0;
 
   const addProp = (type: VPropType, x: number, y: number, blocking: boolean, v = rng()) => {
-    props.push({ id: `vp${pid++}`, type, x, y, blocking, v });
     const tx = Math.floor(x);
     const ty = Math.floor(y);
+    // 기본 가로등 시드 자리는 정적 소품 없이 비워 둔다. (v 의 rng 소비는
+    // 그대로 일어나므로 기존 세이브의 소품 배치 결정성이 유지된다.)
+    if (isDefaultLampSpot(tx, ty)) return;
+    props.push({ id: `vp${pid++}`, type, x, y, blocking, v });
     if (blocking && vinBounds(tx, ty)) blocked[vidx(tx, ty)] = 1;
   };
 
@@ -124,14 +153,9 @@ export function buildVillageWorld(): VillageWorld {
     }
   }
 
-  // 2. 광장 (돌바닥) — 마을 중심.
-  for (let ty = 0; ty < VH; ty++) {
-    for (let tx = 0; tx < VW; tx++) {
-      if (isVillagePlaza(tx, ty) && terrain[vidx(tx, ty)] !== VT.Water) {
-        terrain[vidx(tx, ty)] = VT.Path;
-      }
-    }
-  }
+  // 2. 광장 돌바닥은 지형이 아니라 회수 가능한 동적 배치물이다 —
+  //    useVillageStore 가 DEFAULT_PLAZA_TILES 로 시드하고, 엔진이
+  //    바닥 오버레이(VT.Path)로 그린다. 기저 지형은 잔디로 남는다.
 
   // 물은 못 걷는다.
   for (let i = 0; i < terrain.length; i++) {
@@ -160,18 +184,9 @@ export function buildVillageWorld(): VillageWorld {
     }
   }
 
-  // 4. 광장 소품: 가로등 4개 (밤 조명 포인트).
-  const lampSpots: [number, number][] = [
-    [PLAZA.tx - 2, PLAZA.ty],
-    [PLAZA.tx + 2, PLAZA.ty - 2],
-    [PLAZA.tx, PLAZA.ty + 2],
-    [PLAZA.tx + 2, PLAZA.ty + 2],
-  ];
-  for (const [tx, ty] of lampSpots) {
-    if (vinBounds(tx, ty) && !blocked[vidx(tx, ty)]) {
-      addProp('lamp', tx + 0.5, ty + 0.5, false, rng());
-    }
-  }
+  // 4. 기본 가로등 4개도 이제 회수 가능한 동적 배치물(DEFAULT_LAMP_SPOTS 시드).
+  //    기존 세이브의 소품 배치 결정성 유지를 위해 이전 가로등 변주 롤만 소비한다.
+  for (let i = 0; i < DEFAULT_LAMP_SPOTS.length; i++) rng();
 
   // 5. 잔여 지면에 수풀·꽃·바위 산포.
   for (let ty = 0; ty < VH; ty++) {
@@ -233,7 +248,15 @@ export function buildVillageWorld(): VillageWorld {
   };
 }
 
-/** 동적 배치의 풋프린트가 이 자리(bx,by,w,h)에 들어갈 수 있는가 */
+/** 배치 판정용 아이템 구분 — floor: 광장 돌바닥 타일, small: 1×1 소품·NPC, building: 2×2 건물·랜드마크 */
+export type FootprintItem = 'floor' | 'small' | 'building';
+
+/**
+ * 동적 배치의 풋프린트가 이 자리(bx,by,w,h)에 들어갈 수 있는가.
+ * occupiedDyn 은 다른 오브젝트 점유(돌바닥 타일 제외), floor 는 돌바닥
+ * 타일이 깔린 칸. 소형(1×1) 오브젝트만 돌바닥 위 배치를 허용한다 —
+ * 건물·랜드마크는 광장 밖 맨 잔디에만.
+ */
 export function canPlaceFootprint(
   world: VillageWorld,
   occupiedDyn: Set<number>,
@@ -241,13 +264,23 @@ export function canPlaceFootprint(
   by: number,
   w: number,
   h: number,
+  opts?: { floor?: Set<number>; item?: FootprintItem },
 ): boolean {
+  const floor = opts?.floor;
+  const item = opts?.item ?? (w >= 2 || h >= 2 ? 'building' : 'small');
   for (let ty = by; ty < by + h; ty++) {
     for (let tx = bx; tx < bx + w; tx++) {
       if (!vinBounds(tx, ty)) return false;
       const i = vidx(tx, ty);
       const t = world.terrain[i];
-      if (t !== VT.Grass && t !== VT.GrassDark) return false;
+      const grassy = t === VT.Grass || t === VT.GrassDark;
+      const onFloor = floor?.has(i) ?? false;
+      if (item === 'small') {
+        if (!grassy && !onFloor) return false;
+      } else {
+        // 돌바닥 타일 자신·건물류 — 다른 타일이 깔리지 않은 맨 잔디에만.
+        if (!grassy || onFloor) return false;
+      }
       if (world.blocked[i] || occupiedDyn.has(i)) return false;
     }
   }
