@@ -56,7 +56,7 @@ export function trayMetaFor(kind: PlacementKind, refId: string, label: string): 
       facing: 'sw',
     };
   }
-  if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId };
+  if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId, facing: 'sw' };
   if (kind === 'npc')
     return { kind, refId, w, h, label, npcSkin: magpieSkin(refId === DRUMMER_MAGPIE.id) };
   return { kind, refId, w, h, label, decorType: refId === 'tree' ? 'maple' : refId };
@@ -92,6 +92,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         h: p.h,
         label: lm ? lmName(lm) : p.refId,
         lmId: p.refId,
+        facing: p.facing,
         blocking: true,
       });
     } else if (p.kind === 'decor') {

@@ -80,6 +80,8 @@ export function VillageScreen() {
   const [thingSheetId, setThingSheetId] = useState<number | null>(null);
   const [modal, setModal] = useState<VillageModal>(null);
   const gameRef = useRef<VillageGame | null>(null);
+  /** 바닥 타일 연속 배치 방향 추적 — 직전에 확정한 타일 위치 */
+  const lastTilePlace = useRef<{ refId: string; bx: number; by: number } | null>(null);
   const T = useT();
   const lang = useLang();
 
@@ -163,6 +165,7 @@ export function VillageScreen() {
     setEditMode(false);
     setEditSel(null);
     setConfirmingRecall(false);
+    lastTilePlace.current = null;
   };
 
   /* ✓ 확정 */
@@ -177,18 +180,25 @@ export function VillageScreen() {
     if (e.placementId === null) {
       place(e.kind as PlacementKind, e.refId, e.bx, e.by, e.facing);
       toast(tr('마을에 배치했어요!', 'Placed in your town!'), 'success');
-      // 바닥 타일 연속 배치 — 보관함에 같은 타일이 남았으면 방금 자리 옆에 바로 다음 타일 준비.
+      // 바닥 타일 연속 배치 — 보관함에 같은 타일이 남았으면 진행 방향으로 다음 타일 준비.
       if (e.kind === 'decor' && GROUND_DECOR.has(e.refId)) {
+        // 직전 확정 위치 → 이번 위치 벡터가 곧 사용자가 뻗어나가는 방향.
+        const prev = lastTilePlace.current;
+        let seed = { bx: e.bx + 1, by: e.by };
+        if (prev && prev.refId === e.refId) {
+          const dx = Math.sign(e.bx - prev.bx);
+          const dy = Math.sign(e.by - prev.by);
+          if (dx !== 0 || dy !== 0) seed = { bx: e.bx + dx, by: e.by + dy };
+        }
+        lastTilePlace.current = { refId: e.refId, bx: e.bx, by: e.by };
+
         const s = useVillageStore.getState();
         const owned = s.decorOwned[e.refId] ?? 0;
         const placedCount = s.placements.filter((p) => p.kind === 'decor' && p.refId === e.refId).length;
         if (owned - placedCount > 0) {
           const item = DECOR_ITEMS.find((d) => d.id === e.refId);
           if (item) {
-            gameRef.current?.spawnFromTray(trayMetaFor('decor', e.refId, decorName(item)), {
-              bx: e.bx,
-              by: e.by,
-            });
+            gameRef.current?.spawnFromTray(trayMetaFor('decor', e.refId, decorName(item)), seed);
           }
         }
       }

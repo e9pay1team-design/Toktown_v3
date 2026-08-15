@@ -433,7 +433,7 @@ export function drawVLandmark(
   id: string,
   bx: number,
   by: number,
-  opts: { time: number },
+  opts: { time: number; facing?: VBuildingFacing },
 ): void {
   const x0 = bx;
   const y0 = by;
@@ -443,6 +443,14 @@ export function drawVLandmark(
   const C = toScreen(x1, y1);
   const D = toScreen(x0, y1);
   const top = toScreen(bx + 1, by + 1);
+
+  // se 방향 = 풋프린트 중심 기준 좌우 미러 — 다이아몬드 풋프린트는 그대로,
+  // 정면 디테일(문·다리 등)만 우측 하단 면으로 옮겨진다.
+  ctx.save();
+  if (opts.facing === 'se') {
+    ctx.translate(top.sx * 2, 0);
+    ctx.scale(-1, 1);
+  }
 
   ctx.save();
   ctx.translate(3, 4);
@@ -622,6 +630,8 @@ export function drawVLandmark(
     ctx.lineTo(top.sx + 14, top.sy - 63);
     ctx.stroke();
   }
+
+  ctx.restore();
 }
 
 export const LANDMARK_ACCENTS: Record<string, string> = {

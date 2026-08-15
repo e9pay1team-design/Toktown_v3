@@ -237,6 +237,8 @@ export interface PlaceOpts {
   onPath?: boolean;
   /** 건물 방향 — 문 앞 보행 칸 판정에 사용 (기본 sw = 좌측 하단) */
   doorFacing?: 'sw' | 'se';
+  /** 문 앞 판정 전용 점유 집합 — 걸을 수 있는 바닥 타일을 뺀 것. 없으면 occupiedDyn 사용 */
+  doorOccupied?: Set<number>;
 }
 
 /** 동적 배치의 풋프린트가 이 자리(bx,by,w,h)에 들어갈 수 있는가 */
@@ -260,13 +262,15 @@ export function canPlaceFootprint(
     }
   }
   // 건물(2칸 이상)은 문 앞 한 칸이 걸을 수 있어야 입장 연출이 산다.
+  // 바닥 타일처럼 걸을 수 있는 배치물은 문 앞을 막은 것으로 치지 않는다.
   if (w >= 2) {
     const se = opts.doorFacing === 'se';
     const doorTx = se ? bx + w : bx + Math.floor(w / 2);
     const doorTy = se ? by + Math.floor(h / 2) : by + h;
     if (!vinBounds(doorTx, doorTy)) return false;
     const di = vidx(doorTx, doorTy);
-    if (world.blocked[di] || occupiedDyn.has(di) || world.terrain[di] === VT.Water) return false;
+    const doorOcc = opts.doorOccupied ?? occupiedDyn;
+    if (world.blocked[di] || doorOcc.has(di) || world.terrain[di] === VT.Water) return false;
   }
   return true;
 }
