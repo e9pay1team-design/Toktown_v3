@@ -232,6 +232,13 @@ export function buildVillageWorld(): VillageWorld {
   };
 }
 
+export interface PlaceOpts {
+  /** 바닥 타일(광장 돌바닥·기본 초록)은 광장(Path) 위에도 깔 수 있다 */
+  onPath?: boolean;
+  /** 건물 방향 — 문 앞 보행 칸 판정에 사용 (기본 sw = 좌측 하단) */
+  doorFacing?: 'sw' | 'se';
+}
+
 /** 동적 배치의 풋프린트가 이 자리(bx,by,w,h)에 들어갈 수 있는가 */
 export function canPlaceFootprint(
   world: VillageWorld,
@@ -240,20 +247,23 @@ export function canPlaceFootprint(
   by: number,
   w: number,
   h: number,
+  opts: PlaceOpts = {},
 ): boolean {
   for (let ty = by; ty < by + h; ty++) {
     for (let tx = bx; tx < bx + w; tx++) {
       if (!vinBounds(tx, ty)) return false;
       const i = vidx(tx, ty);
       const t = world.terrain[i];
-      if (t !== VT.Grass && t !== VT.GrassDark) return false;
+      const terrainOk = t === VT.Grass || t === VT.GrassDark || (opts.onPath === true && t === VT.Path);
+      if (!terrainOk) return false;
       if (world.blocked[i] || occupiedDyn.has(i)) return false;
     }
   }
   // 건물(2칸 이상)은 문 앞 한 칸이 걸을 수 있어야 입장 연출이 산다.
   if (w >= 2) {
-    const doorTx = bx + Math.floor(w / 2);
-    const doorTy = by + h;
+    const se = opts.doorFacing === 'se';
+    const doorTx = se ? bx + w : bx + Math.floor(w / 2);
+    const doorTy = se ? by + Math.floor(h / 2) : by + h;
     if (!vinBounds(doorTx, doorTy)) return false;
     const di = vidx(doorTx, doorTy);
     if (world.blocked[di] || occupiedDyn.has(di) || world.terrain[di] === VT.Water) return false;

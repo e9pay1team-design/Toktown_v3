@@ -238,8 +238,12 @@ function faceQuad(
   ctx.closePath();
 }
 
+/** 건물 방향 — sw: 문이 좌측 하단(+y) 면, se: 우측 하단(+x) 면 */
+export type VBuildingFacing = 'sw' | 'se';
+
 export interface VBuildingOpts {
   emoji: string;
+  facing?: VBuildingFacing;
 }
 
 /**
@@ -271,7 +275,7 @@ export function drawTemplateBuilding(
   ctx.fill();
   ctx.restore();
 
-  // 왼쪽(+y) 벽이 빛을 더 받는다.
+  // 왼쪽(+y) 벽이 빛을 더 받는다 (조명은 방향과 무관하게 고정).
   faceQuad(ctx, D, C, 0, 1, 0, WALL_H);
   ctx.fillStyle = s.wall;
   ctx.fill();
@@ -279,12 +283,19 @@ export function drawTemplateBuilding(
   ctx.fillStyle = s.wallShade;
   ctx.fill();
 
-  // 문 (왼쪽 벽 중앙).
+  // 방향에 따라 문·간판이 붙는 정면과 창문 면을 스왑.
+  const se = opts.facing === 'se';
+  const F0 = se ? C : D; // 정면 (sw: 좌하 D→C, se: 우하 C→B)
+  const F1 = se ? B : C;
+  const W0 = se ? D : C; // 창문 면 (반대쪽)
+  const W1 = se ? C : B;
+
+  // 문 (정면 중앙).
   const dw = Math.min(0.44, 1.05 / bw);
-  faceQuad(ctx, D, C, 0.5 - dw / 2, 0.5 + dw / 2, 0, 31);
+  faceQuad(ctx, F0, F1, 0.5 - dw / 2, 0.5 + dw / 2, 0, 31);
   ctx.fillStyle = s.accent;
   ctx.fill();
-  faceQuad(ctx, D, C, 0.5 - dw / 2 + 0.035, 0.5 + dw / 2 - 0.035, 3, 28);
+  faceQuad(ctx, F0, F1, 0.5 - dw / 2 + 0.035, 0.5 + dw / 2 - 0.035, 3, 28);
   ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.fill();
 
@@ -293,18 +304,18 @@ export function drawTemplateBuilding(
   for (let i = 0; i < stripes; i++) {
     const u0 = 0.5 - dw / 2 - 0.05 + (i * (dw + 0.1)) / stripes;
     const u1 = u0 + (dw + 0.1) / stripes;
-    faceQuad(ctx, D, C, u0, u1, 33, 41);
+    faceQuad(ctx, F0, F1, u0, u1, 33, 41);
     ctx.fillStyle = i % 2 === 0 ? s.roof : VPALETTE.paper;
     ctx.fill();
   }
 
-  // 오른쪽 벽 창문.
+  // 반대쪽 벽 창문.
   for (let i = 0; i < Math.max(1, bh - 1); i++) {
     const u0 = 0.24 + i * 0.36;
-    faceQuad(ctx, C, B, u0, u0 + 0.22, 15, 33);
+    faceQuad(ctx, W0, W1, u0, u0 + 0.22, 15, 33);
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.fill();
-    faceQuad(ctx, C, B, u0, u0 + 0.22, 15, 33);
+    faceQuad(ctx, W0, W1, u0, u0 + 0.22, 15, 33);
     ctx.strokeStyle = s.accent;
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -337,7 +348,7 @@ export function drawTemplateBuilding(
   ctx.stroke();
 
   // 문 옆 이모지 간판.
-  const signAnchor = facePoint(D, C, 0.5 + dw / 2 + 0.13, 27);
+  const signAnchor = facePoint(F0, F1, 0.5 + dw / 2 + 0.13, 27);
   ctx.strokeStyle = s.accent;
   ctx.lineWidth = 2;
   ctx.beginPath();

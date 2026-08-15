@@ -53,6 +53,7 @@ export function trayMetaFor(kind: PlacementKind, refId: string, label: string): 
       label,
       emoji: store ? CATEGORY_EMOJI[store.category] : '🏪',
       skin: store ? CATEGORY_SKINS[store.category] : undefined,
+      facing: 'sw',
     };
   }
   if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId };
@@ -77,6 +78,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         label: sName(store),
         emoji: CATEGORY_EMOJI[store.category],
         skin: CATEGORY_SKINS[store.category],
+        facing: p.facing,
         blocking: true,
       });
     } else if (p.kind === 'landmark') {
@@ -160,9 +162,16 @@ function villagersFromState(placements: Placement[], dexCount: number, lmCount: 
 interface VillageWorldProps {
   editMode: boolean;
   onInteract: (target: VInteractTarget | null) => void;
-  onEditCommit: (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => void;
+  onEditCommit: (e: {
+    placementId: number | null;
+    kind: string;
+    refId: string;
+    bx: number;
+    by: number;
+    facing?: 'sw' | 'se';
+  }) => void;
   onEditReturn: (e: { placementId: number | null }) => void;
-  onEditSelection: (sel: { label: string; isNew: boolean } | null) => void;
+  onEditSelection: (sel: { label: string; isNew: boolean; canRotate: boolean } | null) => void;
   /** 부모가 spawnFromTray 등을 호출할 수 있게 게임 인스턴스를 넘긴다 */
   onGame: (game: VillageGame | null) => void;
 }

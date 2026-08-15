@@ -13,7 +13,7 @@ import { useUiStore } from '../../store/useUiStore';
 import { useToastStore } from '../../store/useToastStore';
 import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
-import type { VillageGame, VInteractTarget } from '../../lib/villageGame';
+import { GROUND_DECOR, type VillageGame, type VInteractTarget } from '../../lib/villageGame';
 import { residentNpcs, villageRichness, VILLAGE_NPCS } from '../../data/villageNpcs';
 import { ShopModal } from './ShopModal';
 import { DexModal } from './DexModal';
@@ -74,7 +74,7 @@ export function VillageScreen() {
 
   const [editMode, setEditMode] = useState(false);
   const [confirmingRecall, setConfirmingRecall] = useState(false);
-  const [editSel, setEditSel] = useState<{ label: string; isNew: boolean } | null>(null);
+  const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
   const [interact, setInteract] = useState<VInteractTarget | null>(null);
   const [dialogue, setDialogue] = useState<DialogueData | null>(null);
   const [thingSheetId, setThingSheetId] = useState<number | null>(null);
@@ -166,12 +166,34 @@ export function VillageScreen() {
   };
 
   /* ✓ 확정 */
-  const handleEditCommit = (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => {
+  const handleEditCommit = (e: {
+    placementId: number | null;
+    kind: string;
+    refId: string;
+    bx: number;
+    by: number;
+    facing?: 'sw' | 'se';
+  }) => {
     if (e.placementId === null) {
-      place(e.kind as PlacementKind, e.refId, e.bx, e.by);
+      place(e.kind as PlacementKind, e.refId, e.bx, e.by, e.facing);
       toast(tr('마을에 배치했어요!', 'Placed in your town!'), 'success');
+      // 바닥 타일 연속 배치 — 보관함에 같은 타일이 남았으면 방금 자리 옆에 바로 다음 타일 준비.
+      if (e.kind === 'decor' && GROUND_DECOR.has(e.refId)) {
+        const s = useVillageStore.getState();
+        const owned = s.decorOwned[e.refId] ?? 0;
+        const placedCount = s.placements.filter((p) => p.kind === 'decor' && p.refId === e.refId).length;
+        if (owned - placedCount > 0) {
+          const item = DECOR_ITEMS.find((d) => d.id === e.refId);
+          if (item) {
+            gameRef.current?.spawnFromTray(trayMetaFor('decor', e.refId, decorName(item)), {
+              bx: e.bx,
+              by: e.by,
+            });
+          }
+        }
+      }
     } else {
-      movePlacement(e.placementId, e.bx, e.by);
+      movePlacement(e.placementId, e.bx, e.by, e.facing);
       toast(tr('위치를 옮겼어요', 'Moved'), 'info');
     }
   };
@@ -348,7 +370,9 @@ export function VillageScreen() {
             {editSel ? (
               <>
                 <b className="text-town-sun">{editSel.label}</b>
-                {T(' — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함', ' — drag to move · ✓ place · ✕ storage')}
+                {editSel.canRotate
+                  ? T(' — 드래그 이동 · ↻ 방향 전환 · ✓ 배치 · ✕ 보관함', ' — drag · ↻ rotate · ✓ place · ✕ storage')
+                  : T(' — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함', ' — drag to move · ✓ place · ✕ storage')}
               </>
             ) : (
               T(

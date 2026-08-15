@@ -25,6 +25,8 @@ export interface Placement {
   by: number;
   w: number;
   h: number;
+  /** 건물 방향 — sw(좌측 하단, 기본) | se(우측 하단) */
+  facing?: 'sw' | 'se';
 }
 
 interface VillageState {
@@ -32,8 +34,8 @@ interface VillageState {
   /** 상점에서 구매한 소품 수량 */
   decorOwned: Record<string, number>;
 
-  place: (kind: PlacementKind, refId: string, bx: number, by: number) => void;
-  move: (placementId: number, bx: number, by: number) => void;
+  place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se') => void;
+  move: (placementId: number, bx: number, by: number, facing?: 'sw' | 'se') => void;
   remove: (placementId: number) => void;
   /** 배치된 모든 오브젝트를 보관함으로 회수 (획득물은 유지) */
   recallAll: () => void;
@@ -48,16 +50,18 @@ export const useVillageStore = create<VillageState>()(
       placements: [],
       decorOwned: {},
 
-      place: (kind, refId, bx, by) => {
+      place: (kind, refId, bx, by, facing) => {
         const { w, h } = footprintOf(kind);
         set((s) => ({
-          placements: [...s.placements, { id: ++placementSeq, kind, refId, bx, by, w, h }],
+          placements: [...s.placements, { id: ++placementSeq, kind, refId, bx, by, w, h, facing }],
         }));
       },
 
-      move: (placementId, bx, by) =>
+      move: (placementId, bx, by, facing) =>
         set((s) => ({
-          placements: s.placements.map((p) => (p.id === placementId ? { ...p, bx, by } : p)),
+          placements: s.placements.map((p) =>
+            p.id === placementId ? { ...p, bx, by, facing: facing ?? p.facing } : p,
+          ),
         })),
 
       remove: (placementId) =>
