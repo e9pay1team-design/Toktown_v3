@@ -18,6 +18,7 @@ import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeByI
 import { activeNpcSpots } from '../../lib/game';
 import { checkLandmarkDiscovery } from '../../lib/actions';
 import { MapView } from './MapView';
+import { MapJoystick } from './MapJoystick';
 import { SearchOverlay } from './SearchOverlay';
 import { HotSheet } from './HotSheet';
 import { NpcEncounterModal } from './NpcEncounterModal';
@@ -64,6 +65,7 @@ export function MapScreen() {
   const activeEventId = useEventStore((s) => s.activeEventId);
   const dex = useCollectionStore((s) => s.dex);
   const [encounterNpcId, setEncounterNpcId] = useState<string | null>(null);
+  const [joyActive, setJoyActive] = useState(false);
   const T = useT();
 
   const magpie = REGIONAL_NPCS[0];
@@ -126,7 +128,7 @@ export function MapScreen() {
           character={character}
           flyTo={flyTo}
           routeLine={journeyPhase !== 'idle' && journeyRoute ? journeyRoute.polyline : null}
-          follow={journeyPhase === 'riding'}
+          follow={journeyPhase === 'riding' || joyActive}
           eventCircle={
             activeEvent && eventVenue
               ? { lat: eventVenue.lat, lng: eventVenue.lng, radiusM: activeEvent.radiusM }
@@ -272,6 +274,13 @@ export function MapScreen() {
           </svg>
         </button>
       </div>
+
+      {/* 좌측 하단: 가상 위치 조이스틱 (이동 중에는 숨김) */}
+      {journeyPhase === 'idle' && (
+        <div className="absolute bottom-40 left-4 z-[500]">
+          <MapJoystick onActive={setJoyActive} />
+        </div>
+      )}
 
       {/* 저장 필터 시 목록 열기 버튼 */}
       {categoryFilter === 'saved' && (

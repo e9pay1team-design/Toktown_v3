@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
+import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useVisitStore } from '../../store/useVisitStore';
@@ -56,6 +57,62 @@ interface DialogueData {
   lines: string[];
 }
 
+function roundedPath(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/** 전경 스냅샷 위에 폴라로이드풍 프레임 + 캡션을 얹은 공유용 이미지 */
+async function frameVillagePhoto(raw: string, caption: string, sub: string): Promise<string> {
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('snapshot load failed'));
+    img.src = raw;
+  });
+  const W = 1240;
+  const P = 26;
+  const photoW = W - P * 2;
+  const photoH = Math.round((photoW * img.height) / img.width);
+  const capH = 124;
+  const H = photoH + P * 2 + capH;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const g = canvas.getContext('2d');
+  if (!g) return raw;
+  g.fillStyle = '#FFFDF7';
+  g.fillRect(0, 0, W, H);
+  g.save();
+  roundedPath(g, P, P, photoW, photoH, 24);
+  g.clip();
+  g.drawImage(img, P, P, photoW, photoH);
+  g.restore();
+  roundedPath(g, P, P, photoW, photoH, 24);
+  g.strokeStyle = '#EFE3CE';
+  g.lineWidth = 3;
+  g.stroke();
+  const font = (spec: string) => `${spec} system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`;
+  g.textBaseline = 'middle';
+  g.fillStyle = '#4A3B32';
+  g.font = font('800 40px');
+  g.fillText(`🏘️ ${caption}`, P + 8, photoH + P + capH * 0.36);
+  g.fillStyle = '#8C7B6E';
+  g.font = font('700 25px');
+  g.fillText(sub, P + 8, photoH + P + capH * 0.74);
+  g.textAlign = 'right';
+  g.fillStyle = '#4E9B58';
+  g.font = font('800 36px');
+  g.fillText('TokTown', W - P - 10, photoH + P + capH * 0.53);
+  g.textAlign = 'left';
+  return canvas.toDataURL('image/png');
+}
+
 export function VillageScreen() {
   const nickname = useProfileStore((s) => s.profile?.nickname ?? '주민');
   const placements = useVillageStore((s) => s.placements);
@@ -72,8 +129,11 @@ export function VillageScreen() {
   const requestFlyTo = useUiStore((s) => s.requestFlyTo);
   const toast = useToastStore((s) => s.show);
 
+  const dayOffset = useVirtualClock((s) => s.dayOffset);
   const [editMode, setEditMode] = useState(false);
   const [confirmingRecall, setConfirmingRecall] = useState(false);
+  /** 📸 마을 전경 공유 사진 (프레임 합성 완료본) */
+  const [villagePhoto, setVillagePhoto] = useState<string | null>(null);
   const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
   const [interact, setInteract] = useState<VInteractTarget | null>(null);
   const [dialogue, setDialogue] = useState<DialogueData | null>(null);
@@ -228,6 +288,66 @@ export function VillageScreen() {
     setConfirmingRecall(true);
   };
 
+  /* 📸 마을 사진 찍기 → 저장/공유 */
+  const takePhoto = () => {
+    const raw = gameRef.current?.captureSnapshot(1200, 800);
+    if (!raw) return;
+    frameVillagePhoto(
+      raw,
+      tr(`${nickname}의 마을`, `${nickname}'s Town`),
+      tr(
+        `주민 ${populationCount}명 · 풍성도 ${richness} · ${virtualToday(dayOffset)}`,
+        `${populationCount} residents · richness ${richness} · ${virtualToday(dayOffset)}`,
+      ),
+    )
+      .then(setVillagePhoto)
+      .catch(() => toast(tr('사진을 만들지 못했어요', 'Could not create the photo'), 'error'));
+  };
+
+  const savePhoto = () => {
+    if (!villagePhoto) return;
+    try {
+      const a = document.createElement('a');
+      a.href = villagePhoto;
+      a.download = 'toktown-my-village.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast(
+        tr('📥 이미지 저장을 시도했어요 — 안 되면 사진을 길게 눌러 저장하세요', '📥 Tried saving — if blocked, long-press the photo'),
+        'info',
+      );
+    } catch {
+      toast(tr('이 환경에선 저장이 제한돼요 — 사진을 길게 눌러 저장하세요', 'Saving is limited here — long-press the photo'), 'error');
+    }
+  };
+
+  const sharePhoto = async () => {
+    if (!villagePhoto) return;
+    try {
+      const blob = await (await fetch(villagePhoto)).blob();
+      const file = new File([blob], 'toktown-my-village.png', { type: 'image/png' });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({
+          files: [file],
+          title: 'TokTown',
+          text: tr('내 톡타운 마을이에요! 🏘️', 'My TokTown village! 🏘️'),
+        });
+        toast(tr('📤 공유했어요!', '📤 Shared!'), 'success');
+        return;
+      }
+      if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        toast(tr('📋 이미지를 클립보드에 복사했어요', '📋 Image copied to clipboard'), 'success');
+        return;
+      }
+      toast(tr('이 환경에선 공유가 제한돼요 — 저장하기를 이용해 주세요', 'Sharing is limited here — try Save instead'), 'info');
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return; // 사용자가 공유 시트를 닫음
+      toast(tr('공유가 차단됐어요 — 사진을 길게 눌러 저장해 주세요', 'Sharing was blocked — long-press the photo to save'), 'error');
+    }
+  };
+
   const doRecallAll = () => {
     const count = placements.length;
     setConfirmingRecall(false);
@@ -349,7 +469,14 @@ export function VillageScreen() {
             {T('완료', 'Done')}
           </button>
         ) : (
-          <span className="w-[60px]" />
+          <button
+            onClick={takePhoto}
+            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 shadow-sm transition active:scale-95"
+            aria-label={T('마을 사진 찍어 공유', 'Snap and share your town')}
+          >
+            <span className="text-[14px]">📸</span>
+            <span className="text-[12px] font-extrabold">{T('공유', 'Share')}</span>
+          </button>
         )}
       </header>
 
@@ -590,6 +717,46 @@ export function VillageScreen() {
                 className="flex-1 rounded-xl bg-town-coral py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
               >
                 {T('🎒 전체 회수하기', '🎒 Recall everything')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📸 마을 사진 모달 — 찰칵 플래시 후 저장/공유 */}
+      {villagePhoto && (
+        <div className="absolute inset-0 z-[880] flex items-center justify-center bg-town-ink/55 px-4 fade-in">
+          <div className="shutter-flash pointer-events-none absolute inset-0 z-10 bg-white" />
+          <div className="pop-in w-full rounded-[1.5rem] bg-town-paper p-3 shadow-sheet">
+            <img
+              src={villagePhoto}
+              alt={T('내 마을 전경 사진', 'My village panorama')}
+              className="w-full rounded-xl"
+            />
+            <p className="mt-1.5 text-center text-[10px] font-bold text-town-inkSoft">
+              {T(
+                '저장이 막힌 환경이면 사진을 길게 눌러 이미지로 저장할 수 있어요',
+                'If saving is blocked here, long-press the photo to save it',
+              )}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={() => setVillagePhoto(null)}
+                className="w-[76px] rounded-xl border border-town-line bg-town-paper py-3 text-[12.5px] font-extrabold text-town-inkSoft"
+              >
+                {T('닫기', 'Close')}
+              </button>
+              <button
+                onClick={savePhoto}
+                className="flex-1 rounded-xl bg-town-skyDeep py-3 text-[13px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+              >
+                📥 {T('저장하기', 'Save')}
+              </button>
+              <button
+                onClick={sharePhoto}
+                className="flex-1 rounded-xl bg-town-leafDark py-3 text-[13px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+              >
+                📤 {T('공유하기', 'Share')}
               </button>
             </div>
           </div>

@@ -1,16 +1,24 @@
 // ─── Leaflet 지도 뷰 ──────────────────────────────────────────────
-// 기본 타일은 깔끔하게 유지(길찾기 정확성 우선)하고, 핵심 오브젝트만
-// 톡타운 아트스타일 SVG 로 오버레이한다 (기획 §3.1 이중 공간).
-// ⚠ 지도 타일: Leaflet + CARTO 무라벨 타일 (매장 POI 아이콘 없음 —
-//   매장 표시는 톡타운 자체 마커가 전담). 타일 서버에 접근할 수 없는
-//   환경(웹 공유 샌드박스·사내 프록시)에서는 코드로 그린 종이 질감
-//   배경 레이어가 대신 보인다. 실서비스 전환 시 네이버/카카오 SDK 교체 예정.
+// 배경은 코드 내장 일러스트 벡터 지도(data/myeongdongMap)를 캔버스
+// 타일로 직접 그린다 — 외부 타일 서버 의존이 없어 웹 공유 샌드박스·
+// 오프라인·사내 프록시 어디서나 동일하게 보이고, 톡타운 아트스타일과도
+// 맞는다. 매장 POI 아이콘 없음 — 매장 표시는 톡타운 자체 마커가 전담.
+// 실서비스 전환 시 네이버/카카오 지도 SDK 로 교체 예정.
 
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Landmark, LatLng, NpcSpot, Store } from '../../types';
 import { MAP_CENTER, MAP_ZOOM } from '../../data/seed';
+import {
+  PARKS,
+  PARK_TREES,
+  ROADS,
+  ROAD_MIN_ZOOM,
+  ROAD_WIDTH_M,
+  WATER,
+  type RoadClass,
+} from '../../data/myeongdongMap';
 import { StorePin, NpcBubble } from '../../assets/markers';
 import { LandmarkSvg } from '../../assets/landmarks';
 import { CharacterSvg } from '../../assets/CharacterSvg';
@@ -78,8 +86,29 @@ function landmarkIcon(lm: Landmark): L.DivIcon {
   });
 }
 
-/** 오프라인 폴백 배경 — 실제 지리와 무관한 종이 질감 타일을 코드로 그린다 */
-function drawPaperTile(g: CanvasRenderingContext2D, coords: L.Coords, w: number, h: number): void {
+// ── 일러스트 벡터 지도 타일 렌더 ──────────────────────────────────
+const TILE_D = 256;
+const lngToPx = (lng: number, z: number) => ((lng + 180) / 360) * TILE_D * 2 ** z;
+const latToPx = (lat: number, z: number) => {
+  const r = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * TILE_D * 2 ** z;
+};
+
+const ROAD_CASING: Record<RoadClass, string> = {
+  major: '#DFCFB0',
+  mid: '#DFCFB0',
+  minor: '#E3D6BB',
+  ped: '#E6DAC1',
+};
+const ROAD_FILL: Record<RoadClass, string> = {
+  major: '#FFF6E3',
+  mid: '#FFFCF3',
+  minor: '#FFFCF3',
+  ped: '#F7EFDD',
+};
+
+function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: number, h: number): void {
+  // 1) 종이 질감 바탕.
   g.fillStyle = '#EFF2E3';
   g.fillRect(0, 0, w, h);
   let s = (coords.x * 73856093) ^ (coords.y * 19349663) ^ (coords.z * 83492791);
@@ -87,31 +116,112 @@ function drawPaperTile(g: CanvasRenderingContext2D, coords: L.Coords, w: number,
     s = (Math.imul(s, 1664525) + 1013904223) | 0;
     return ((s >>> 8) & 0xffff) / 0x10000;
   };
-  // 부드러운 풀빛 얼룩 — 타일 경계 이음새가 없도록 안쪽에만 그린다.
   for (let i = 0; i < 6; i++) {
     const r = 26 + rnd() * 52;
     const cx = r + rnd() * Math.max(1, w - r * 2);
     const cy = r + rnd() * Math.max(1, h - r * 2);
-    g.fillStyle = i % 2 ? 'rgba(214,226,190,0.45)' : 'rgba(233,239,216,0.6)';
+    g.fillStyle = i % 2 ? 'rgba(214,226,190,0.35)' : 'rgba(233,239,216,0.5)';
     g.beginPath();
     g.ellipse(cx, cy, r, r * (0.55 + rnd() * 0.45), rnd() * Math.PI, 0, Math.PI * 2);
     g.fill();
   }
-  // 잔점 텍스처.
-  g.fillStyle = 'rgba(148,170,120,0.16)';
-  for (let i = 0; i < 42; i++) {
+  g.fillStyle = 'rgba(148,170,120,0.13)';
+  for (let i = 0; i < 36; i++) {
     g.fillRect(4 + rnd() * (w - 8), 4 + rnd() * (h - 8), 2, 2);
+  }
+
+  // 2) 벡터 지리 — 타일마다 전체 지오메트리를 그린다(캔버스가 알아서 클립;
+  //    경계를 넘는 선분도 이웃 타일과 이어져 보인다). 데이터가 작아 저렴하다.
+  const z = coords.z;
+  const ox = coords.x * TILE_D;
+  const oy = coords.y * TILE_D;
+  const mpp = (156543.03392 * Math.cos((37.5636 * Math.PI) / 180)) / 2 ** z;
+  const px = (m: number, min = 1) => Math.max(min, m / mpp);
+  const tracePath = (pts: [number, number][], close = false) => {
+    g.beginPath();
+    pts.forEach(([lat, lng], i) => {
+      const x = lngToPx(lng, z) - ox;
+      const y = latToPx(lat, z) - oy;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    });
+    if (close) g.closePath();
+  };
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+
+  // 공원·녹지.
+  for (const poly of PARKS) {
+    tracePath(poly, true);
+    g.fillStyle = '#CDE3AE';
+    g.fill();
+    g.strokeStyle = '#B7D398';
+    g.lineWidth = px(3, 1);
+    g.stroke();
+  }
+
+  // 청계천.
+  for (const stream of WATER) {
+    tracePath(stream);
+    g.strokeStyle = '#7FB0C4';
+    g.lineWidth = px(20, 3.4);
+    g.stroke();
+    tracePath(stream);
+    g.strokeStyle = '#A5D3E2';
+    g.lineWidth = px(15, 2.2);
+    g.stroke();
+  }
+
+  // 도로 — 케이싱 전체 → 채움 전체 순서로 그려야 교차로가 자연스럽다.
+  const visible = ROADS.filter((way) => z >= ROAD_MIN_ZOOM[way.c]);
+  for (const way of visible) {
+    tracePath(way.p);
+    g.strokeStyle = ROAD_CASING[way.c];
+    g.lineWidth = px(way.w ?? ROAD_WIDTH_M[way.c]) + px(2.4, 1.4);
+    g.stroke();
+  }
+  for (const way of visible) {
+    tracePath(way.p);
+    g.strokeStyle = ROAD_FILL[way.c];
+    g.lineWidth = px(way.w ?? ROAD_WIDTH_M[way.c]);
+    g.stroke();
+  }
+
+  // 남산 숲 나무 (확대 시).
+  if (z >= 15) {
+    const r = Math.max(3, px(9));
+    for (const [lat, lng] of PARK_TREES) {
+      const x = lngToPx(lng, z) - ox;
+      const y = latToPx(lat, z) - oy;
+      if (x < -30 || y < -30 || x > w + 30 || y > h + 30) continue;
+      g.fillStyle = 'rgba(74,59,50,0.12)';
+      g.beginPath();
+      g.ellipse(x, y + r * 0.9, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#79AE60';
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#8CC073';
+      g.beginPath();
+      g.arc(x - r * 0.28, y - r * 0.3, r * 0.55, 0, Math.PI * 2);
+      g.fill();
+    }
   }
 }
 
-const PaperTileLayer = L.GridLayer.extend({
+const IllustratedTileLayer = L.GridLayer.extend({
   createTile(this: L.GridLayer, coords: L.Coords): HTMLElement {
     const size = this.getTileSize();
     const tile = document.createElement('canvas');
-    tile.width = size.x;
-    tile.height = size.y;
+    // 레티나 선명도: 캔버스 해상도 2배, CSS 크기는 Leaflet 이 관리.
+    tile.width = size.x * 2;
+    tile.height = size.y * 2;
     const g = tile.getContext('2d');
-    if (g) drawPaperTile(g, coords, size.x, size.y);
+    if (g) {
+      g.scale(2, 2);
+      drawIllustratedTile(g, coords, size.x, size.y);
+    }
     return tile;
   },
 }) as unknown as new (options?: L.GridLayerOptions) => L.GridLayer;
@@ -159,15 +269,8 @@ export function MapView(props: MapViewProps) {
       maxBoundsViscosity: 0.8,
     });
 
-    // 1) 종이 질감 폴백 배경 (항상 깔림 — 타일 서버 차단 환경에서도 지도가 비어 보이지 않게)
-    new PaperTileLayer({ zIndex: 1 }).addTo(map);
-    // 2) CARTO 무라벨 래스터 — OSM 기반이지만 매장 POI 아이콘·라벨이 없어 깔끔하다.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19,
-      zIndex: 2,
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-    }).addTo(map);
+    // 일러스트 벡터 지도 — 외부 타일 서버 없이 항상 그려진다.
+    new IllustratedTileLayer({ zIndex: 1 }).addTo(map);
 
     map.on('click', (e) => cbRef.current.onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng }));
 

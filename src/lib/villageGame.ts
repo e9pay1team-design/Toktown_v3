@@ -182,6 +182,8 @@ export class VillageGame {
   private lastTarget: VInteractTarget | null = null;
   private playerSkin: VCharSkin;
 
+  /** 렌더 줌 — 평소엔 상수, 전경 스냅샷 때만 일시적으로 바뀐다 */
+  private zoom = ZOOM;
   private editMode = false;
   private edit: EditObject | null = null;
   private editDragging = false;
@@ -382,6 +384,64 @@ export class VillageGame {
     return { tx: Math.floor(this.player.x), ty: Math.floor(this.player.y) };
   }
 
+  /** 마을 전경 스냅샷 — 월드 전체가 한 화면에 담기도록 멀리서 찍은
+      기념 사진(PNG dataURL). 현재 시간대(낮/밤)·주민·나비까지 그대로 담는다. */
+  captureSnapshot(width = 1200, height = 800): string {
+    const corners = [toScreen(0, 0), toScreen(VW, 0), toScreen(VW, VH), toScreen(0, VH)];
+    const xs = corners.map((c) => c.sx);
+    const ys = corners.map((c) => c.sy);
+    const padTop = 170; // 숲 나무·건물 높이 여유
+    const padBottom = 70; // 파도 거품 여유
+    const padX = 70;
+    const spanX = Math.max(...xs) - Math.min(...xs) + padX * 2;
+    const spanY = Math.max(...ys) - Math.min(...ys) + padTop + padBottom;
+
+    const off = document.createElement('canvas');
+    off.width = width;
+    off.height = height;
+    const octx = off.getContext('2d');
+    if (!octx) return '';
+
+    const saved = {
+      ctx: this.ctx,
+      vw: this.vw,
+      vh: this.vh,
+      anchorX: this.anchorX,
+      anchorY: this.anchorY,
+      camX: this.cam.sx,
+      camY: this.cam.sy,
+      zoom: this.zoom,
+      dpr: this.dpr,
+      stickView: this.stickView,
+    };
+    try {
+      this.ctx = octx;
+      this.vw = width;
+      this.vh = height;
+      this.anchorX = width / 2;
+      this.anchorY = height / 2;
+      this.zoom = Math.min(width / spanX, height / spanY);
+      // 위 패딩(오브젝트 높이)까지 포함한 콘텐츠 중심을 화면 중앙에.
+      this.cam.sx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      this.cam.sy = (Math.min(...ys) + Math.max(...ys)) / 2 + (padBottom - padTop) / 2;
+      this.dpr = 1;
+      this.stickView = null;
+      this.render();
+      return off.toDataURL('image/png');
+    } finally {
+      this.ctx = saved.ctx;
+      this.vw = saved.vw;
+      this.vh = saved.vh;
+      this.anchorX = saved.anchorX;
+      this.anchorY = saved.anchorY;
+      this.cam.sx = saved.camX;
+      this.cam.sy = saved.camY;
+      this.zoom = saved.zoom;
+      this.dpr = saved.dpr;
+      this.stickView = saved.stickView;
+    }
+  }
+
   /** e2e 검증용 — 편집 상태·✓/✕ 버튼·타일의 캔버스 CSS 좌표 */
   getEditDebug(): {
     editMode: boolean;
@@ -401,8 +461,8 @@ export class VillageGame {
     tileToCss: (tx: number, ty: number) => { x: number; y: number };
   } {
     const toCss = (s: { x: number; y: number }) => ({
-      x: (s.x - this.cam.sx) * ZOOM + this.anchorX,
-      y: (s.y - this.cam.sy) * ZOOM + this.anchorY,
+      x: (s.x - this.cam.sx) * this.zoom + this.anchorX,
+      y: (s.y - this.cam.sy) * this.zoom + this.anchorY,
     });
     const rects = this.editButtonCenters();
     return {
@@ -541,8 +601,8 @@ export class VillageGame {
     const x = cx - rect.left;
     const y = cy - rect.top;
     return {
-      sx: (x - this.anchorX) / ZOOM + this.cam.sx,
-      sy: (y - this.anchorY) / ZOOM + this.cam.sy,
+      sx: (x - this.anchorX) / this.zoom + this.cam.sx,
+      sy: (y - this.anchorY) / this.zoom + this.cam.sy,
     };
   }
 
@@ -625,7 +685,7 @@ export class VillageGame {
     if (this.edit && !this.editDragging) {
       const btn = this.editButtonCenters();
       if (btn) {
-        const rr = EDIT_BTN_R / ZOOM + 4;
+        const rr = EDIT_BTN_R / this.zoom + 4;
         if (Math.hypot(ws.sx - btn.check.x, ws.sy - btn.check.y) < rr) {
           this.commitEdit();
           return;
@@ -1036,15 +1096,15 @@ export class VillageGame {
 
     const applyCamera = () => {
       ctx.translate(this.anchorX, this.anchorY);
-      ctx.scale(ZOOM, ZOOM);
+      ctx.scale(this.zoom, this.zoom);
       ctx.translate(-this.cam.sx, -this.cam.sy);
     };
     ctx.save();
     applyCamera();
 
     const visible = (sx: number, sy: number, pad = 120) => {
-      const vx = (sx - this.cam.sx) * ZOOM + this.anchorX;
-      const vy = (sy - this.cam.sy) * ZOOM + this.anchorY;
+      const vx = (sx - this.cam.sx) * this.zoom + this.anchorX;
+      const vy = (sy - this.cam.sy) * this.zoom + this.anchorY;
       return vx > -pad && vx < this.vw + pad && vy > -pad * 2 && vy < this.vh + pad;
     };
 
@@ -1221,7 +1281,7 @@ export class VillageGame {
     if (this.editMode && this.edit && !this.editDragging) {
       const btn = this.editButtonCenters();
       if (btn) {
-        const r = EDIT_BTN_R / ZOOM;
+        const r = EDIT_BTN_R / this.zoom;
         // ✕ — 항상 활성.
         ctx.beginPath();
         ctx.arc(btn.cancel.x, btn.cancel.y, r, 0, Math.PI * 2);

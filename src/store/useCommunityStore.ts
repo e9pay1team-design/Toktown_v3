@@ -18,6 +18,8 @@ export interface MyPost {
   photoId?: string;
   storeTagId?: number;
   ts: number;
+  /** 수정 이력 표시용 */
+  edited?: boolean;
 }
 
 export interface AddPostOpts {
@@ -30,6 +32,9 @@ interface CommunityState {
   myPosts: MyPost[];
   likedIds: string[];
   addPost: (text: string, tags: string[], opts?: AddPostOpts) => void;
+  /** 내 글 수정 — 본문·태그·장소·사진을 통째로 교체 */
+  updatePost: (id: string, text: string, tags: string[], opts?: AddPostOpts) => void;
+  deletePost: (id: string) => void;
   toggleLike: (postId: string) => void;
 }
 
@@ -47,6 +52,26 @@ export const useCommunityStore = create<CommunityState>()(
             ...s.myPosts,
           ],
         })),
+
+      updatePost: (id, text, tags, opts) =>
+        set((s) => ({
+          myPosts: s.myPosts.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  text,
+                  tags,
+                  storeTagId: opts?.storeTagId,
+                  photo: opts?.photo,
+                  photoId: opts?.photoId,
+                  edited: true,
+                }
+              : p,
+          ),
+        })),
+
+      deletePost: (id) =>
+        set((s) => ({ myPosts: s.myPosts.filter((p) => p.id !== id) })),
       toggleLike: (postId) =>
         set((s) => ({
           likedIds: s.likedIds.includes(postId)

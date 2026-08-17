@@ -250,6 +250,8 @@ export function CommunityScreen() {
   const profile = useProfileStore((s) => s.profile);
   const myPosts = useCommunityStore((s) => s.myPosts);
   const addPost = useCommunityStore((s) => s.addPost);
+  const updatePost = useCommunityStore((s) => s.updatePost);
+  const deletePost = useCommunityStore((s) => s.deletePost);
   const toast = useToastStore((s) => s.show);
   const T = useT();
 
@@ -261,7 +263,44 @@ export function CommunityScreen() {
   const [draftStore, setDraftStore] = useState<number | 0>(0);
   const [draftPhoto, setDraftPhoto] = useState<string | null>(null); // 업로드 dataURL
   const [draftPhotoId, setDraftPhotoId] = useState<string | null>(null); // 데모 사진 id
+  /** null = 새 글, id = 해당 글 수정 중 */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  /** 삭제 2단계 확인 — 눌린 글 id (3초 뒤 자동 해제) */
+  const [armedDelete, setArmedDelete] = useState<string | null>(null);
+  const armedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const resetDraft = () => {
+    setDraft('');
+    setDraftTags([]);
+    setDraftStore(0);
+    setDraftPhoto(null);
+    setDraftPhotoId(null);
+    setEditingId(null);
+  };
+
+  const startEdit = (p: { id: string; text: string; tags: string[]; storeTagId?: number; photo?: string; photoId?: string }) => {
+    setEditingId(p.id);
+    setDraft(p.text);
+    setDraftTags(p.tags);
+    setDraftStore(p.storeTagId ?? 0);
+    setDraftPhoto(p.photo ?? null);
+    setDraftPhotoId(p.photoId ?? null);
+    setComposing(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (armedDelete === id) {
+      if (armedTimer.current) clearTimeout(armedTimer.current);
+      setArmedDelete(null);
+      deletePost(id);
+      toast(tr('글을 삭제했어요', 'Post deleted'), 'info');
+      return;
+    }
+    setArmedDelete(id);
+    if (armedTimer.current) clearTimeout(armedTimer.current);
+    armedTimer.current = setTimeout(() => setArmedDelete(null), 3000);
+  };
 
   const q = query.trim().toLowerCase();
 
@@ -321,18 +360,20 @@ export function CommunityScreen() {
 
   const submit = () => {
     if (draft.trim().length < 2) return;
-    addPost(draft.trim(), draftTags, {
+    const opts = {
       storeTagId: draftStore || undefined,
       photo: draftPhoto ?? undefined,
       photoId: draftPhotoId ?? undefined,
-    });
-    setDraft('');
-    setDraftTags([]);
-    setDraftStore(0);
-    setDraftPhoto(null);
-    setDraftPhotoId(null);
+    };
+    if (editingId) {
+      updatePost(editingId, draft.trim(), draftTags, opts);
+      toast(tr('글을 수정했어요!', 'Post updated!'), 'success');
+    } else {
+      addPost(draft.trim(), draftTags, opts);
+      toast(tr('커뮤니티에 글을 올렸어요!', 'Posted to the community!'), 'success');
+    }
+    resetDraft();
     setComposing(false);
-    toast(tr('커뮤니티에 글을 올렸어요!', 'Posted to the community!'), 'success');
   };
 
   const toggleDraftTag = (id: string) =>
@@ -441,13 +482,35 @@ export function CommunityScreen() {
                     {T('나', 'Me')}
                   </span>
                 </p>
-                <p className="text-[10px] font-bold text-town-inkSoft/70">{T('방금', 'Just now')}</p>
+                <p className="text-[10px] font-bold text-town-inkSoft/70">
+                  {T('방금', 'Just now')}
+                  {p.edited ? ` · ${T('수정됨', 'edited')}` : ''}
+                </p>
               </div>
             </div>
             <p className="mt-2.5 text-[13.5px] leading-relaxed">{p.text}</p>
             <PostPhoto photo={p.photo} photoId={p.photoId} />
             <PostTagChips ids={p.tags} onPick={(id) => setTagFilter(id)} />
             {p.storeTagId && <StoreTagChip storeId={p.storeTagId} />}
+            {/* 내 글 관리 — 수정 / 삭제(2단계 확인) */}
+            <div className="mt-2.5 flex items-center gap-2 border-t border-town-line/60 pt-2">
+              <button
+                onClick={() => startEdit(p)}
+                className="rounded-full border border-town-line bg-town-paper px-2.5 py-1 text-[11px] font-extrabold text-town-inkSoft transition active:scale-95"
+              >
+                ✏️ {T('수정', 'Edit')}
+              </button>
+              <button
+                onClick={() => handleDelete(p.id)}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold transition active:scale-95 ${
+                  armedDelete === p.id
+                    ? 'animate-pulse bg-town-coralDeep text-white'
+                    : 'border border-town-line bg-town-paper text-town-inkSoft'
+                }`}
+              >
+                {armedDelete === p.id ? T('한 번 더 누르면 삭제!', 'Tap again to delete!') : `🗑️ ${T('삭제', 'Delete')}`}
+              </button>
+            </div>
           </article>
         ))}
 
@@ -480,9 +543,14 @@ export function CommunityScreen() {
         <div className="absolute inset-0 z-[860] flex flex-col justify-end bg-town-ink/40 pb-16 fade-in">
           <div className="sheet-up rounded-[1.6rem] bg-town-paper p-5 pb-6 shadow-sheet mx-2 mb-1">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[16px] font-extrabold">{T('커뮤니티에 글쓰기', 'Write a Post')}</h3>
+              <h3 className="text-[16px] font-extrabold">
+                {editingId ? T('글 수정하기', 'Edit Post') : T('커뮤니티에 글쓰기', 'Write a Post')}
+              </h3>
               <button
-                onClick={() => setComposing(false)}
+                onClick={() => {
+                  setComposing(false);
+                  if (editingId) resetDraft(); // 수정 취소 — 다음 새 글에 내용이 새지 않게
+                }}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-town-cream text-[13px] font-bold text-town-inkSoft"
                 aria-label="작성 닫기"
               >
@@ -596,7 +664,7 @@ export function CommunityScreen() {
               disabled={draft.trim().length < 2}
               className="mt-3.5 w-full rounded-2xl bg-town-leafDark py-3.5 text-[15px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none disabled:bg-town-line disabled:text-town-inkSoft/50 disabled:shadow-none"
             >
-              {T('올리기', 'Post')}
+              {editingId ? T('수정 완료', 'Save changes') : T('올리기', 'Post')}
             </button>
           </div>
         </div>

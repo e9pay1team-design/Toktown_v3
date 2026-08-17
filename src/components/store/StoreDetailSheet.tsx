@@ -41,10 +41,15 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
   const myReviews = useVisitStore((s) => s.myReviews);
   const events = useVisitStore((s) => s.events);
   const recordSave = useVisitStore((s) => s.recordSave);
+  const deleteReview = useVisitStore((s) => s.deleteReview);
   const profile = useProfileStore((s) => s.profile);
   const setRouteSheetFor = useUiStore((s) => s.setRouteSheetFor);
   const activeEventId = useEventStore((s) => s.activeEventId);
   const [composing, setComposing] = useState(false);
+  /** 수정 대상 리뷰 id — null 이면 새 리뷰 작성 */
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  /** 리뷰 삭제 2단계 확인 (3초 뒤 자동 해제) */
+  const [armedDelete, setArmedDelete] = useState<number | null>(null);
   const T = useT();
   const lang = useLang();
 
@@ -231,26 +236,67 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
             <ul className="flex flex-col gap-2.5">
               {myStoreReviews.map((r) => (
                 <li key={r.id} className="rounded-2xl border-2 border-town-leaf/40 bg-town-leaf/5 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-[12.5px] font-extrabold">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-extrabold">
                       {profile && (
-                        <span className="inline-block overflow-hidden rounded-full border border-town-line bg-[#EAF6EF]">
+                        <span className="inline-block shrink-0 overflow-hidden rounded-full border border-town-line bg-[#EAF6EF]">
                           <CharacterSvg config={profile.character} size={22} bust shadow={false} />
                         </span>
                       )}
                       {profile?.nickname}
-                      <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+                      <span className="shrink-0 rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
                         {T('나', 'Me')}
                       </span>
                       {r.certified && (
-                        <span className="flex items-center gap-0.5 rounded-full bg-town-leaf/15 px-1.5 py-0.5 text-[9.5px] font-extrabold text-town-leafDark">
+                        <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-town-leaf/15 px-1.5 py-0.5 text-[9.5px] font-extrabold text-town-leafDark">
                           <CertifiedBadge size={11} /> {T('방문 인증', 'Verified visit')}
                         </span>
                       )}
                     </span>
+                    {/* 내 리뷰 관리 — 수정 / 삭제(2단계 확인) */}
+                    <span className="flex shrink-0 gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingReviewId(r.id);
+                          setComposing(true);
+                        }}
+                        aria-label="리뷰 수정"
+                        className="rounded-full border border-town-line bg-town-paper px-2 py-0.5 text-[10.5px] font-extrabold text-town-inkSoft transition active:scale-95"
+                      >
+                        ✏️ {T('수정', 'Edit')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (armedDelete === r.id) {
+                            setArmedDelete(null);
+                            deleteReview(r.id);
+                            toast(
+                              tr('리뷰를 삭제했어요 — 방문 기록은 유지돼요', 'Review deleted — visit history stays'),
+                              'info',
+                            );
+                          } else {
+                            setArmedDelete(r.id);
+                            setTimeout(() => setArmedDelete((v) => (v === r.id ? null : v)), 3000);
+                          }
+                        }}
+                        aria-label="리뷰 삭제"
+                        className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold transition active:scale-95 ${
+                          armedDelete === r.id
+                            ? 'animate-pulse bg-town-coralDeep text-white'
+                            : 'border border-town-line bg-town-paper text-town-inkSoft'
+                        }`}
+                      >
+                        {armedDelete === r.id ? T('한 번 더!', 'Again!') : `🗑️ ${T('삭제', 'Delete')}`}
+                      </button>
+                    </span>
                   </div>
                   <div className="mt-1">
                     <Stars n={r.rating} />
+                    {r.edited && (
+                      <span className="ml-1.5 text-[9.5px] font-bold text-town-inkSoft/70">
+                        {T('(수정됨)', '(edited)')}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-town-ink/90">{r.text}</p>
                 </li>
@@ -288,7 +334,16 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
       </div>
 
     </div>
-    {composing && <ReviewComposer store={store} onClose={() => setComposing(false)} />}
+    {composing && (
+      <ReviewComposer
+        store={store}
+        editing={editingReviewId !== null ? myReviews.find((r) => r.id === editingReviewId) : undefined}
+        onClose={() => {
+          setComposing(false);
+          setEditingReviewId(null);
+        }}
+      />
+    )}
     </>
   );
 }
