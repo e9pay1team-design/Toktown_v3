@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/k/:id",
+      "destination": "https://toktown-demo.example.com",
+      "permanent": false
+    }
+  ]
+}
