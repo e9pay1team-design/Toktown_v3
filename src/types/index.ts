@@ -13,19 +13,26 @@ export type StoreCategory = '국밥' | '한식' | '면' | '카페' | '공연장'
 export interface Store {
   id: number;
   name: string;
+  /** 영문 표기 (언어 모드 EN) — 이하 *En 필드 동일 */
+  nameEn?: string;
   category: StoreCategory;
   /** 세부 메뉴 표기 (예: 설렁탕, 육개장) */
   subCategory?: string;
+  subCategoryEn?: string;
   lat: number;
   lng: number;
   hours: string;
+  hoursEn?: string;
   /** 톡페이 혜택 뱃지 문구 (없으면 미노출) */
   benefit?: string;
+  benefitEn?: string;
   /** 한 줄 소개 */
   desc: string;
+  descEn?: string;
   /** 개업 연도 — 노포 연출용 */
   founded?: number;
   tags: string[];
+  tagsEn?: string[];
 }
 
 export type ReviewLang = 'ko' | 'en';
@@ -51,12 +58,17 @@ export interface Review {
 export interface RegionalNpc {
   id: string;
   name: string;
+  nameEn?: string;
   species: string;
+  speciesEn?: string;
   region: string;
+  regionEn?: string;
   /** 도감 소개문 */
   bio: string;
+  bioEn?: string;
   /** 조우 시 대사 */
   lines: string[];
+  linesEn?: string[];
   /** 출몰 지점 목록 — 하루 2지점 랜덤 활성 */
   spots: NpcSpot[];
 }
@@ -64,6 +76,7 @@ export interface RegionalNpc {
 export interface NpcSpot {
   id: string;
   label: string;
+  labelEn?: string;
   lat: number;
   lng: number;
   /** 이벤트 한정 NPC 변형 (드러머 까미 등) */
@@ -76,30 +89,41 @@ export type BasicNpcRole = 'mayor' | 'postman' | 'shopkeeper' | 'gourmet';
 export interface BasicNpc {
   role: BasicNpcRole;
   name: string;
+  nameEn?: string;
   species: string;
+  speciesEn?: string;
   title: string;
+  titleEn?: string;
   lines: string[];
+  linesEn?: string[];
 }
 
 export interface Landmark {
   id: string;
   name: string;
+  nameEn?: string;
   lat: number;
   lng: number;
   desc: string;
+  descEn?: string;
 }
 
 /** Event Map 모의 이벤트 */
 export interface TownEvent {
   id: string;
   title: string;
+  titleEn?: string;
   venueStoreId: number;
   /** 반경(m) 내 매장에 혜택 노출 */
   radiusM: number;
   benefit: string;
+  benefitEn?: string;
   limitedNpcName: string;
+  limitedNpcNameEn?: string;
   limitedItemName: string;
+  limitedItemNameEn?: string;
   desc: string;
+  descEn?: string;
 }
 
 /** Tokken 지급 수치 (초기값, 브리프 §4) */
@@ -133,6 +157,7 @@ export interface ResidentProfile {
 export interface DecorItem {
   id: string;
   name: string;
+  nameEn?: string;
   price: number;
   /** 이벤트 한정 여부 */
   eventOnly?: string;

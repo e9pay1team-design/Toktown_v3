@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
+import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useVisitStore } from '../../store/useVisitStore';
@@ -13,7 +14,7 @@ import { useUiStore } from '../../store/useUiStore';
 import { useToastStore } from '../../store/useToastStore';
 import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
-import type { VillageGame, VInteractTarget } from '../../lib/villageGame';
+import { GROUND_DECOR, type VillageGame, type VInteractTarget } from '../../lib/villageGame';
 import { residentNpcs, villageRichness, VILLAGE_NPCS } from '../../data/villageNpcs';
 import { ShopModal } from './ShopModal';
 import { DexModal } from './DexModal';
@@ -23,6 +24,7 @@ import { StoreBuilding } from '../../assets/buildings';
 import { LandmarkSvg } from '../../assets/landmarks';
 import { MagpieSvg } from '../../assets/npcs';
 import { DecorSvg } from '../../assets/decor';
+import { decorName, lmName, sName, tr, useLang, useT } from '../../i18n';
 
 interface InvItem {
   kind: PlacementKind;
@@ -55,6 +57,62 @@ interface DialogueData {
   lines: string[];
 }
 
+function roundedPath(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/** 전경 스냅샷 위에 폴라로이드풍 프레임 + 캡션을 얹은 공유용 이미지 */
+async function frameVillagePhoto(raw: string, caption: string, sub: string): Promise<string> {
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('snapshot load failed'));
+    img.src = raw;
+  });
+  const W = 1240;
+  const P = 26;
+  const photoW = W - P * 2;
+  const photoH = Math.round((photoW * img.height) / img.width);
+  const capH = 124;
+  const H = photoH + P * 2 + capH;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const g = canvas.getContext('2d');
+  if (!g) return raw;
+  g.fillStyle = '#FFFDF7';
+  g.fillRect(0, 0, W, H);
+  g.save();
+  roundedPath(g, P, P, photoW, photoH, 24);
+  g.clip();
+  g.drawImage(img, P, P, photoW, photoH);
+  g.restore();
+  roundedPath(g, P, P, photoW, photoH, 24);
+  g.strokeStyle = '#EFE3CE';
+  g.lineWidth = 3;
+  g.stroke();
+  const font = (spec: string) => `${spec} system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`;
+  g.textBaseline = 'middle';
+  g.fillStyle = '#4A3B32';
+  g.font = font('800 40px');
+  g.fillText(`🏘️ ${caption}`, P + 8, photoH + P + capH * 0.36);
+  g.fillStyle = '#8C7B6E';
+  g.font = font('700 25px');
+  g.fillText(sub, P + 8, photoH + P + capH * 0.74);
+  g.textAlign = 'right';
+  g.fillStyle = '#4E9B58';
+  g.font = font('800 36px');
+  g.fillText('TokTown', W - P - 10, photoH + P + capH * 0.53);
+  g.textAlign = 'left';
+  return canvas.toDataURL('image/png');
+}
+
 export function VillageScreen() {
   const nickname = useProfileStore((s) => s.profile?.nickname ?? '주민');
   const placements = useVillageStore((s) => s.placements);
@@ -62,6 +120,7 @@ export function VillageScreen() {
   const place = useVillageStore((s) => s.place);
   const movePlacement = useVillageStore((s) => s.move);
   const removePlacement = useVillageStore((s) => s.remove);
+  const recallAllPlacements = useVillageStore((s) => s.recallAll);
   const events = useVisitStore((s) => s.events);
   const dex = useCollectionStore((s) => s.dex);
   const discovered = useCollectionStore((s) => s.landmarks);
@@ -70,13 +129,21 @@ export function VillageScreen() {
   const requestFlyTo = useUiStore((s) => s.requestFlyTo);
   const toast = useToastStore((s) => s.show);
 
+  const dayOffset = useVirtualClock((s) => s.dayOffset);
   const [editMode, setEditMode] = useState(false);
-  const [editSel, setEditSel] = useState<{ label: string; isNew: boolean } | null>(null);
+  const [confirmingRecall, setConfirmingRecall] = useState(false);
+  /** 📸 마을 전경 공유 사진 (프레임 합성 완료본) */
+  const [villagePhoto, setVillagePhoto] = useState<string | null>(null);
+  const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
   const [interact, setInteract] = useState<VInteractTarget | null>(null);
   const [dialogue, setDialogue] = useState<DialogueData | null>(null);
   const [thingSheetId, setThingSheetId] = useState<number | null>(null);
   const [modal, setModal] = useState<VillageModal>(null);
   const gameRef = useRef<VillageGame | null>(null);
+  /** 바닥 타일 연속 배치 방향 추적 — 직전에 확정한 타일 위치 */
+  const lastTilePlace = useRef<{ refId: string; bx: number; by: number } | null>(null);
+  const T = useT();
+  const lang = useLang();
 
   /* 인증 방문(체크인/인증 리뷰)한 매장 → 건물 보유 */
   const certifiedStoreIds = useMemo(() => {
@@ -92,25 +159,25 @@ export function VillageScreen() {
     [placements],
   );
 
-  /* 인벤토리 = 획득 − 배치됨 */
+  /* 인벤토리 = 획득 − 배치됨 (라벨은 앱 언어) */
   const inventory = useMemo<InvItem[]>(() => {
     const items: InvItem[] = [];
     for (const id of certifiedStoreIds) {
       if (!placedKeys.has(`store:${id}`)) {
         const store = storeById(id);
-        if (store) items.push({ kind: 'store', refId: String(id), label: store.name, count: 1 });
+        if (store) items.push({ kind: 'store', refId: String(id), label: sName(store), count: 1 });
       }
     }
     for (const npcId of dex) {
       if (!placedKeys.has(`npc:${npcId}`)) {
-        const name = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE.name : REGIONAL_NPCS[0].name;
-        items.push({ kind: 'npc', refId: npcId, label: name, count: 1 });
+        const src = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+        items.push({ kind: 'npc', refId: npcId, label: tr(src.name, src.nameEn ?? src.name), count: 1 });
       }
     }
     for (const lmId of discovered) {
       if (!placedKeys.has(`landmark:${lmId}`)) {
         const lm = LANDMARKS.find((l) => l.id === lmId);
-        if (lm) items.push({ kind: 'landmark', refId: lmId, label: lm.name, count: 1 });
+        if (lm) items.push({ kind: 'landmark', refId: lmId, label: lmName(lm), count: 1 });
       }
     }
     for (const [decorId, owned] of Object.entries(decorOwned)) {
@@ -118,20 +185,29 @@ export function VillageScreen() {
       const remain = owned - placedCount;
       if (remain > 0) {
         const item = DECOR_ITEMS.find((d) => d.id === decorId);
-        if (item) items.push({ kind: 'decor', refId: decorId, label: item.name, count: remain });
+        if (item) items.push({ kind: 'decor', refId: decorId, label: decorName(item), count: remain });
       }
     }
     return items;
-  }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys, lang]);
 
-  /* 마을 풍성도 → 입주 주민, 새 입주 토스트 */
-  const richness = villageRichness(placements.length, dex.length, discovered.length);
+  /* 마을 풍성도 → 입주 주민, 새 입주 토스트.
+     기본 광장 구성물(preset)은 세지 않는다 — 풍성도는 직접 모아 배치한 것만. */
+  const userPlacementCount = placements.filter((p) => !p.preset).length;
+  const richness = villageRichness(userPlacementCount, dex.length, discovered.length);
   const residents = residentNpcs(richness);
   const prevResidents = useRef(residents.length);
   useEffect(() => {
     if (residents.length > prevResidents.current) {
       const fresh = residents[residents.length - 1];
-      toast(`🎉 ${fresh.species} ${fresh.name}이(가) 마을에 입주했어요!`, 'success');
+      toast(
+        tr(
+          `🎉 ${fresh.species} ${fresh.name}이(가) 마을에 입주했어요!`,
+          `🎉 ${fresh.nameEn} the ${fresh.speciesEn} moved into your town!`,
+        ),
+        'success',
+      );
     }
     prevResidents.current = residents.length;
   }, [residents.length, residents, toast]);
@@ -150,16 +226,47 @@ export function VillageScreen() {
   const exitEdit = () => {
     setEditMode(false);
     setEditSel(null);
+    setConfirmingRecall(false);
+    lastTilePlace.current = null;
   };
 
   /* ✓ 확정 */
-  const handleEditCommit = (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => {
+  const handleEditCommit = (e: {
+    placementId: number | null;
+    kind: string;
+    refId: string;
+    bx: number;
+    by: number;
+    facing?: 'sw' | 'se';
+  }) => {
     if (e.placementId === null) {
-      place(e.kind as PlacementKind, e.refId, e.bx, e.by);
-      toast('마을에 배치했어요!', 'success');
+      place(e.kind as PlacementKind, e.refId, e.bx, e.by, e.facing);
+      toast(tr('마을에 배치했어요!', 'Placed in your town!'), 'success');
+      // 바닥 타일 연속 배치 — 보관함에 같은 타일이 남았으면 진행 방향으로 다음 타일 준비.
+      if (e.kind === 'decor' && GROUND_DECOR.has(e.refId)) {
+        // 직전 확정 위치 → 이번 위치 벡터가 곧 사용자가 뻗어나가는 방향.
+        const prev = lastTilePlace.current;
+        let seed = { bx: e.bx + 1, by: e.by };
+        if (prev && prev.refId === e.refId) {
+          const dx = Math.sign(e.bx - prev.bx);
+          const dy = Math.sign(e.by - prev.by);
+          if (dx !== 0 || dy !== 0) seed = { bx: e.bx + dx, by: e.by + dy };
+        }
+        lastTilePlace.current = { refId: e.refId, bx: e.bx, by: e.by };
+
+        const s = useVillageStore.getState();
+        const owned = s.decorOwned[e.refId] ?? 0;
+        const placedCount = s.placements.filter((p) => p.kind === 'decor' && p.refId === e.refId).length;
+        if (owned - placedCount > 0) {
+          const item = DECOR_ITEMS.find((d) => d.id === e.refId);
+          if (item) {
+            gameRef.current?.spawnFromTray(trayMetaFor('decor', e.refId, decorName(item)), seed);
+          }
+        }
+      }
     } else {
-      movePlacement(e.placementId, e.bx, e.by);
-      toast('위치를 옮겼어요', 'info');
+      movePlacement(e.placementId, e.bx, e.by, e.facing);
+      toast(tr('위치를 옮겼어요', 'Moved'), 'info');
     }
   };
 
@@ -167,8 +274,90 @@ export function VillageScreen() {
   const handleEditReturn = (e: { placementId: number | null }) => {
     if (e.placementId !== null) {
       removePlacement(e.placementId);
-      toast('보관함으로 돌려놨어요', 'info');
+      toast(tr('보관함으로 돌려놨어요', 'Returned to storage'), 'info');
     }
+  };
+
+  /* 🎒 전체 회수 — 배치된 모든 오브젝트를 보관함으로.
+     window.confirm 은 웹 공유 샌드박스(iframe)에서 차단되므로 앱 내 확인 모달을 쓴다. */
+  const recallAll = () => {
+    if (placements.length === 0) {
+      toast(tr('회수할 오브젝트가 없어요', 'Nothing to recall'), 'info');
+      return;
+    }
+    setConfirmingRecall(true);
+  };
+
+  /* 📸 마을 사진 찍기 → 저장/공유 */
+  const takePhoto = () => {
+    const raw = gameRef.current?.captureSnapshot(1200, 800);
+    if (!raw) return;
+    frameVillagePhoto(
+      raw,
+      tr(`${nickname}의 마을`, `${nickname}'s Town`),
+      tr(
+        `주민 ${populationCount}명 · 풍성도 ${richness} · ${virtualToday(dayOffset)}`,
+        `${populationCount} residents · richness ${richness} · ${virtualToday(dayOffset)}`,
+      ),
+    )
+      .then(setVillagePhoto)
+      .catch(() => toast(tr('사진을 만들지 못했어요', 'Could not create the photo'), 'error'));
+  };
+
+  const savePhoto = () => {
+    if (!villagePhoto) return;
+    try {
+      const a = document.createElement('a');
+      a.href = villagePhoto;
+      a.download = 'toktown-my-village.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast(
+        tr('📥 이미지 저장을 시도했어요 — 안 되면 사진을 길게 눌러 저장하세요', '📥 Tried saving — if blocked, long-press the photo'),
+        'info',
+      );
+    } catch {
+      toast(tr('이 환경에선 저장이 제한돼요 — 사진을 길게 눌러 저장하세요', 'Saving is limited here — long-press the photo'), 'error');
+    }
+  };
+
+  const sharePhoto = async () => {
+    if (!villagePhoto) return;
+    try {
+      const blob = await (await fetch(villagePhoto)).blob();
+      const file = new File([blob], 'toktown-my-village.png', { type: 'image/png' });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({
+          files: [file],
+          title: 'TokTown',
+          text: tr('내 톡타운 마을이에요! 🏘️', 'My TokTown village! 🏘️'),
+        });
+        toast(tr('📤 공유했어요!', '📤 Shared!'), 'success');
+        return;
+      }
+      if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        toast(tr('📋 이미지를 클립보드에 복사했어요', '📋 Image copied to clipboard'), 'success');
+        return;
+      }
+      toast(tr('이 환경에선 공유가 제한돼요 — 저장하기를 이용해 주세요', 'Sharing is limited here — try Save instead'), 'info');
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return; // 사용자가 공유 시트를 닫음
+      toast(tr('공유가 차단됐어요 — 사진을 길게 눌러 저장해 주세요', 'Sharing was blocked — long-press the photo to save'), 'error');
+    }
+  };
+
+  const doRecallAll = () => {
+    const count = placements.length;
+    setConfirmingRecall(false);
+    gameRef.current?.cancelEdit();
+    setEditSel(null);
+    recallAllPlacements();
+    toast(
+      tr(`🎒 오브젝트 ${count}개를 보관함으로 회수했어요`, `🎒 Recalled ${count} object${count === 1 ? '' : 's'} to storage`),
+      'success',
+    );
   };
 
   const openDialogueFor = (target: VInteractTarget) => {
@@ -179,35 +368,45 @@ export function VillageScreen() {
       const drummer = p?.refId === DRUMMER_MAGPIE.id;
       const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
       setDialogue({
-        name: src.name,
-        title: drummer ? '한정 이웃' : '이웃',
+        name: tr(src.name, src.nameEn ?? src.name),
+        title: drummer ? tr('한정 이웃', 'Limited neighbor') : tr('이웃', 'Neighbor'),
         accent: drummer ? '#C2503F' : '#4A5568',
-        lines: src.lines,
+        lines: tr(src.lines, src.linesEn ?? src.lines),
       });
       return;
     }
     const def = VILLAGE_NPCS.find((n) => n.id === target.id);
     if (!def) return;
     setDialogue({
-      name: def.name,
-      title: def.title,
+      name: tr(def.name, def.nameEn),
+      title: tr(def.title, def.titleEn),
       accent: def.skin.body,
-      lines: def.dialogue,
+      lines: tr(def.dialogue, def.dialogueEn),
     });
   };
 
   const thingSheet = thingSheetId !== null ? placements.find((p) => p.id === thingSheetId) ?? null : null;
+  const thingSheetStore = thingSheet?.kind === 'store' ? storeById(Number(thingSheet.refId)) : undefined;
   const thingSheetLabel = thingSheet
     ? thingSheet.kind === 'store'
-      ? storeById(Number(thingSheet.refId))?.name
+      ? thingSheetStore && sName(thingSheetStore)
       : thingSheet.kind === 'landmark'
-        ? LANDMARKS.find((l) => l.id === thingSheet.refId)?.name
+        ? (() => {
+            const lm = LANDMARKS.find((l) => l.id === thingSheet.refId);
+            return lm && lmName(lm);
+          })()
         : thingSheet.kind === 'npc'
-          ? (thingSheet.refId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0]).name
-          : DECOR_ITEMS.find((d) => d.id === thingSheet.refId)?.name
+          ? (() => {
+              const src = thingSheet.refId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+              return tr(src.name, src.nameEn ?? src.name);
+            })()
+          : (() => {
+              const item = DECOR_ITEMS.find((d) => d.id === thingSheet.refId);
+              return item && decorName(item);
+            })()
     : null;
 
-  const emptyVillage = placements.length === 0 && inventory.length === 0;
+  const emptyVillage = userPlacementCount === 0 && inventory.length === 0;
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-[#3f9fc8]">
@@ -228,26 +427,36 @@ export function VillageScreen() {
       {/* 헤더 */}
       <header className="pointer-events-none relative z-10 flex items-center justify-between px-4 pt-12">
         {editMode ? (
-          <span className="w-[60px]" />
+          <button
+            onClick={recallAll}
+            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-coral/60 bg-town-paper/95 px-2.5 text-[12px] font-extrabold text-town-coralDeep shadow-sm transition active:scale-95"
+            aria-label={T('모든 오브젝트 보관함으로 회수', 'Recall all objects to storage')}
+          >
+            {T('🎒 전체 회수', '🎒 Recall all')}
+          </button>
         ) : (
           <button
             onClick={() => setTab('map')}
             className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 text-[12px] font-extrabold shadow-sm"
           >
-            🗺️ 지도
+            {T('🗺️ 지도', '🗺️ Map')}
           </button>
         )}
         <div className="rounded-2xl bg-town-paper/90 px-4 py-1.5 text-center shadow-sm backdrop-blur-sm">
           {editMode ? (
             <>
-              <h2 className="text-[15px] font-extrabold leading-tight">🔨 배치 모드</h2>
-              <p className="text-[10px] font-bold text-town-inkSoft">주민들은 잠시 자리를 비켜줬어요</p>
+              <h2 className="text-[15px] font-extrabold leading-tight">{T('🔨 배치 모드', '🔨 Edit Mode')}</h2>
+              <p className="text-[10px] font-bold text-town-inkSoft">
+                {T('주민들은 잠시 자리를 비켜줬어요', 'Residents stepped away for a moment')}
+              </p>
             </>
           ) : (
             <>
-              <h2 className="text-[15px] font-extrabold leading-tight">{nickname}의 마을</h2>
+              <h2 className="text-[15px] font-extrabold leading-tight">
+                {T(`${nickname}의 마을`, `${nickname}'s Town`)}
+              </h2>
               <p className="text-[10px] font-bold text-town-inkSoft">
-                주민 {populationCount}명 · 풍성도 {richness}
+                {T(`주민 ${populationCount}명 · 풍성도 ${richness}`, `${populationCount} residents · richness ${richness}`)}
               </p>
             </>
           )}
@@ -257,10 +466,17 @@ export function VillageScreen() {
             onClick={exitEdit}
             className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl bg-town-leafDark px-3 text-[12.5px] font-extrabold text-white shadow-pop"
           >
-            완료
+            {T('완료', 'Done')}
           </button>
         ) : (
-          <span className="w-[60px]" />
+          <button
+            onClick={takePhoto}
+            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 shadow-sm transition active:scale-95"
+            aria-label={T('마을 사진 찍어 공유', 'Snap and share your town')}
+          >
+            <span className="text-[14px]">📸</span>
+            <span className="text-[12px] font-extrabold">{T('공유', 'Share')}</span>
+          </button>
         )}
       </header>
 
@@ -269,10 +485,10 @@ export function VillageScreen() {
         <div className="pointer-events-none relative z-10 flex justify-center gap-2 px-4 py-2">
           {(
             [
-              ['card', '🪪', '주민증'],
-              ['dex', '📖', '도감'],
-              ['shop', '🏪', '상점'],
-              ['dressing', '🎨', '꾸미기'],
+              ['card', '🪪', T('주민증', 'ID Card')],
+              ['dex', '📖', T('도감', 'Dex')],
+              ['shop', '🏪', T('상점', 'Shop')],
+              ['dressing', '🎨', T('꾸미기', 'Style')],
             ] as const
           ).map(([id, emoji, label]) => (
             <button
@@ -292,10 +508,16 @@ export function VillageScreen() {
           <p className="rounded-full bg-town-ink/60 px-3 py-1 text-center text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
             {editSel ? (
               <>
-                <b className="text-town-sun">{editSel.label}</b> — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함
+                <b className="text-town-sun">{editSel.label}</b>
+                {editSel.canRotate
+                  ? T(' — 드래그 이동 · ↻ 방향 전환 · ✓ 배치 · ✕ 보관함', ' — drag · ↻ rotate · ✓ place · ✕ storage')
+                  : T(' — 끌어서 위치 이동 · ✓ 배치 · ✕ 보관함', ' — drag to move · ✓ place · ✕ storage')}
               </>
             ) : (
-              '빈 곳 드래그 = 카메라 이동 · 오브젝트 탭 = 선택 · 아래 보관함에서 꺼내기'
+              T(
+                '빈 곳 드래그 = 카메라 이동 · 오브젝트 탭 = 선택 · 아래 보관함에서 꺼내기',
+                'Drag empty space = pan · tap object = select · pull from storage below',
+              )
             )}
           </p>
         </div>
@@ -305,14 +527,20 @@ export function VillageScreen() {
             <div className="pointer-events-none relative z-10 flex justify-center px-6">
               <p className="rounded-full bg-town-ink/55 px-3 py-1 text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
                 {emptyVillage
-                  ? '🕹️ 드래그로 산책 · 지도에서 체크인하면 건물이 생겨요'
-                  : '🕹️ 화면 드래그 또는 방향키(WASD)로 이동'}
+                  ? T(
+                      '🕹️ 드래그로 산책 · 지도에서 체크인하면 건물이 생겨요',
+                      '🕹️ Drag to stroll · check in on the map to earn buildings',
+                    )
+                  : T('🕹️ 화면 드래그 또는 방향키(WASD)로 이동', '🕹️ Drag or use arrow keys (WASD) to move')}
               </p>
             </div>
             {nextResident && (
               <div className="pointer-events-none relative z-10 mt-1 flex justify-center px-6">
                 <p className="rounded-full bg-town-paper/85 px-3 py-1 text-[10px] font-extrabold text-town-inkSoft shadow-sm">
-                  풍성도 {nextResident.unlockAt} 달성 시 {nextResident.species} <b>{nextResident.name}</b> 입주!
+                  {T(
+                    `풍성도 ${nextResident.unlockAt} 달성 시 ${nextResident.species} ${nextResident.name} 입주!`,
+                    `${nextResident.nameEn} the ${nextResident.speciesEn} moves in at richness ${nextResident.unlockAt}!`,
+                  )}
                 </p>
               </div>
             )}
@@ -332,7 +560,7 @@ export function VillageScreen() {
           >
             {interact.kind === 'npc' ? '💬' : '👀'} {interact.label}
             <span className="rounded-full bg-town-sun px-2 py-0.5 text-[10px]">
-              {interact.kind === 'npc' ? '말 걸기' : '살펴보기'}
+              {interact.kind === 'npc' ? T('말 걸기', 'Talk') : T('살펴보기', 'Inspect')}
             </span>
           </button>
         </div>
@@ -362,12 +590,12 @@ export function VillageScreen() {
               <p className="truncate text-[13.5px] font-extrabold">{thingSheetLabel}</p>
               <p className="text-[10.5px] font-bold text-town-inkSoft">
                 {thingSheet.kind === 'store'
-                  ? '인증 방문으로 얻은 건물'
+                  ? T('인증 방문으로 얻은 건물', 'Building earned by verified visit')
                   : thingSheet.kind === 'landmark'
-                    ? '랜드마크 미니어처'
+                    ? T('랜드마크 미니어처', 'Landmark miniature')
                     : thingSheet.kind === 'npc'
-                      ? '우리 마을 이웃'
-                      : '꾸미기 소품'}
+                      ? T('우리 마을 이웃', 'Town neighbor')
+                      : T('꾸미기 소품', 'Decor item')}
               </p>
             </div>
             <div className="flex shrink-0 gap-1.5">
@@ -383,7 +611,7 @@ export function VillageScreen() {
                   }}
                   className="rounded-lg bg-town-leafDark px-2.5 py-2 text-[11px] font-extrabold text-white"
                 >
-                  매장 보기
+                  {T('매장 보기', 'View store')}
                 </button>
               )}
               <button
@@ -393,7 +621,7 @@ export function VillageScreen() {
                 }}
                 className="rounded-lg bg-town-sun px-2.5 py-2 text-[11px] font-extrabold text-town-ink"
               >
-                🔨 배치
+                {T('🔨 배치', '🔨 Edit')}
               </button>
               <button
                 onClick={() => setThingSheetId(null)}
@@ -425,13 +653,14 @@ export function VillageScreen() {
       {/* 배치 모드: 하단 도킹 보관함 */}
       {editMode && (
         <div className="absolute inset-x-0 bottom-16 z-30 px-3 pb-2">
-          <div className="rounded-2xl border border-town-line bg-town-paper/97 p-2.5 shadow-card backdrop-blur">
+          <div className="rounded-2xl border border-town-line bg-town-paper/95 p-2.5 shadow-card backdrop-blur">
             <p className="mb-1.5 px-1 text-[10.5px] font-extrabold text-town-inkSoft">
-              🎒 보관함 {inventory.length > 0 ? '· 탭하면 화면 가운데에 꺼내져요' : ''}
+              {T('🎒 보관함', '🎒 Storage')}
+              {inventory.length > 0 ? T(' · 탭하면 화면 가운데에 꺼내져요', ' · tap to spawn at screen center') : ''}
             </p>
             {inventory.length === 0 ? (
               <p className="px-1 pb-1 text-[11.5px] font-bold text-town-inkSoft/70">
-                비어 있어요 — 방문·조우·구매로 오브젝트를 모아보세요
+                {T('비어 있어요 — 방문·조우·구매로 오브젝트를 모아보세요', 'Empty — collect objects by visiting, encountering, and shopping')}
               </p>
             ) : (
               <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
@@ -458,6 +687,78 @@ export function VillageScreen() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 전체 회수 확인 모달 (배치 모드) */}
+      {editMode && confirmingRecall && (
+        <div className="absolute inset-0 z-[870] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 text-center shadow-sheet">
+            <p className="text-[30px]">🎒</p>
+            <h3 className="mt-1 text-[17px] font-extrabold">{T('전체 회수', 'Recall All')}</h3>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+              {T(
+                `배치된 오브젝트 ${placements.length}개를 모두 보관함으로 되돌릴까요?`,
+                `Return all ${placements.length} placed objects to storage?`,
+              )}
+              <br />
+              {T('획득한 오브젝트는 사라지지 않아요.', 'You will not lose any of them.')}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setConfirmingRecall(false)}
+                className="w-1/3 rounded-xl border border-town-line bg-town-paper py-3 text-[13px] font-extrabold text-town-inkSoft"
+              >
+                {T('취소', 'Cancel')}
+              </button>
+              <button
+                onClick={doRecallAll}
+                className="flex-1 rounded-xl bg-town-coral py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+              >
+                {T('🎒 전체 회수하기', '🎒 Recall everything')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📸 마을 사진 모달 — 찰칵 플래시 후 저장/공유 */}
+      {villagePhoto && (
+        <div className="absolute inset-0 z-[880] flex items-center justify-center bg-town-ink/55 px-4 fade-in">
+          <div className="shutter-flash pointer-events-none absolute inset-0 z-10 bg-white" />
+          <div className="pop-in w-full rounded-[1.5rem] bg-town-paper p-3 shadow-sheet">
+            <img
+              src={villagePhoto}
+              alt={T('내 마을 전경 사진', 'My village panorama')}
+              className="w-full rounded-xl"
+            />
+            <p className="mt-1.5 text-center text-[10px] font-bold text-town-inkSoft">
+              {T(
+                '저장이 막힌 환경이면 사진을 길게 눌러 이미지로 저장할 수 있어요',
+                'If saving is blocked here, long-press the photo to save it',
+              )}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={() => setVillagePhoto(null)}
+                className="w-[76px] rounded-xl border border-town-line bg-town-paper py-3 text-[12.5px] font-extrabold text-town-inkSoft"
+              >
+                {T('닫기', 'Close')}
+              </button>
+              <button
+                onClick={savePhoto}
+                className="flex-1 rounded-xl bg-town-skyDeep py-3 text-[13px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+              >
+                📥 {T('저장하기', 'Save')}
+              </button>
+              <button
+                onClick={sharePhoto}
+                className="flex-1 rounded-xl bg-town-leafDark py-3 text-[13px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+              >
+                📤 {T('공유하기', 'Share')}
+              </button>
+            </div>
           </div>
         </div>
       )}

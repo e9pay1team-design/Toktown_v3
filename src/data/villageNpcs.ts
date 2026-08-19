@@ -9,13 +9,18 @@ import type { VCharSkin } from '../lib/villageDraw';
 export interface VillageNpcDef {
   id: string;
   name: string;
+  nameEn: string;
   title: string;
+  titleEn: string;
   species: string;
+  speciesEn: string;
   skin: VCharSkin;
   /** 지나칠 때 말풍선에 뜨는 짧은 혼잣말 */
   chatter: string[];
+  chatterEn: string[];
   /** 말 걸기 대화 (한 줄씩 진행) */
   dialogue: string[];
+  dialogueEn: string[];
   /** 입주에 필요한 마을 풍성도 */
   unlockAt: number;
   /** 광장 기준 배회 앵커 오프셋 */
@@ -28,8 +33,11 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
   {
     id: 'owl-mayor',
     name: byRole.mayor.name, // 부엉
+    nameEn: byRole.mayor.nameEn ?? byRole.mayor.name,
     title: byRole.mayor.title,
+    titleEn: byRole.mayor.titleEn ?? byRole.mayor.title,
     species: byRole.mayor.species,
+    speciesEn: byRole.mayor.speciesEn ?? byRole.mayor.species,
     skin: {
       body: '#8a6f52',
       bodyDark: '#6d563e',
@@ -38,15 +46,20 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
       ear: 'owl',
     },
     chatter: ['오늘도 평화롭구먼, 부엉.', '마을이 자라는 게 보이는가?', '현실의 하루가 여기 쌓인다네.'],
+    chatterEn: ['Peaceful as ever. Hoo.', 'Can you see the village growing?', 'Your real days pile up here.'],
     dialogue: byRole.mayor.lines,
+    dialogueEn: byRole.mayor.linesEn ?? byRole.mayor.lines,
     unlockAt: 0,
     anchorOffset: { x: 0, y: -2 },
   },
   {
     id: 'pigeon-postman',
     name: byRole.postman.name, // 구구
+    nameEn: byRole.postman.nameEn ?? byRole.postman.name,
     title: byRole.postman.title,
+    titleEn: byRole.postman.titleEn ?? byRole.postman.title,
     species: byRole.postman.species,
+    speciesEn: byRole.postman.speciesEn ?? byRole.postman.species,
     skin: {
       body: '#63aee0',
       bodyDark: '#4489bb',
@@ -55,15 +68,20 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
       ear: 'bird',
     },
     chatter: ['구구! 오늘의 소식이에요.', '편지 배달 가는 길~', '바람이 좋네요, 구구.'],
+    chatterEn: ["Coo! Today's news is in.", 'Off to deliver letters~', 'Lovely breeze today. Coo.'],
     dialogue: byRole.postman.lines,
+    dialogueEn: byRole.postman.linesEn ?? byRole.postman.lines,
     unlockAt: 2,
     anchorOffset: { x: 3, y: 1 },
   },
   {
     id: 'otter-shopkeeper',
     name: byRole.shopkeeper.name, // 달수
+    nameEn: byRole.shopkeeper.nameEn ?? byRole.shopkeeper.name,
     title: byRole.shopkeeper.title,
+    titleEn: byRole.shopkeeper.titleEn ?? byRole.shopkeeper.title,
     species: byRole.shopkeeper.species,
+    speciesEn: byRole.shopkeeper.speciesEn ?? byRole.shopkeeper.species,
     skin: {
       body: '#f0b455',
       bodyDark: '#cf9137',
@@ -72,15 +90,20 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
       ear: 'bear',
     },
     chatter: ['신상 소품 들어왔어요~', '톡큰은 곧 소품이죠.', '오늘 장사도 즐겁게!'],
+    chatterEn: ['New decor just arrived~', 'Tokken means decor, you know.', 'Another happy day of business!'],
     dialogue: byRole.shopkeeper.lines,
+    dialogueEn: byRole.shopkeeper.linesEn ?? byRole.shopkeeper.lines,
     unlockAt: 5,
     anchorOffset: { x: -3, y: 2 },
   },
   {
     id: 'fox-gourmet',
     name: byRole.gourmet.name, // 여울
+    nameEn: byRole.gourmet.nameEn ?? byRole.gourmet.name,
     title: byRole.gourmet.title,
+    titleEn: byRole.gourmet.titleEn ?? byRole.gourmet.title,
     species: byRole.gourmet.species,
+    speciesEn: byRole.gourmet.speciesEn ?? byRole.gourmet.species,
     skin: {
       body: '#e87c9b',
       bodyDark: '#c65a79',
@@ -89,15 +112,20 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
       ear: 'cat',
     },
     chatter: ['킁킁… 맛있는 냄새.', '오늘의 핫플, 알려드릴까요?', '맛집은 발로 찾는 거예요.'],
+    chatterEn: ['Sniff sniff… something delicious.', "Want today's hot place?", 'You find good food with your feet.'],
     dialogue: byRole.gourmet.lines,
+    dialogueEn: byRole.gourmet.linesEn ?? byRole.gourmet.lines,
     unlockAt: 8,
     anchorOffset: { x: 2, y: 4 },
   },
   {
     id: 'rabbit-kid',
     name: '도담',
+    nameEn: 'Dodam',
     title: '꼬마 주민',
+    titleEn: 'Little Resident',
     species: '토끼',
+    speciesEn: 'Rabbit',
     skin: {
       body: '#7fd1c0',
       bodyDark: '#59aa9a',
@@ -106,10 +134,16 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
       ear: 'rabbit',
     },
     chatter: ['같이 놀자! 폴짝!', '바닷가에 게 있대!', '나 달리기 진짜 빨라!'],
+    chatterEn: ['Play with me! Hop hop!', 'They say there are crabs on the beach!', 'I am super fast, you know!'],
     dialogue: [
       '안녕! 나는 도담이야. 이 마을이 북적북적해져서 이사 왔어!',
       '마을에 건물이 많아질수록 친구들이 더 온대. 신나지?',
       '너 진짜 대단하다. 이 마을, 네가 다 다녀와서 만든 거라며?',
+    ],
+    dialogueEn: [
+      'Hi! I am Dodam. I moved in because this village got so lively!',
+      'The more buildings, the more friends move in. Exciting, right?',
+      'You are amazing. They say you built this whole village by actually going places!',
     ],
     unlockAt: 12,
     anchorOffset: { x: -2, y: 5 },

@@ -15,6 +15,7 @@ import { WalletScreen } from './components/wallet/WalletScreen';
 import { MapScreen } from './components/map/MapScreen';
 import { useProfileStore } from './store/useProfileStore';
 import { useUiStore } from './store/useUiStore';
+import { LangToggle } from './i18n';
 
 function MainShell() {
   const activeTab = useUiStore((s) => s.activeTab);
@@ -41,7 +42,11 @@ export default function App() {
 
   return (
     <PhoneFrame panel={<DemoPanel />}>
-      {onboarded ? <MainShell /> : <Onboarding />}
+      <div className="relative h-full">
+        {onboarded ? <MainShell /> : <Onboarding />}
+        {/* 전역 한/영 토글 — 상태바 영역(노치 옆), 온보딩부터 노출 */}
+        <LangToggle />
+      </div>
     </PhoneFrame>
   );
 }

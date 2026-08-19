@@ -26,6 +26,8 @@ export interface MyReview {
   certified: boolean;
   ts: number;
   day: number;
+  /** 수정 이력 표시용 */
+  edited?: boolean;
 }
 
 interface VisitState {
@@ -39,6 +41,10 @@ interface VisitState {
 
   recordCheckin: (storeId: number, day: number) => void;
   recordReview: (review: Omit<MyReview, 'id' | 'ts'>) => void;
+  /** 내 리뷰 수정 — 별점·본문만 바꾸고 인증 상태는 작성 당시 그대로 둔다 */
+  updateReview: (id: number, rating: MyReview['rating'], text: string) => void;
+  /** 내 리뷰 삭제 — 방문 이벤트 기록(랭킹·건물 획득 원천)은 유지한다 */
+  deleteReview: (id: number) => void;
   recordSave: (storeId: number, day: number) => void;
 }
 
@@ -80,6 +86,16 @@ export const useVisitStore = create<VisitState>()(
             },
           ],
         })),
+
+      updateReview: (id, rating, text) =>
+        set((s) => ({
+          myReviews: s.myReviews.map((r) =>
+            r.id === id ? { ...r, rating, text, edited: true } : r,
+          ),
+        })),
+
+      deleteReview: (id) =>
+        set((s) => ({ myReviews: s.myReviews.filter((r) => r.id !== id) })),
 
       recordSave: (storeId, day) =>
         set((s) => ({

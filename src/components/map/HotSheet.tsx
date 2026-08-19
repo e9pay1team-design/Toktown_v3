@@ -9,6 +9,7 @@ import { useUiStore } from '../../store/useUiStore';
 import { useVirtualClock, virtualDayIndex } from '../../mock/clock';
 import { CATEGORY_COLORS } from '../../assets/buildings';
 import { CategoryGlyph } from '../../assets/misc';
+import { sName, useT } from '../../i18n';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -17,6 +18,7 @@ export function HotSheet({ onPick }: { onPick: (storeId: number) => void }) {
   const setOpen = useUiStore((s) => s.setHotSheetOpen);
   const events = useVisitStore((s) => s.events);
   const dayOffset = useVirtualClock((s) => s.dayOffset);
+  const T = useT();
 
   const ranking = useMemo(
     () => computeHotRanking(events, dayOffset, virtualDayIndex(dayOffset)),
@@ -29,7 +31,7 @@ export function HotSheet({ onPick }: { onPick: (storeId: number) => void }) {
         onClick={() => setOpen(true)}
         className="absolute bottom-24 left-4 z-[500] flex items-center gap-1.5 rounded-full bg-town-paper px-4 py-2.5 text-[13px] font-extrabold shadow-card border border-town-line"
       >
-        🔥 핫플 랭킹
+        {T('🔥 핫플 랭킹', '🔥 Hot Places')}
         <span className="rounded-full bg-town-coral px-1.5 py-0.5 text-[9.5px] font-extrabold text-white">
           LIVE
         </span>
@@ -42,9 +44,11 @@ export function HotSheet({ onPick }: { onPick: (storeId: number) => void }) {
       <div className="sheet-up pointer-events-auto max-h-[54%] overflow-hidden rounded-[1.6rem] border border-town-line bg-town-paper shadow-sheet">
         <div className="flex items-center justify-between px-5 pb-2 pt-4">
           <div>
-            <h3 className="text-[16px] font-extrabold">🔥 지금 명동 핫플</h3>
+            <h3 className="text-[16px] font-extrabold">
+              {T('🔥 지금 명동 핫플', '🔥 Hot in Myeongdong')}
+            </h3>
             <p className="text-[10.5px] font-bold text-town-inkSoft">
-              최근 7일 방문 데이터 가중합 · 시간 감쇠 반영
+              {T('최근 7일 방문 데이터 가중합 · 시간 감쇠 반영', 'Weighted 7-day visit data with time decay')}
             </p>
           </div>
           <button
@@ -77,15 +81,18 @@ export function HotSheet({ onPick }: { onPick: (storeId: number) => void }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <b className="truncate text-[14px]">{store.name}</b>
+                    <b className="truncate text-[14px]">{sName(store)}</b>
                     {minedToday && (
                       <span className="shrink-0 rounded-full bg-town-sun px-1.5 py-0.5 text-[9px] font-extrabold text-town-bark">
-                        +오늘 내 방문
+                        {T('+오늘 내 방문', '+my visit today')}
                       </span>
                     )}
                   </span>
                   <span className="block text-[11px] font-bold text-town-inkSoft">
-                    리뷰 {counts.reviews} · 체크인 {counts.checkins} · 저장 {counts.saves}
+                    {T(
+                      `리뷰 ${counts.reviews} · 체크인 ${counts.checkins} · 저장 ${counts.saves}`,
+                      `Reviews ${counts.reviews} · Check-ins ${counts.checkins} · Saves ${counts.saves}`,
+                    )}
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-town-coral/10 px-2 py-1 text-[12px] font-extrabold text-town-coralDeep">

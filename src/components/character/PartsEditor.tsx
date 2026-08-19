@@ -5,10 +5,13 @@ import type { CharacterConfig } from '../../types';
 import {
   HAIR_COLORS,
   HAIR_STYLES,
+  HAIR_STYLES_EN,
   OUTFIT_COLORS,
   OUTFITS,
+  OUTFITS_EN,
   SKIN_TONES,
 } from '../../assets/characterParts';
+import { useT } from '../../i18n';
 
 function Swatch({
   colors,
@@ -71,6 +74,7 @@ export function PartsEditor({
   config: CharacterConfig;
   onChange: (c: CharacterConfig) => void;
 }) {
+  const T = useT();
   const [tab, setTab] = useState<'skin' | 'hair' | 'outfit'>('skin');
 
   return (
@@ -78,9 +82,9 @@ export function PartsEditor({
       <div className="grid grid-cols-3 gap-2 rounded-2xl bg-town-cream p-1.5">
         {(
           [
-            ['skin', '피부'],
-            ['hair', '헤어'],
-            ['outfit', '의상'],
+            ['skin', T('피부', 'Skin')],
+            ['hair', T('헤어', 'Hair')],
+            ['outfit', T('의상', 'Outfit')],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -106,7 +110,7 @@ export function PartsEditor({
         {tab === 'hair' && (
           <>
             <Pills
-              items={HAIR_STYLES}
+              items={T<readonly string[]>(HAIR_STYLES, HAIR_STYLES_EN)}
               value={config.hairStyle}
               onPick={(i) => onChange({ ...config, hairStyle: i })}
             />
@@ -120,7 +124,7 @@ export function PartsEditor({
         {tab === 'outfit' && (
           <>
             <Pills
-              items={OUTFITS}
+              items={T<readonly string[]>(OUTFITS, OUTFITS_EN)}
               value={config.outfit}
               onPick={(i) => onChange({ ...config, outfit: i })}
             />

@@ -1,4 +1,4 @@
-// ─── 이동/지갑 관련 SVG: 차량(지하철·버스), Town Key 키링, 발도장 ──
+// ─── 이동/지갑 관련 SVG: 차량(지하철·버스), 톡페이 선불카드, 발도장 ─
 
 /** 지하철 차량 (탑승 연출용) */
 export function SubwaySvg({ width = 220 }: { width?: number }) {
@@ -51,28 +51,37 @@ export function BusSvg({ width = 200 }: { width?: number }) {
   );
 }
 
-/** Town Key — 까치 캐릭터 키링형 교통카드 */
-export function TownKeyringSvg({ size = 84 }: { size?: number }) {
+/** 톡페이 선불카드 — 폰에 갖다 대면 충전되는 실물 NFC 카드 */
+export function TokpayCardSvg({ size = 96 }: { size?: number }) {
   return (
-    <svg width={size} height={size * 1.18} viewBox="0 0 100 118" style={{ display: 'block' }} aria-label="Town Key 키링">
-      {/* 고리 + 스트랩 */}
-      <circle cx={50} cy={12} r={9} fill="none" stroke="#B8862B" strokeWidth={4} />
-      <path d="M46 20 h8 l3 14 h-14 Z" fill="#F2705E" />
-      {/* 까치 얼굴 참 */}
-      <ellipse cx={50} cy={64} rx={34} ry={32} fill="#3B4252" />
-      <ellipse cx={38} cy={58} rx={11} ry={9.5} fill="#FFFDF7" />
-      <ellipse cx={62} cy={58} rx={11} ry={9.5} fill="#FFFDF7" />
-      <circle cx={38} cy={57} r={3.2} fill="#2B2B33" />
-      <circle cx={62} cy={57} r={3.2} fill="#2B2B33" />
-      <circle cx={39.1} cy={55.9} r={1.1} fill="#fff" />
-      <circle cx={63.1} cy={55.9} r={1.1} fill="#fff" />
-      <path d="M45 64 L55 64 L50 71 Z" fill="#F5B942" />
-      <circle cx={31} cy={68} r={4} fill="#FF9D9D" opacity={0.55} />
-      <circle cx={69} cy={68} r={4} fill="#FF9D9D" opacity={0.55} />
-      {/* 교통칩 태그 */}
-      <rect x={30} y={92} width={40} height={20} rx={6} fill="#5EB3CC" />
-      <rect x={35} y={98} width={12} height={8} rx={2} fill="#FFD66B" />
-      <path d="M56 96 a7 7 0 0 1 0 12 M60 94 a10 10 0 0 1 0 16" stroke="#FFF8EC" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+    <svg width={size} height={size * 0.64} viewBox="0 0 120 77" style={{ display: 'block' }} aria-label="톡페이 선불카드">
+      <defs>
+        <clipPath id="tokpay-card-clip">
+          <rect x={2} y={2} width={116} height={73} rx={11} />
+        </clipPath>
+      </defs>
+      {/* 카드 몸체 + 하단 물결 투톤 */}
+      <rect x={2} y={2} width={116} height={73} rx={11} fill="#5EB3CC" />
+      <path d="M2 48 Q34 34 62 44 T118 40 L118 77 L2 77 Z" fill="#4EA3BD" clipPath="url(#tokpay-card-clip)" />
+      <rect x={2} y={2} width={116} height={73} rx={11} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth={1.5} />
+      {/* 까치 엠블럼 + 워드마크 */}
+      <circle cx={22} cy={17} r={9.5} fill="#3B4252" />
+      <circle cx={18.4} cy={15.5} r={3} fill="#FFFDF7" />
+      <circle cx={25.6} cy={15.5} r={3} fill="#FFFDF7" />
+      <circle cx={18.4} cy={15.5} r={1.1} fill="#2B2B33" />
+      <circle cx={25.6} cy={15.5} r={1.1} fill="#2B2B33" />
+      <path d="M19.5 20.5 L24.5 20.5 L22 24 Z" fill="#F5B942" />
+      <text x={37} y={21.5} fontSize={12.5} fontWeight={800} fill="#FFFDF7" fontFamily="system-ui, sans-serif">
+        TokPay
+      </text>
+      {/* IC 칩 */}
+      <rect x={13} y={33} width={19} height={14.5} rx={3.5} fill="#FFD66B" />
+      <path d="M13 40.2 h19 M22.5 33 v14.5" stroke="#D9A93F" strokeWidth={1.3} />
+      {/* NFC 태그 물결 */}
+      <path d="M97 31 a9 9 0 0 1 0 16 M103 26 a15 15 0 0 1 0 26" stroke="#FFF8EC" strokeWidth={2.6} fill="none" strokeLinecap="round" />
+      <text x={13} y={66} fontSize={8.5} fontWeight={700} fill="#EAF7FB" fontFamily="system-ui, sans-serif">
+        선불카드 · 폰 태그 충전
+      </text>
     </svg>
   );
 }

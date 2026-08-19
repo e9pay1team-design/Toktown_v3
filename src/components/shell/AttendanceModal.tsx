@@ -8,8 +8,10 @@ import { useEconomyStore } from '../../store/useEconomyStore';
 import { useToastStore } from '../../store/useToastStore';
 import { PawStamp } from '../../assets/journey';
 import { TOKKEN_ECONOMY } from '../../data/seed';
+import { tr, useT } from '../../i18n';
 
 export function AttendanceModal() {
+  const T = useT();
   const dayOffset = useVirtualClock((s) => s.dayOffset);
   const lastAttendDay = useEconomyStore((s) => s.lastAttendDay);
   const attendStreak = useEconomyStore((s) => s.attendStreak);
@@ -32,7 +34,10 @@ export function AttendanceModal() {
     setTimeout(() => {
       const result = attend(today);
       if (result) {
-        toast(`${result.streak}일 연속 출석! 톡큰 +${result.amount}`, 'tokken');
+        toast(
+          tr(`${result.streak}일 연속 출석! 톡큰 +${result.amount}`, `${result.streak}-day streak! +${result.amount} Tokken`),
+          'tokken',
+        );
       }
       setStamping(false);
     }, 750);
@@ -42,7 +47,7 @@ export function AttendanceModal() {
     <div className="absolute inset-0 z-[850] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
       <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-6 text-center shadow-sheet">
         <p className="text-[12px] font-extrabold tracking-wide text-town-leafDark">DAILY STAMP</p>
-        <h3 className="mt-1 text-[20px] font-extrabold">오늘의 출석 체크</h3>
+        <h3 className="mt-1 text-[20px] font-extrabold">{T('오늘의 출석 체크', "Today's Attendance")}</h3>
         <p className="mt-1 text-[12px] font-bold text-town-inkSoft">{virtualToday(dayOffset)}</p>
 
         {/* 7칸 도장판 */}
@@ -75,10 +80,11 @@ export function AttendanceModal() {
         <p className="mt-3 text-[12.5px] leading-relaxed text-town-inkSoft">
           {nextStreak > 1 ? (
             <>
-              <b className="text-town-coralDeep">{nextStreak}일 연속</b> 출석 도전 중!
+              <b className="text-town-coralDeep">{T(`${nextStreak}일 연속`, `${nextStreak}-day streak`)}</b>{' '}
+              {T('출석 도전 중!', 'in progress!')}
             </>
           ) : (
-            '오늘도 톡타운에 온 걸 환영해요!'
+            T('오늘도 톡타운에 온 걸 환영해요!', 'Welcome back to TokTown!')
           )}
         </p>
 
@@ -87,13 +93,15 @@ export function AttendanceModal() {
           disabled={stamping}
           className="mt-4 w-full rounded-2xl bg-town-coral py-3.5 text-[15px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none disabled:opacity-70"
         >
-          {stamping ? '쾅...!' : `출석 도장 찍기 (+${TOKKEN_ECONOMY.attendance} 톡큰)`}
+          {stamping
+            ? T('쾅...!', 'Stamp...!')
+            : T(`출석 도장 찍기 (+${TOKKEN_ECONOMY.attendance} 톡큰)`, `Stamp attendance (+${TOKKEN_ECONOMY.attendance} Tokken)`)}
         </button>
         <button
           onClick={() => setDismissedDay(today)}
           className="mt-2 w-full py-1.5 text-[12px] font-bold text-town-inkSoft/70"
         >
-          오늘은 넘어가기
+          {T('오늘은 넘어가기', 'Skip today')}
         </button>
       </div>
     </div>

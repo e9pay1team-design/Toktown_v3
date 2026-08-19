@@ -24,6 +24,16 @@ export const TOKKEN_REASON_LABEL: Record<TokkenReason, string> = {
   rideTag: '승차 태그',
 };
 
+export const TOKKEN_REASON_LABEL_EN: Record<TokkenReason, string> = {
+  payment: 'TokPay payment',
+  certifiedReview: 'Verified review',
+  review: 'Review',
+  checkin: 'Check-in (paw stamp)',
+  attendance: 'Daily attendance',
+  npcEncounter: 'NPC encounter',
+  rideTag: 'Ride tag',
+};
+
 export const TOKKEN_REASON_EMOJI: Record<TokkenReason, string> = {
   payment: '💳',
   certifiedReview: '📝',

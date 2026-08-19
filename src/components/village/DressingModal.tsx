@@ -5,8 +5,10 @@ import { useProfileStore } from '../../store/useProfileStore';
 import { useToastStore } from '../../store/useToastStore';
 import { CharacterSvg } from '../../assets/CharacterSvg';
 import { PartsEditor } from '../character/PartsEditor';
+import { tr, useT } from '../../i18n';
 
 export function DressingModal({ onClose }: { onClose: () => void }) {
+  const T = useT();
   const profile = useProfileStore((s) => s.profile);
   const updateCharacter = useProfileStore((s) => s.updateCharacter);
   const toast = useToastStore((s) => s.show);
@@ -18,17 +20,17 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
       <div className="sheet-up mx-2 mb-1 flex max-h-[82%] flex-col overflow-hidden rounded-[1.6rem] bg-town-paper shadow-sheet">
         <div className="flex items-center justify-between border-b border-town-line px-5 pb-3 pt-4">
           <div>
-            <h3 className="text-[16px] font-extrabold">캐릭터 꾸미기</h3>
-            <p className="text-[11px] font-bold text-town-inkSoft">변경 사항은 즉시 적용돼요</p>
+            <h3 className="text-[16px] font-extrabold">{T('캐릭터 꾸미기', 'Style Your Character')}</h3>
+            <p className="text-[11px] font-bold text-town-inkSoft">{T('변경 사항은 즉시 적용돼요', 'Changes apply instantly')}</p>
           </div>
           <button
             onClick={() => {
-              toast('새 스타일이 적용됐어요! ✨', 'success');
+              toast(tr('새 스타일이 적용됐어요! ✨', 'New style applied! ✨'), 'success');
               onClose();
             }}
             className="rounded-xl bg-town-leafDark px-3.5 py-2 text-[12.5px] font-extrabold text-white shadow-pop transition active:translate-y-[1px] active:shadow-none"
           >
-            완료
+            {T('완료', 'Done')}
           </button>
         </div>
 

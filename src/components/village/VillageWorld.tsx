@@ -19,6 +19,7 @@ import { SKIN_TONES, HAIR_COLORS, OUTFIT_COLORS, shade } from '../../assets/char
 import { useVillageStore, footprintOf, type Placement, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useProfileStore } from '../../store/useProfileStore';
+import { decorName, lmName, sName, tr, useLang } from '../../i18n';
 
 /** 모듈 수준 월드 — 시드 고정이라 세션 내 항상 동일 */
 const WORLD = buildVillageWorld();
@@ -52,9 +53,10 @@ export function trayMetaFor(kind: PlacementKind, refId: string, label: string): 
       label,
       emoji: store ? CATEGORY_EMOJI[store.category] : '🏪',
       skin: store ? CATEGORY_SKINS[store.category] : undefined,
+      facing: 'sw',
     };
   }
-  if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId };
+  if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId, facing: 'sw' };
   if (kind === 'npc')
     return { kind, refId, w, h, label, npcSkin: magpieSkin(refId === DRUMMER_MAGPIE.id) };
   return { kind, refId, w, h, label, decorType: refId === 'tree' ? 'maple' : refId };
@@ -73,9 +75,10 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         by: p.by,
         w: p.w,
         h: p.h,
-        label: store.name,
+        label: sName(store),
         emoji: CATEGORY_EMOJI[store.category],
         skin: CATEGORY_SKINS[store.category],
+        facing: p.facing,
         blocking: true,
       });
     } else if (p.kind === 'landmark') {
@@ -87,8 +90,9 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         by: p.by,
         w: p.w,
         h: p.h,
-        label: lm?.name ?? p.refId,
+        label: lm ? lmName(lm) : p.refId,
         lmId: p.refId,
+        facing: p.facing,
         blocking: true,
       });
     } else if (p.kind === 'decor') {
@@ -100,10 +104,11 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         by: p.by,
         w: p.w,
         h: p.h,
-        label: item?.name ?? p.refId,
+        label: item ? decorName(item) : p.refId,
         // 상점의 '단풍나무'는 숲 나무와 다른 단풍 팔레트로 그린다.
         decorType: p.refId === 'tree' ? 'maple' : p.refId,
-        blocking: p.refId !== 'flower',
+        // 1×1 소품은 히트박스 없음 — 캐릭터/주민이 끼지 않는다.
+        blocking: false,
       });
     } else if (p.kind === 'npc') {
       const drummer = p.refId === DRUMMER_MAGPIE.id;
@@ -116,7 +121,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         by: p.by,
         w: p.w,
         h: p.h,
-        label: src.name,
+        label: tr(src.name, src.nameEn ?? src.name),
         npcSkin: magpieSkin(drummer),
         blocking: false,
       });
@@ -126,17 +131,18 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
 }
 
 function villagersFromState(placements: Placement[], dexCount: number, lmCount: number): VillagerDef[] {
-  const richness = villageRichness(placements.length, dexCount, lmCount);
+  // 기본 광장 구성물(preset)은 풍성도에 세지 않는다 — VillageScreen 과 같은 규칙.
+  const richness = villageRichness(placements.filter((p) => !p.preset).length, dexCount, lmCount);
   const defs: VillagerDef[] = residentNpcs(richness).map((n) => ({
     id: n.id,
-    name: n.name,
+    name: tr(n.name, n.nameEn),
     skin: n.skin,
     anchor: {
       x: WORLD.plaza.tx + 0.5 + n.anchorOffset.x,
       y: WORLD.plaza.ty + 0.5 + n.anchorOffset.y,
     },
     radius: 3.2,
-    chatter: n.chatter,
+    chatter: tr(n.chatter, n.chatterEn),
   }));
   // 배치된 특수 NPC(까미 계열) — 배치 지점 주변을 배회.
   for (const p of placements) {
@@ -145,11 +151,11 @@ function villagersFromState(placements: Placement[], dexCount: number, lmCount: 
     const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
     defs.push({
       id: `placed-${p.id}`,
-      name: src.name,
+      name: tr(src.name, src.nameEn ?? src.name),
       skin: magpieSkin(drummer),
       anchor: { x: p.bx + 0.5, y: p.by + 0.5 },
       radius: 2.6,
-      chatter: src.lines,
+      chatter: tr(src.lines, src.linesEn ?? src.lines),
     });
   }
   return defs;
@@ -158,9 +164,16 @@ function villagersFromState(placements: Placement[], dexCount: number, lmCount: 
 interface VillageWorldProps {
   editMode: boolean;
   onInteract: (target: VInteractTarget | null) => void;
-  onEditCommit: (e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }) => void;
+  onEditCommit: (e: {
+    placementId: number | null;
+    kind: string;
+    refId: string;
+    bx: number;
+    by: number;
+    facing?: 'sw' | 'se';
+  }) => void;
   onEditReturn: (e: { placementId: number | null }) => void;
-  onEditSelection: (sel: { label: string; isNew: boolean } | null) => void;
+  onEditSelection: (sel: { label: string; isNew: boolean; canRotate: boolean } | null) => void;
   /** 부모가 spawnFromTray 등을 호출할 수 있게 게임 인스턴스를 넘긴다 */
   onGame: (game: VillageGame | null) => void;
 }
@@ -180,6 +193,7 @@ export function VillageWorldCanvas({
   const dex = useCollectionStore((s) => s.dex);
   const landmarks = useCollectionStore((s) => s.landmarks);
   const profile = useProfileStore((s) => s.profile);
+  const lang = useLang();
 
   const hooksRef = useRef({ onInteract, onEditCommit, onEditReturn, onEditSelection });
   hooksRef.current = { onInteract, onEditCommit, onEditReturn, onEditSelection };
@@ -214,11 +228,13 @@ export function VillageWorldCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 데이터 동기화.
-  const things = useMemo(() => thingsFromPlacements(placements), [placements]);
+  // 데이터 동기화 — 언어 변경 시 캔버스 라벨·말풍선도 갱신.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const things = useMemo(() => thingsFromPlacements(placements), [placements, lang]);
   const villagers = useMemo(
     () => villagersFromState(placements, dex.length, landmarks.length),
-    [placements, dex.length, landmarks.length],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [placements, dex.length, landmarks.length, lang],
   );
 
   useEffect(() => {

@@ -8,10 +8,18 @@ import { useCollectionStore } from '../../store/useCollectionStore';
 import { useEconomyStore } from '../../store/useEconomyStore';
 import { CharacterSvg } from '../../assets/CharacterSvg';
 import { ResidentStamp, TokkenCoin, TownLogoMark } from '../../assets/misc';
+import { useT } from '../../i18n';
 
-const REGIONS = ['명동', '홍대', '성수', '부산', '제주'];
+const REGIONS = [
+  { ko: '명동', en: 'Myeongdong' },
+  { ko: '홍대', en: 'Hongdae' },
+  { ko: '성수', en: 'Seongsu' },
+  { ko: '부산', en: 'Busan' },
+  { ko: '제주', en: 'Jeju' },
+];
 
 export function ResidentCardModal({ onClose }: { onClose: () => void }) {
+  const T = useT();
   const profile = useProfileStore((s) => s.profile);
   const events = useVisitStore((s) => s.events);
   const dex = useCollectionStore((s) => s.dex);
@@ -43,7 +51,9 @@ export function ResidentCardModal({ onClose }: { onClose: () => void }) {
           <div className="flex items-center justify-between border-b-2 border-dashed border-town-line pb-3">
             <div className="flex items-center gap-2">
               <TownLogoMark size={30} />
-              <span className="text-[14px] font-extrabold tracking-wide">톡타운 주민증</span>
+              <span className="text-[14px] font-extrabold tracking-wide">
+                {T('톡타운 주민증', 'TokTown Resident Card')}
+              </span>
             </div>
             <button
               onClick={onClose}
@@ -61,10 +71,10 @@ export function ResidentCardModal({ onClose }: { onClose: () => void }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[20px] font-extrabold leading-tight">{profile.nickname}</p>
               <p className="mt-0.5 text-[11.5px] font-bold text-town-inkSoft">
-                명동 도보권 주민 · {residentNo}
+                {T('명동 도보권 주민', 'Myeongdong Resident')} · {residentNo}
               </p>
               <p className="mt-1.5 text-[11px] text-town-inkSoft">
-                <b className="text-town-ink">주민 등록일</b> {profile.residentSince}
+                <b className="text-town-ink">{T('주민 등록일', 'Registered')}</b> {profile.residentSince}
               </p>
             </div>
           </div>
@@ -73,28 +83,30 @@ export function ResidentCardModal({ onClose }: { onClose: () => void }) {
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-town-cream px-1 py-2.5">
               <p className="text-[16px] font-extrabold leading-none">{visitedStoreCount}</p>
-              <p className="mt-1 text-[9.5px] font-bold text-town-inkSoft">인증 방문 매장</p>
+              <p className="mt-1 text-[9.5px] font-bold text-town-inkSoft">{T('인증 방문 매장', 'Verified visits')}</p>
             </div>
             <div className="rounded-xl bg-town-cream px-1 py-2.5">
               <p className="text-[16px] font-extrabold leading-none">{dex.length}</p>
-              <p className="mt-1 text-[9.5px] font-bold text-town-inkSoft">도감 등록</p>
+              <p className="mt-1 text-[9.5px] font-bold text-town-inkSoft">{T('도감 등록', 'Dex entries')}</p>
             </div>
             <div className="rounded-xl bg-town-cream px-1 py-2.5">
               <p className="flex items-center justify-center gap-1 text-[16px] font-extrabold leading-none">
                 <TokkenCoin size={14} /> {tokken}
               </p>
-              <p className="mt-1 text-[9.5px] font-bold text-town-inkSoft">보유 톡큰</p>
+              <p className="mt-1 text-[9.5px] font-bold text-town-inkSoft">{T('보유 톡큰', 'Tokken held')}</p>
             </div>
           </div>
 
           {/* 방문 지역 뱃지 */}
-          <p className="mb-1.5 mt-4 text-[11px] font-extrabold text-town-inkSoft">방문 지역 뱃지</p>
+          <p className="mb-1.5 mt-4 text-[11px] font-extrabold text-town-inkSoft">
+            {T('방문 지역 뱃지', 'Region badges')}
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {REGIONS.map((r) => {
-              const active = r === '명동' && myeongdongActive;
+              const active = r.ko === '명동' && myeongdongActive;
               return (
                 <span
-                  key={r}
+                  key={r.ko}
                   className={`rounded-full px-2.5 py-1 text-[10.5px] font-extrabold ${
                     active
                       ? 'bg-town-leafDark text-white shadow-pop'
@@ -102,7 +114,7 @@ export function ResidentCardModal({ onClose }: { onClose: () => void }) {
                   }`}
                 >
                   {active ? '🏅 ' : ''}
-                  {r}
+                  {T(r.ko, r.en)}
                 </span>
               );
             })}

@@ -3,6 +3,7 @@
 // 에서 닫기. 진행 중 탭하면 그 줄을 즉시 완성한다.
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '../../i18n';
 
 interface DialogueOverlayProps {
   name: string;
@@ -14,6 +15,7 @@ interface DialogueOverlayProps {
 }
 
 export function DialogueOverlay({ name, title, accent = '#7BA55C', lines, onClose }: DialogueOverlayProps) {
+  const T = useT();
   const [step, setStep] = useState(0);
   const [shown, setShown] = useState(0);
   const timer = useRef<number | null>(null);
@@ -49,7 +51,7 @@ export function DialogueOverlay({ name, title, accent = '#7BA55C', lines, onClos
   return (
     <div className="absolute inset-x-3 bottom-36 z-30 fade-in" role="dialog" aria-label={`${name} 대화`}>
       <button onClick={advance} className="block w-full text-left">
-        <div className="relative rounded-[1.4rem] border-[3px] bg-town-paper/97 p-4 pb-3.5 shadow-card" style={{ borderColor: accent }}>
+        <div className="relative rounded-[1.4rem] border-[3px] bg-town-paper p-4 pb-3.5 shadow-card" style={{ borderColor: accent }}>
           {/* 이름표 */}
           <span
             className="absolute -top-3.5 left-4 rounded-full px-3 py-1 text-[12px] font-extrabold text-white shadow-sm"
@@ -67,7 +69,7 @@ export function DialogueOverlay({ name, title, accent = '#7BA55C', lines, onClos
               {step + 1} / {lines.length}
             </span>
             <span className="bob text-[12px] font-extrabold" style={{ color: accent }}>
-              {done ? (last ? '닫기 ✕' : '다음 ▾') : '…'}
+              {done ? (last ? T('닫기 ✕', 'Close ✕') : T('다음 ▾', 'Next ▾')) : '…'}
             </span>
           </div>
         </div>

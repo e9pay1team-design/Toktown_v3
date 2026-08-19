@@ -13,8 +13,10 @@ export const HAIR_COLORS = [
 ];
 
 export const HAIR_STYLES = ['단발', '숏컷', '긴머리', '번헤어'] as const;
+export const HAIR_STYLES_EN = ['Bob', 'Short', 'Long', 'Bun'] as const;
 
 export const OUTFITS = ['티셔츠', '후드', '멜빵바지'] as const;
+export const OUTFITS_EN = ['T-shirt', 'Hoodie', 'Overalls'] as const;
 
 export const OUTFIT_COLORS = [
   '#FF8B7B', // 코랄

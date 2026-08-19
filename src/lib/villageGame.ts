@@ -29,10 +29,13 @@ import {
   drawVGull,
   drawVPlacementCursor,
   drawTemplateBuilding,
+  drawVBuildingLabel,
   drawVLandmark,
+  drawVLandmarkLabel,
   drawVNameplate,
   vTilePath,
   VPALETTE,
+  type VBuildingFacing,
   type VCharSkin,
   type VFacing,
   type VBuildingSkin,
@@ -50,6 +53,8 @@ export interface PlacedThing {
   /** store 전용 */
   emoji?: string;
   skin?: VBuildingSkin;
+  /** store 전용 — 건물 방향 (기본 sw) */
+  facing?: VBuildingFacing;
   /** landmark 전용 */
   lmId?: string;
   /** decor 전용 — villageDraw prop type */
@@ -82,6 +87,7 @@ export interface EditMeta {
   label: string;
   emoji?: string;
   skin?: VBuildingSkin;
+  facing?: VBuildingFacing;
   lmId?: string;
   decorType?: string;
   npcSkin?: VCharSkin;
@@ -98,11 +104,18 @@ interface EditObject extends EditMeta {
 export interface VillageHooks {
   onInteractChange(target: VInteractTarget | null): void;
   /** ✓ — 배치 확정 (placementId null 이면 신규 place, 아니면 move) */
-  onEditCommit(e: { placementId: number | null; kind: string; refId: string; bx: number; by: number }): void;
+  onEditCommit(e: {
+    placementId: number | null;
+    kind: string;
+    refId: string;
+    bx: number;
+    by: number;
+    facing?: VBuildingFacing;
+  }): void;
   /** ✕ — 보관함 반환 (placementId null 이면 그냥 취소) */
   onEditReturn(e: { placementId: number | null }): void;
   /** 편집 선택 상태 변화 (React 힌트 문구용) */
-  onEditSelection(sel: { label: string; isNew: boolean } | null): void;
+  onEditSelection(sel: { label: string; isNew: boolean; canRotate: boolean } | null): void;
 }
 
 interface VillagerRuntime {
@@ -114,6 +127,8 @@ interface VillagerRuntime {
   moving: boolean;
   restUntil: number;
   target: { x: number; y: number } | null;
+  /** 목표로 못 가고 제자리걸음한 누적 시간 — 길막힘 감지용 */
+  stuck: number;
   chatterIdx: number;
   chatterUntil: number;
 }
@@ -126,6 +141,10 @@ interface Butterfly {
   flap: number;
   color: string;
 }
+
+/** 바닥에 깔리는 소품 — 지형 패스 직후에 그리고 깊이 정렬에서 제외.
+    바닥 타일 위에는 1×1 소품·NPC 를 겹쳐 올릴 수 있다(건물·랜드마크 제외). */
+export const GROUND_DECOR = new Set(['plaza-tile']);
 
 const PLAYER_SPEED = 3.6;
 const NPC_SPEED = 1.4;
@@ -163,6 +182,8 @@ export class VillageGame {
   private lastTarget: VInteractTarget | null = null;
   private playerSkin: VCharSkin;
 
+  /** 렌더 줌 — 평소엔 상수, 전경 스냅샷 때만 일시적으로 바뀐다 */
+  private zoom = ZOOM;
   private editMode = false;
   private edit: EditObject | null = null;
   private editDragging = false;
@@ -280,6 +301,7 @@ export class VillageGame {
         moving: false,
         restUntil: 1 + Math.random() * 3,
         target: null,
+        stuck: 0,
         chatterIdx: Math.floor(Math.random() * def.chatter.length),
         chatterUntil: 0,
       };
@@ -309,21 +331,29 @@ export class VillageGame {
     return this.editMode;
   }
 
-  /** 보관함에서 아이템을 꺼내 화면 중앙 근처 유효 타일에 스폰 */
-  spawnFromTray(meta: EditMeta): void {
+  /** 편집 선택 해제 — 전체 회수 등 외부에서 배치 상태가 바뀔 때 호출 */
+  cancelEdit(): void {
+    if (!this.edit) return;
+    this.edit = null;
+    this.editDragging = false;
+    this.editPointer = null;
+    this.hooks.onEditSelection(null);
+  }
+
+  /** 보관함에서 아이템을 꺼내 유효 타일에 스폰 — near 를 주면 그 주변(연속 배치), 없으면 화면 중앙 */
+  spawnFromTray(meta: EditMeta, near?: { bx: number; by: number }): void {
     if (!this.editMode) return;
     const center = toWorld(this.cam.sx, this.cam.sy);
-    let bx = Math.round(center.x - meta.w / 2);
-    let by = Math.round(center.y - meta.h / 2);
+    let bx = near ? near.bx : Math.round(center.x - meta.w / 2);
+    let by = near ? near.by : Math.round(center.y - meta.h / 2);
     bx = Math.max(0, Math.min(VW - meta.w, bx));
     by = Math.max(0, Math.min(VH - meta.h, by));
     // 가까운 유효 자리 나선 탐색.
-    const occ = this.occupiedForEdit(null);
     outer: for (let r = 0; r < 8; r++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          if (canPlaceFootprint(this.world, occ, bx + dx, by + dy, meta.w, meta.h)) {
+          if (this.canPlaceEdit(meta, null, bx + dx, by + dy, meta.w, meta.h)) {
             bx += dx;
             by += dy;
             break outer;
@@ -336,10 +366,14 @@ export class VillageGame {
       placementId: null,
       bx,
       by,
-      ok: canPlaceFootprint(this.world, occ, bx, by, meta.w, meta.h),
+      ok: this.canPlaceEdit(meta, null, bx, by, meta.w, meta.h),
     };
     this.editDragging = false;
-    this.hooks.onEditSelection({ label: meta.label, isNew: true });
+    this.hooks.onEditSelection({
+      label: meta.label,
+      isNew: true,
+      canRotate: meta.kind === 'store' || meta.kind === 'landmark',
+    });
     // 스폰 지점으로 카메라 살짝 이동.
     const s = toScreen(bx + meta.w / 2, by + meta.h / 2);
     this.cam.sx = s.sx;
@@ -350,27 +384,105 @@ export class VillageGame {
     return { tx: Math.floor(this.player.x), ty: Math.floor(this.player.y) };
   }
 
+  /** 마을 전경 스냅샷 — 월드 전체가 한 화면에 담기도록 멀리서 찍은
+      기념 사진(PNG dataURL). 현재 시간대(낮/밤)·주민·나비까지 그대로 담는다. */
+  captureSnapshot(width = 1200, height = 800): string {
+    const corners = [toScreen(0, 0), toScreen(VW, 0), toScreen(VW, VH), toScreen(0, VH)];
+    const xs = corners.map((c) => c.sx);
+    const ys = corners.map((c) => c.sy);
+    const padTop = 170; // 숲 나무·건물 높이 여유
+    const padBottom = 70; // 파도 거품 여유
+    const padX = 70;
+    const spanX = Math.max(...xs) - Math.min(...xs) + padX * 2;
+    const spanY = Math.max(...ys) - Math.min(...ys) + padTop + padBottom;
+
+    const off = document.createElement('canvas');
+    off.width = width;
+    off.height = height;
+    const octx = off.getContext('2d');
+    if (!octx) return '';
+
+    const saved = {
+      ctx: this.ctx,
+      vw: this.vw,
+      vh: this.vh,
+      anchorX: this.anchorX,
+      anchorY: this.anchorY,
+      camX: this.cam.sx,
+      camY: this.cam.sy,
+      zoom: this.zoom,
+      dpr: this.dpr,
+      stickView: this.stickView,
+    };
+    try {
+      this.ctx = octx;
+      this.vw = width;
+      this.vh = height;
+      this.anchorX = width / 2;
+      this.anchorY = height / 2;
+      this.zoom = Math.min(width / spanX, height / spanY);
+      // 위 패딩(오브젝트 높이)까지 포함한 콘텐츠 중심을 화면 중앙에.
+      this.cam.sx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      this.cam.sy = (Math.min(...ys) + Math.max(...ys)) / 2 + (padBottom - padTop) / 2;
+      this.dpr = 1;
+      this.stickView = null;
+      this.render();
+      return off.toDataURL('image/png');
+    } finally {
+      this.ctx = saved.ctx;
+      this.vw = saved.vw;
+      this.vh = saved.vh;
+      this.anchorX = saved.anchorX;
+      this.anchorY = saved.anchorY;
+      this.cam.sx = saved.camX;
+      this.cam.sy = saved.camY;
+      this.zoom = saved.zoom;
+      this.dpr = saved.dpr;
+      this.stickView = saved.stickView;
+    }
+  }
+
   /** e2e 검증용 — 편집 상태·✓/✕ 버튼·타일의 캔버스 CSS 좌표 */
   getEditDebug(): {
     editMode: boolean;
-    edit: { bx: number; by: number; ok: boolean; placementId: number | null } | null;
-    buttons: { check: { x: number; y: number }; cancel: { x: number; y: number } } | null;
+    edit: {
+      bx: number;
+      by: number;
+      ok: boolean;
+      placementId: number | null;
+      facing?: VBuildingFacing;
+    } | null;
+    buttons: {
+      check: { x: number; y: number };
+      cancel: { x: number; y: number };
+      rotate: { x: number; y: number } | null;
+    } | null;
     cam: { sx: number; sy: number };
     tileToCss: (tx: number, ty: number) => { x: number; y: number };
   } {
     const toCss = (s: { x: number; y: number }) => ({
-      x: (s.x - this.cam.sx) * ZOOM + this.anchorX,
-      y: (s.y - this.cam.sy) * ZOOM + this.anchorY,
+      x: (s.x - this.cam.sx) * this.zoom + this.anchorX,
+      y: (s.y - this.cam.sy) * this.zoom + this.anchorY,
     });
     const rects = this.editButtonCenters();
     return {
       editMode: this.editMode,
       edit: this.edit
-        ? { bx: this.edit.bx, by: this.edit.by, ok: this.edit.ok, placementId: this.edit.placementId }
+        ? {
+            bx: this.edit.bx,
+            by: this.edit.by,
+            ok: this.edit.ok,
+            placementId: this.edit.placementId,
+            facing: this.edit.facing,
+          }
         : null,
       buttons:
         rects && !this.editDragging
-          ? { check: toCss(rects.check), cancel: toCss(rects.cancel) }
+          ? {
+              check: toCss(rects.check),
+              cancel: toCss(rects.cancel),
+              rotate: rects.rotate ? toCss(rects.rotate) : null,
+            }
           : null,
       cam: { sx: this.cam.sx, sy: this.cam.sy },
       tileToCss: (tx: number, ty: number) => {
@@ -411,19 +523,56 @@ export class VillageGame {
     return { tx, ty };
   }
 
-  /** 편집 검증용 점유 집합 — 편집 중인 자신(excludeId)의 발자국은 뺀다 */
-  private occupiedForEdit(excludeId: number | null): Set<number> {
-    const occ = new Set<number>();
+  /** 편집 검증용 점유 집합 — 편집 중인 자신(excludeId)의 발자국은 뺀다.
+      ground: 바닥 타일 / obj: 그 외 전부(문 앞 판정 겸용) / big: 건물·랜드마크 */
+  private occupiedForEdit(excludeId: number | null): {
+    ground: Set<number>;
+    obj: Set<number>;
+    big: Set<number>;
+  } {
+    const ground = new Set<number>();
+    const obj = new Set<number>();
+    const big = new Set<number>();
     for (const t of this.things) {
       if (excludeId !== null && t.id === excludeId) continue;
-      // 비블로킹 소품(꽃밭)·NPC 자리도 편집 중 겹침은 막는다 — 시각적 겹침 방지.
+      const isGround = t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '');
+      const isBig = t.kind === 'store' || t.kind === 'landmark';
       for (let ty = t.by; ty < t.by + t.h; ty++) {
         for (let tx = t.bx; tx < t.bx + t.w; tx++) {
-          if (vinBounds(tx, ty)) occ.add(vidx(tx, ty));
+          if (!vinBounds(tx, ty)) continue;
+          const i = vidx(tx, ty);
+          if (isGround) ground.add(i);
+          else {
+            obj.add(i);
+            if (isBig) big.add(i);
+          }
         }
       }
     }
-    return occ;
+    return { ground, obj, big };
+  }
+
+  /** canPlaceFootprint 호출 한 벌 — 겹침 규칙:
+      바닥 타일과 1×1 소품·NPC 는 같은 칸에 겹칠 수 있다(타일 위에 소품).
+      바닥 타일끼리, 그리고 건물·랜드마크가 낀 조합은 겹칠 수 없다. */
+  private canPlaceEdit(
+    e: { kind: string; decorType?: string; facing?: VBuildingFacing },
+    excludeId: number | null,
+    bx: number,
+    by: number,
+    w: number,
+    h: number,
+  ): boolean {
+    const { ground, obj, big } = this.occupiedForEdit(excludeId);
+    const isGround = e.kind === 'decor' && GROUND_DECOR.has(e.decorType ?? '');
+    const isBig = e.kind === 'store' || e.kind === 'landmark';
+    const blocked = new Set(isGround ? ground : obj);
+    if (isGround) for (const i of big) blocked.add(i);
+    if (isBig) for (const i of ground) blocked.add(i);
+    return canPlaceFootprint(this.world, blocked, bx, by, w, h, {
+      doorFacing: e.facing,
+      doorOccupied: obj,
+    });
   }
 
   // ------------------------------------------------------------ input
@@ -452,8 +601,8 @@ export class VillageGame {
     const x = cx - rect.left;
     const y = cy - rect.top;
     return {
-      sx: (x - this.anchorX) / ZOOM + this.cam.sx,
-      sy: (y - this.anchorY) / ZOOM + this.cam.sy,
+      sx: (x - this.anchorX) / this.zoom + this.cam.sx,
+      sy: (y - this.anchorY) / this.zoom + this.cam.sy,
     };
   }
 
@@ -532,13 +681,17 @@ export class VillageGame {
     if (this.editPointer) return;
     const ws = this.clientToWorldScreen(e.clientX, e.clientY);
 
-    // 1) ✓ / ✕ 버튼.
+    // 1) ✓ / ↻ / ✕ 버튼.
     if (this.edit && !this.editDragging) {
       const btn = this.editButtonCenters();
       if (btn) {
-        const rr = EDIT_BTN_R / ZOOM + 4;
+        const rr = EDIT_BTN_R / this.zoom + 4;
         if (Math.hypot(ws.sx - btn.check.x, ws.sy - btn.check.y) < rr) {
           this.commitEdit();
+          return;
+        }
+        if (btn.rotate && Math.hypot(ws.sx - btn.rotate.x, ws.sy - btn.rotate.y) < rr) {
+          this.rotateEdit();
           return;
         }
         if (Math.hypot(ws.sx - btn.cancel.x, ws.sy - btn.cancel.y) < rr) {
@@ -571,6 +724,7 @@ export class VillageGame {
         label: hit.label,
         emoji: hit.emoji,
         skin: hit.skin,
+        facing: hit.facing,
         lmId: hit.lmId,
         decorType: hit.decorType,
         npcSkin: hit.npcSkin,
@@ -578,7 +732,11 @@ export class VillageGame {
         by: hit.by,
         ok: true,
       };
-      this.hooks.onEditSelection({ label: hit.label, isNew: false });
+      this.hooks.onEditSelection({
+        label: hit.label,
+        isNew: false,
+        canRotate: hit.kind === 'store' || hit.kind === 'landmark',
+      });
       this.editPointer = { id: e.pointerId, mode: 'drag', lastX: e.clientX, lastY: e.clientY, moved: false };
       return;
     }
@@ -613,14 +771,7 @@ export class VillageGame {
       by = Math.max(0, Math.min(VH - this.edit.h, by));
       this.edit.bx = bx;
       this.edit.by = by;
-      this.edit.ok = canPlaceFootprint(
-        this.world,
-        this.occupiedForEdit(this.edit.placementId),
-        bx,
-        by,
-        this.edit.w,
-        this.edit.h,
-      );
+      this.edit.ok = this.canPlaceEdit(this.edit, this.edit.placementId, bx, by, this.edit.w, this.edit.h);
     }
     p.lastX = e.clientX;
     p.lastY = e.clientY;
@@ -636,24 +787,45 @@ export class VillageGame {
     }
   }
 
-  private editButtonCenters(): { check: { x: number; y: number }; cancel: { x: number; y: number } } | null {
+  private editButtonCenters(): {
+    check: { x: number; y: number };
+    cancel: { x: number; y: number };
+    rotate: { x: number; y: number } | null;
+  } | null {
     if (!this.edit) return null;
     const top = toScreen(this.edit.bx + this.edit.w / 2, this.edit.by + this.edit.h / 2);
+    const canRotate = this.edit.kind === 'store' || this.edit.kind === 'landmark';
     const lift = this.edit.kind === 'store' || this.edit.kind === 'landmark' ? 96 : 64;
     const y = top.sy - lift;
+    const gap = canRotate ? 44 : 30;
     return {
-      cancel: { x: top.sx - 30, y },
-      check: { x: top.sx + 30, y },
+      cancel: { x: top.sx - gap, y },
+      rotate: canRotate ? { x: top.sx, y } : null,
+      check: { x: top.sx + gap, y },
     };
+  }
+
+  /** ↻ — 건물·랜드마크 방향 전환 (sw 좌측 하단 ↔ se 우측 하단) */
+  private rotateEdit(): void {
+    if (!this.edit || (this.edit.kind !== 'store' && this.edit.kind !== 'landmark')) return;
+    this.edit.facing = this.edit.facing === 'se' ? 'sw' : 'se';
+    this.edit.ok = this.canPlaceEdit(
+      this.edit,
+      this.edit.placementId,
+      this.edit.bx,
+      this.edit.by,
+      this.edit.w,
+      this.edit.h,
+    );
   }
 
   private commitEdit(): void {
     if (!this.edit || !this.edit.ok) return;
-    const { placementId, kind, refId, bx, by } = this.edit;
+    const { placementId, kind, refId, bx, by, facing } = this.edit;
     this.edit = null;
     this.editDragging = false;
     this.hooks.onEditSelection(null);
-    this.hooks.onEditCommit({ placementId, kind, refId, bx, by });
+    this.hooks.onEditCommit({ placementId, kind, refId, bx, by, facing });
   }
 
   private returnEdit(): void {
@@ -680,7 +852,9 @@ export class VillageGame {
     let bestD = -Infinity;
     for (const t of this.things) {
       if (tx >= t.bx && tx < t.bx + t.w && ty >= t.by && ty < t.by + t.h) {
-        const d = t.bx + t.w + t.by + t.h;
+        // 같은 칸에 바닥 타일과 소품이 겹쳐 있으면 위에 얹힌 소품을 먼저 잡는다.
+        const onTop = !(t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? ''));
+        const d = t.bx + t.w + t.by + t.h + (onTop ? 0.5 : 0);
         if (d > bestD) {
           bestD = d;
           best = t;
@@ -769,20 +943,45 @@ export class VillageGame {
           n.target = null;
           n.moving = false;
           n.phase = 0;
+          n.stuck = 0;
         } else {
           const step = Math.min(d, NPC_SPEED * dt);
           const ux = dx / d;
           const uy = dy / d;
+          const prevX = n.x;
+          const prevY = n.y;
           const nx = n.x + ux * step;
           const ny = n.y + uy * step;
           const blockedX = this.solid(Math.floor(nx), Math.floor(n.y));
           const blockedY = this.solid(Math.floor(n.x), Math.floor(ny));
           if (!blockedX) n.x = nx;
           if (!blockedY) n.y = ny;
-          if (blockedX && blockedY) n.target = null;
-          n.moving = true;
-          n.phase += dt * 9;
-          n.facing = facingFromWorldDelta(ux, uy);
+          // 길막힘 감지 — 양축이 막혔거나 실제 이동량이 계속 미미하면
+          // 벽에 갖다 박는 대신 목표를 버리고 곧 다른 방향을 잡는다.
+          const moved = Math.hypot(n.x - prevX, n.y - prevY);
+          if (blockedX && blockedY) {
+            n.target = null;
+            n.stuck = 0;
+            n.restUntil = 0.3 + Math.random() * 0.6;
+            n.moving = false;
+            n.phase = 0;
+          } else if (moved < step * 0.45) {
+            n.stuck += dt;
+            if (n.stuck > 0.4) {
+              n.target = null;
+              n.stuck = 0;
+              n.restUntil = 0.3 + Math.random() * 0.6;
+              n.moving = false;
+              n.phase = 0;
+            }
+          } else {
+            n.stuck = 0;
+          }
+          if (n.target) {
+            n.moving = true;
+            n.phase += dt * 9;
+            n.facing = facingFromWorldDelta(ux, uy);
+          }
         }
       } else {
         n.moving = false;
@@ -825,8 +1024,10 @@ export class VillageGame {
 
     for (const t of this.things) {
       if (t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 담당
-      const px = t.bx + t.w / 2;
-      const py = t.kind === 'decor' ? t.by + t.h / 2 : t.by + t.h + 0.5;
+      if (t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '')) continue; // 바닥 타일은 밟는 것 — 살펴보기 대상 아님
+      const se = (t.kind === 'store' || t.kind === 'landmark') && t.facing === 'se';
+      const px = se ? t.bx + t.w + 0.5 : t.bx + t.w / 2;
+      const py = se ? t.by + t.h / 2 : t.kind === 'decor' ? t.by + t.h / 2 : t.by + t.h + 0.5;
       const dist = Math.hypot(px - this.player.x, py - this.player.y);
       if (dist < bestD) {
         bestD = dist;
@@ -861,18 +1062,9 @@ export class VillageGame {
   private drawThing(t: PlacedThing | (EditObject & { id?: number }), focus: number, asEdit = false): void {
     const ctx = this.ctx;
     if (t.kind === 'store') {
-      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, {
-        focus,
-        label: t.label,
-        emoji: t.emoji ?? '🏪',
-        time: this.time,
-      });
+      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, { emoji: t.emoji ?? '🏪', facing: t.facing });
     } else if (t.kind === 'landmark') {
-      drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, {
-        focus,
-        label: t.label,
-        time: this.time,
-      });
+      drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, { time: this.time, facing: t.facing });
     } else if (t.kind === 'npc') {
       drawVCharacter(ctx, t.bx + 0.5, t.by + 0.72, {
         facing: 's',
@@ -886,14 +1078,11 @@ export class VillageGame {
         drawVNameplate(ctx, sx, sy - 76, t.label, { alpha: 0.9, accent: '#4A5568' });
       }
     } else {
+      // 소품은 이름 말풍선 없이 오브젝트만 그린다.
       const cx = t.bx + 0.5;
       const cy = t.by + 0.5;
       const seed = 'id' in t && t.id !== undefined ? t.id : 7;
       drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v: (Number(seed) % 97) / 97 }, this.time);
-      if (!asEdit && focus > 0.55) {
-        const { sx, sy } = toScreen(cx, cy);
-        drawVNameplate(ctx, sx, sy - 52, t.label, { alpha: focus * 0.9, accent: '#8b5a37' });
-      }
     }
   }
 
@@ -907,15 +1096,15 @@ export class VillageGame {
 
     const applyCamera = () => {
       ctx.translate(this.anchorX, this.anchorY);
-      ctx.scale(ZOOM, ZOOM);
+      ctx.scale(this.zoom, this.zoom);
       ctx.translate(-this.cam.sx, -this.cam.sy);
     };
     ctx.save();
     applyCamera();
 
     const visible = (sx: number, sy: number, pad = 120) => {
-      const vx = (sx - this.cam.sx) * ZOOM + this.anchorX;
-      const vy = (sy - this.cam.sy) * ZOOM + this.anchorY;
+      const vx = (sx - this.cam.sx) * this.zoom + this.anchorX;
+      const vy = (sy - this.cam.sy) * this.zoom + this.anchorY;
       return vx > -pad && vx < this.vw + pad && vy > -pad * 2 && vy < this.vh + pad;
     };
 
@@ -934,6 +1123,15 @@ export class VillageGame {
       const { sx, sy } = toScreen(tx + 0.5, ty + 0.5);
       if (!visible(sx, sy)) continue;
       drawVFoam(ctx, tx, ty, this.time);
+    }
+
+    // 바닥 소품(광장 돌바닥 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
+    for (const t of this.things) {
+      if (t.kind !== 'decor' || !GROUND_DECOR.has(t.decorType ?? '')) continue;
+      if (this.editMode && this.edit?.placementId === t.id) continue;
+      const { sx, sy } = toScreen(t.bx + 0.5, t.by + 0.5);
+      if (!visible(sx, sy)) continue;
+      drawVProp(ctx, { type: t.decorType!, x: t.bx + 0.5, y: t.by + 0.5, v: 0 }, this.time);
     }
 
     // 배치 모드: 잔디 위 옅은 그리드 + 편집 오브젝트 발밑 커서.
@@ -962,6 +1160,7 @@ export class VillageGame {
     for (const t of this.things) {
       if (this.editMode && this.edit?.placementId === t.id) continue; // 편집 중 원본 숨김
       if (!this.editMode && t.kind === 'npc') continue; // 걷기 모드에선 배회 주민이 그린다
+      if (t.kind === 'decor' && GROUND_DECOR.has(t.decorType ?? '')) continue; // 바닥 패스에서 이미 그림
       const front = toScreen(t.bx + t.w, t.by + t.h);
       if (!visible(front.sx, front.sy, 220)) continue;
       const px = t.bx + t.w / 2;
@@ -1053,11 +1252,36 @@ export class VillageGame {
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.draw();
 
-    // ✓ / ✕ 버튼 (편집 오브젝트 위, 드래그 중엔 숨김).
+    // 건물/랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 항상 최상단에.
+    for (const t of this.things) {
+      if (t.kind !== 'store' && t.kind !== 'landmark') continue;
+      if (this.editMode && this.edit?.placementId === t.id) continue;
+      const front = toScreen(t.bx + t.w, t.by + t.h);
+      if (!visible(front.sx, front.sy, 220)) continue;
+      const px = t.bx + t.w / 2;
+      const py = t.by + t.h + 0.5;
+      const dist = this.editMode ? 99 : Math.hypot(px - this.player.x, py - this.player.y);
+      const focus = clamp01(1 - (dist - INTERACT_RANGE) / 3.5);
+      if (t.kind === 'store') {
+        drawVBuildingLabel(ctx, t.bx, t.by, t.w, t.h, t.label, t.skin?.accent ?? '#8b5a37', focus, this.time);
+      } else {
+        drawVLandmarkLabel(ctx, t.lmId ?? 'cathedral', t.bx, t.by, t.label, focus, this.time);
+      }
+    }
+    if (this.editMode && this.edit && (this.edit.kind === 'store' || this.edit.kind === 'landmark')) {
+      const e = this.edit;
+      if (e.kind === 'store') {
+        drawVBuildingLabel(ctx, e.bx, e.by, e.w, e.h, e.label, e.skin?.accent ?? '#8b5a37', 1, this.time);
+      } else {
+        drawVLandmarkLabel(ctx, e.lmId ?? 'cathedral', e.bx, e.by, e.label, 1, this.time);
+      }
+    }
+
+    // ✓ / ↻ / ✕ 버튼 (편집 오브젝트 위, 드래그 중엔 숨김).
     if (this.editMode && this.edit && !this.editDragging) {
       const btn = this.editButtonCenters();
       if (btn) {
-        const r = EDIT_BTN_R / ZOOM;
+        const r = EDIT_BTN_R / this.zoom;
         // ✕ — 항상 활성.
         ctx.beginPath();
         ctx.arc(btn.cancel.x, btn.cancel.y, r, 0, Math.PI * 2);
@@ -1075,6 +1299,31 @@ export class VillageGame {
         ctx.moveTo(btn.cancel.x + r * 0.36, btn.cancel.y - r * 0.36);
         ctx.lineTo(btn.cancel.x - r * 0.36, btn.cancel.y + r * 0.36);
         ctx.stroke();
+        // ↻ — 건물 방향 전환 (매장 건물만).
+        if (btn.rotate) {
+          ctx.beginPath();
+          ctx.arc(btn.rotate.x, btn.rotate.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#5EB3CC';
+          ctx.fill();
+          ctx.strokeStyle = '#fffdf7';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          // 원형 화살표.
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(btn.rotate.x, btn.rotate.y, r * 0.48, -Math.PI * 0.25, Math.PI * 1.05);
+          ctx.stroke();
+          const ax = btn.rotate.x + Math.cos(-Math.PI * 0.25) * r * 0.48;
+          const ay = btn.rotate.y + Math.sin(-Math.PI * 0.25) * r * 0.48;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.moveTo(ax + r * 0.3, ay - r * 0.08);
+          ctx.lineTo(ax - r * 0.16, ay - r * 0.3);
+          ctx.lineTo(ax - r * 0.05, ay + r * 0.26);
+          ctx.closePath();
+          ctx.fill();
+        }
         // ✓ — 자리가 유효할 때만 초록.
         ctx.beginPath();
         ctx.arc(btn.check.x, btn.check.y, r, 0, Math.PI * 2);
