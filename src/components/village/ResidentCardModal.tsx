@@ -35,10 +35,10 @@ export function ResidentCardModal({ onClose }: { onClose: () => void }) {
   }, [events]);
 
   const residentNo = useMemo(() => {
-    if (!profile) return 'MD-0000';
+    if (!profile) return 'ToK-0000';
     let h = 0;
     for (const ch of profile.nickname) h = (h * 31 + ch.charCodeAt(0)) % 9000;
-    return `MD-${String(h + 1000)}`;
+    return `ToK-${String(h + 1000)}`;
   }, [profile]);
 
   if (!profile) return null;
@@ -71,7 +71,7 @@ export function ResidentCardModal({ onClose }: { onClose: () => void }) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[20px] font-extrabold leading-tight">{profile.nickname}</p>
               <p className="mt-0.5 text-[11.5px] font-bold text-town-inkSoft">
-                {T('명동 도보권 주민', 'Myeongdong Resident')} · {residentNo}
+                {T('톡타운 주민', 'TokTown Resident')} · {residentNo}
               </p>
               <p className="mt-1.5 text-[11px] text-town-inkSoft">
                 <b className="text-town-ink">{T('주민 등록일', 'Registered')}</b> {profile.residentSince}
