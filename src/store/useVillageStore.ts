@@ -96,31 +96,40 @@ export const useVillageStore = create<VillageState>()(
     }),
     {
       name: 'toktown:village',
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, version: number) => {
-        const state = persisted as VillageState;
-        // v1(8×8 아이소 그리드 row/col) → v2(26×26 월드 풋프린트):
-        // 좌표계가 달라 배치는 초기화한다. 획득물은 방문/수집/소품 스토어에서
-        // 파생되므로 아무것도 잃지 않고 보관함으로 돌아간다.
-        const prev = version < 2 ? [] : state.placements ?? [];
-        // v3-①: '기본 초록 타일' 폐지 — 배치·보유 모두 제거.
-        const kept = prev.filter((p) => !(p.kind === 'decor' && p.refId === 'grass-tile'));
-        const decorOwned = { ...(state.decorOwned ?? {}) };
-        delete decorOwned['grass-tile'];
-        // v3-②: 광장 돌바닥 21장·가로등 4개가 지형/고정 소품에서 기본 배치물로
-        // 전환. 기존 배치가 이미 차지한 칸의 몫은 지도 대신 보관함으로 들어간다.
-        for (const p of kept) placementSeq = Math.max(placementSeq, p.id);
-        const occupied = new Set<string>();
-        for (const p of kept) {
-          for (let ty = p.by; ty < p.by + p.h; ty++) {
-            for (let tx = p.bx; tx < p.bx + p.w; tx++) occupied.add(`${tx},${ty}`);
+        let state = persisted as VillageState;
+        if (version < 3) {
+          // v1(8×8 아이소 그리드 row/col) → v2(26×26 월드 풋프린트):
+          // 좌표계가 달라 배치는 초기화한다. 획득물은 방문/수집/소품 스토어에서
+          // 파생되므로 아무것도 잃지 않고 보관함으로 돌아간다.
+          const prev = version < 2 ? [] : state.placements ?? [];
+          // v3-①: '기본 초록 타일' 폐지 — 배치·보유 모두 제거.
+          const kept = prev.filter((p) => !(p.kind === 'decor' && p.refId === 'grass-tile'));
+          const decorOwned = { ...(state.decorOwned ?? {}) };
+          delete decorOwned['grass-tile'];
+          // v3-②: 광장 돌바닥 21장·가로등 4개가 지형/고정 소품에서 기본 배치물로
+          // 전환. 기존 배치가 이미 차지한 칸의 몫은 지도 대신 보관함으로 들어간다.
+          for (const p of kept) placementSeq = Math.max(placementSeq, p.id);
+          const occupied = new Set<string>();
+          for (const p of kept) {
+            for (let ty = p.by; ty < p.by + p.h; ty++) {
+              for (let tx = p.bx; tx < p.bx + p.w; tx++) occupied.add(`${tx},${ty}`);
+            }
           }
+          const seeded = defaultVillagePlacements().filter((p) => !occupied.has(`${p.bx},${p.by}`));
+          for (const [id, n] of Object.entries(defaultDecorOwned())) {
+            decorOwned[id] = (decorOwned[id] ?? 0) + n;
+          }
+          state = { ...state, placements: [...seeded, ...kept], decorOwned };
         }
-        const seeded = defaultVillagePlacements().filter((p) => !occupied.has(`${p.bx},${p.by}`));
-        for (const [id, n] of Object.entries(defaultDecorOwned())) {
-          decorOwned[id] = (decorOwned[id] ?? 0) + n;
-        }
-        return { ...state, placements: [...seeded, ...kept], decorOwned };
+        // v4: 이벤트 NPC id 개편 — 배치된 '드러머 까미'를 '까아미'로 통합.
+        return {
+          ...state,
+          placements: (state.placements ?? []).map((p) =>
+            p.kind === 'npc' && p.refId === 'magpie-drummer' ? { ...p, refId: 'magpie-kkaami' } : p,
+          ),
+        };
       },
     },
   ),

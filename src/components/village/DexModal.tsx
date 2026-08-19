@@ -78,7 +78,7 @@ export function DexModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* 드러머 까미 (이벤트 한정) */}
+          {/* 까아미 (이벤트 한정) */}
           <div
             className={`mt-2.5 flex items-center gap-3.5 rounded-2xl border-2 p-3.5 ${
               hasDrummer ? 'border-[#8B79C9] bg-town-lilac/10' : 'border-dashed border-town-line bg-town-cream/40'
@@ -103,8 +103,8 @@ export function DexModal({ onClose }: { onClose: () => void }) {
                 {hasDrummer
                   ? T(DRUMMER_MAGPIE.bio, DRUMMER_MAGPIE.bioEn)
                   : T(
-                      '난타 스페셜 위크 기간에만 극장 앞에 나타난다는 소문이…',
-                      'Rumor says it only appears by the theatre during NANTA Special Week…',
+                      '콘서트 주간에만 광화문 게이트 앞에 나타난다는 소문이…',
+                      'Rumor says it only appears by the Gwanghwamun gate during concert week…',
                     )}
               </p>
             </div>

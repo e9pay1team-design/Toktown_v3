@@ -10,10 +10,10 @@ const blush = (x: number, y: number) => (
   <circle cx={x} cy={y} r={4.6} fill="#FF9D9D" opacity={0.5} />
 );
 
-/** 명동 까치 '까미' — 쇼핑백 든 까치 (drummer: 이벤트 한정 '드러머 까미') */
+/** 명동 까치 '까미' — 쇼핑백 든 까치 (drummer: 이벤트 한정 '까아미' — 콘서트 팬 자아) */
 export function MagpieSvg({ size = 96, drummer = false }: NpcProps & { drummer?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label={drummer ? '드러머 까미' : '까치 까미'}>
+    <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label={drummer ? '까아미' : '까치 까미'}>
       <ellipse cx={58} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
       {/* 꼬리 */}
       <g transform="rotate(28 24 96)">
@@ -51,17 +51,19 @@ export function MagpieSvg({ size = 96, drummer = false }: NpcProps & { drummer?:
       )}
       {drummer && (
         <g>
-          {/* 머리띠 */}
-          <path d="M26 36 q34 -14 68 0 l-1 7 q-33 -12 -66 0 Z" fill="#F2705E" />
-          <path d="M90 38 l12 -6 l-3 10 Z" fill="#F2705E" />
-          {/* 드럼스틱 */}
-          <g transform="rotate(-38 96 84)">
-            <rect x={94} y={64} width={5} height={26} rx={2.5} fill="#CE9F6C" />
-            <circle cx={96.5} cy={62} r={4.6} fill="#8A6B52" />
+          {/* 보라 반다나 (콘서트 주간 한정) */}
+          <path d="M26 36 q34 -14 68 0 l-1 7 q-33 -12 -66 0 Z" fill="#8A5CF6" />
+          <path d="M90 38 l12 -6 l-3 10 Z" fill="#8A5CF6" />
+          {/* 응원봉 */}
+          <g transform="rotate(-32 96 84)">
+            <rect x={94} y={68} width={5} height={24} rx={2.5} fill="#4A3B32" />
+            <circle cx={96.5} cy={61} r={9} fill="#C7B9F2" opacity={0.55} />
+            <circle cx={96.5} cy={61} r={6} fill="#B48CFF" />
+            <circle cx={94.2} cy={58.6} r={2} fill="#fff" opacity={0.9} />
           </g>
-          {/* 음표 */}
-          <text x={18} y={30} fontSize={13} fill="#8B79C9">♪</text>
-          <text x={100} y={22} fontSize={11} fill="#F2705E">♫</text>
+          {/* 반짝임 */}
+          <path d="M18 24 l1.7 4 l4 1.7 l-4 1.7 l-1.7 4 l-1.7 -4 l-4 -1.7 l4 -1.7 Z" fill="#B48CFF" />
+          <path d="M104 14 l1.2 2.9 l2.9 1.2 l-2.9 1.2 l-1.2 2.9 l-1.2 -2.9 l-2.9 -1.2 l2.9 -1.2 Z" fill="#C7B9F2" />
         </g>
       )}
       {/* 발 */}

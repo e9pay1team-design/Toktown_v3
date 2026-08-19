@@ -8,14 +8,17 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { Landmark, LatLng, NpcSpot, Store } from '../../types';
+import type { EventBooth, Landmark, LatLng, NpcSpot, Store } from '../../types';
 import { MAP_CENTER, MAP_ZOOM } from '../../data/seed';
 import {
   PARKS,
   PARK_TREES,
+  PLAZAS,
   ROADS,
   ROAD_MIN_ZOOM,
   ROAD_WIDTH_M,
+  STREET_TREES,
+  URBAN,
   WATER,
   type RoadClass,
 } from '../../data/myeongdongMap';
@@ -40,6 +43,9 @@ interface MapViewProps {
   follow: boolean;
   /** Event Map 활성 시 혜택 반경 오버레이 (M3) */
   eventCircle: (LatLng & { radiusM: number }) | null;
+  /** Event Map 활성 시 부스·게이트 마커 */
+  eventBooths: EventBooth[] | null;
+  onBoothClick: (booth: EventBooth) => void;
   onStoreClick: (id: number) => void;
   onNpcClick: (spot: NpcSpot) => void;
   onLandmarkClick: (lm: Landmark) => void;
@@ -93,6 +99,26 @@ const latToPx = (lat: number, z: number) => {
   const r = (lat * Math.PI) / 180;
   return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * TILE_D * 2 ** z;
 };
+
+/** 레이캐스팅 다각형 내부 판정 (픽셀 좌표) */
+function pointInPoly(x: number, y: number, poly: { x: number; y: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x;
+    const yi = poly[i].y;
+    const xj = poly[j].x;
+    const yj = poly[j].y;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** 정수 쌍 결정적 해시 0..1 — 건물 점 지터용 */
+function hash2(a: number, b: number): number {
+  let h = (a * 374761393 + b * 668265263) ^ 1013904223;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
 
 const ROAD_CASING: Record<RoadClass, string> = {
   major: '#DFCFB0',
@@ -150,6 +176,42 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
   g.lineJoin = 'round';
   g.lineCap = 'round';
 
+  // 도심 블록(건물 밀집 지역) — 옅은 채움 + 확대 시 건물 점 텍스처.
+  for (const poly of URBAN) {
+    tracePath(poly, true);
+    g.fillStyle = '#EBE4D0';
+    g.fill();
+  }
+  if (z >= 15) {
+    // 전역 픽셀 그리드에 정렬해 타일 경계에서도 패턴이 이어진다.
+    const step = Math.max(11, px(24));
+    g.fillStyle = 'rgba(203,189,156,0.6)';
+    for (const poly of URBAN) {
+      const pts = poly.map(([lat, lng]) => ({ x: lngToPx(lng, z) - ox, y: latToPx(lat, z) - oy }));
+      const minX = Math.max(Math.min(...pts.map((p) => p.x)), -16);
+      const maxX = Math.min(Math.max(...pts.map((p) => p.x)), w + 16);
+      const minY = Math.max(Math.min(...pts.map((p) => p.y)), -16);
+      const maxY = Math.min(Math.max(...pts.map((p) => p.y)), h + 16);
+      if (maxX < minX || maxY < minY) continue;
+      const gx0 = Math.floor((ox + minX) / step);
+      const gx1 = Math.ceil((ox + maxX) / step);
+      const gy0 = Math.floor((oy + minY) / step);
+      const gy1 = Math.ceil((oy + maxY) / step);
+      for (let gy = gy0; gy <= gy1; gy++) {
+        for (let gx = gx0; gx <= gx1; gx++) {
+          const jx = hash2(gx, gy);
+          const jy = hash2(gy, gx);
+          const x = gx * step - ox + (jx - 0.5) * step * 0.5;
+          const y = gy * step - oy + (jy - 0.5) * step * 0.5;
+          if (!pointInPoly(x, y, pts)) continue;
+          const bw = Math.max(2.5, px(9 + jx * 8));
+          const bh = bw * (0.65 + jy * 0.55);
+          g.fillRect(x - bw / 2, y - bh / 2, bw, bh);
+        }
+      }
+    }
+  }
+
   // 공원·녹지.
   for (const poly of PARKS) {
     tracePath(poly, true);
@@ -157,6 +219,16 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
     g.fill();
     g.strokeStyle = '#B7D398';
     g.lineWidth = px(3, 1);
+    g.stroke();
+  }
+
+  // 광장·보행 특화 공간 — 밝은 석재 톤.
+  for (const poly of PLAZAS) {
+    tracePath(poly, true);
+    g.fillStyle = '#F2EBDB';
+    g.fill();
+    g.strokeStyle = '#E0D4BA';
+    g.lineWidth = px(2.5, 1);
     g.stroke();
   }
 
@@ -187,26 +259,31 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
     g.stroke();
   }
 
-  // 남산 숲 나무 (확대 시).
+  // 나무 — 남산 숲(z15+) + 가로수(z16+).
+  const drawTree = (lat: number, lng: number, r: number) => {
+    const x = lngToPx(lng, z) - ox;
+    const y = latToPx(lat, z) - oy;
+    if (x < -30 || y < -30 || x > w + 30 || y > h + 30) return;
+    g.fillStyle = 'rgba(74,59,50,0.12)';
+    g.beginPath();
+    g.ellipse(x, y + r * 0.9, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#79AE60';
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#8CC073';
+    g.beginPath();
+    g.arc(x - r * 0.28, y - r * 0.3, r * 0.55, 0, Math.PI * 2);
+    g.fill();
+  };
   if (z >= 15) {
     const r = Math.max(3, px(9));
-    for (const [lat, lng] of PARK_TREES) {
-      const x = lngToPx(lng, z) - ox;
-      const y = latToPx(lat, z) - oy;
-      if (x < -30 || y < -30 || x > w + 30 || y > h + 30) continue;
-      g.fillStyle = 'rgba(74,59,50,0.12)';
-      g.beginPath();
-      g.ellipse(x, y + r * 0.9, r * 0.9, r * 0.32, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#79AE60';
-      g.beginPath();
-      g.arc(x, y, r, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#8CC073';
-      g.beginPath();
-      g.arc(x - r * 0.28, y - r * 0.3, r * 0.55, 0, Math.PI * 2);
-      g.fill();
-    }
+    for (const [lat, lng] of PARK_TREES) drawTree(lat, lng, r);
+  }
+  if (z >= 16) {
+    const r = Math.max(2.6, px(5.5));
+    for (const [lat, lng] of STREET_TREES) drawTree(lat, lng, r);
   }
 }
 
@@ -225,6 +302,15 @@ const IllustratedTileLayer = L.GridLayer.extend({
     return tile;
   },
 }) as unknown as new (options?: L.GridLayerOptions) => L.GridLayer;
+
+/** 이벤트 부스·게이트 마커 — 보라 링 칩 */
+const boothIcon = (emoji: string) =>
+  L.divIcon({
+    className: 'toktown-marker',
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#FFFDF7;border:2.5px solid #8B79C9;box-shadow:0 2px 6px rgba(74,59,50,.28);font-size:15px">${emoji}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
 
 function myIcon(character: CharacterConfig): L.DivIcon {
   const char = renderToStaticMarkup(<CharacterSvg config={character} size={58} shadow={false} />);
@@ -319,7 +405,7 @@ export function MapView(props: MapViewProps) {
         zIndexOffset: drummer ? 600 : 500,
       });
       marker.bindTooltip(
-        `${tr(drummer ? '드러머 까미 🎪' : '까치 까미', drummer ? 'Drummer Kkami 🎪' : 'Kkami the Magpie')} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
+        `${tr(drummer ? '까아미 🎪' : '까치 까미', drummer ? 'Kkaami 🎪' : 'Kkami the Magpie')} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
         {
           direction: 'top',
           offset: [0, -56],
@@ -330,6 +416,29 @@ export function MapView(props: MapViewProps) {
       layer.addLayer(marker);
     }
   }, [props.npcSpots, lang]);
+
+  /* Event Map 부스·게이트 마커 */
+  const boothLayerRef = useRef<L.LayerGroup | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    boothLayerRef.current?.remove();
+    boothLayerRef.current = null;
+    if (!props.eventBooths || props.eventBooths.length === 0) return;
+    const layer = L.layerGroup();
+    for (const booth of props.eventBooths) {
+      const marker = L.marker([booth.lat, booth.lng], { icon: boothIcon(booth.emoji), zIndexOffset: 420 });
+      marker.bindTooltip(tr(booth.name, booth.nameEn ?? booth.name), {
+        direction: 'top',
+        offset: [0, -16],
+        className: 'toktown-tooltip',
+      });
+      marker.on('click', () => cbRef.current.onBoothClick(booth));
+      layer.addLayer(marker);
+    }
+    layer.addTo(map);
+    boothLayerRef.current = layer;
+  }, [props.eventBooths, lang]);
 
   /* Event Map 혜택 반경 */
   const eventLayerRef = useRef<L.Circle | null>(null);

@@ -66,12 +66,12 @@ export function NpcBubble({ drummer = false }: { drummer?: boolean }) {
         <circle cx={16.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
         <circle cx={35.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
         {drummer && (
-          <path d="M12 17 q14 -7 28 0 l-0.8 3.6 q-13 -6 -26.4 0 Z" fill="#F2705E" />
+          <path d="M12 17 q14 -7 28 0 l-0.8 3.6 q-13 -6 -26.4 0 Z" fill="#8A5CF6" />
         )}
       </g>
       {/* 반짝임 */}
       {drummer ? (
-        <text x={41} y={12} fontSize={12} fontWeight={800} fill="#8B79C9">♪</text>
+        <path d="M44 5 l1.5 3.6 l3.6 1.5 l-3.6 1.5 l-1.5 3.6 l-1.5 -3.6 l-3.6 -1.5 l3.6 -1.5 Z" fill="#B48CFF" />
       ) : (
         <path d="M45 6 l1.6 3.8 l3.8 1.6 l-3.8 1.6 l-1.6 3.8 l-1.6 -3.8 l-3.8 -1.6 l3.8 -1.6 Z" fill="#FFD66B" />
       )}

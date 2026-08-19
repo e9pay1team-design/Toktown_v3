@@ -104,7 +104,19 @@ export function DecorSvg({ id, size = 56 }: { id: string; size?: number }) {
           <path d="M40 10 L66 24 L40 38 L14 24 Z" fill="none" stroke="#D8CBB1" strokeWidth={1.6} />
         </svg>
       );
-    case 'nanta-drum':
+    case 'concert-lightstick':
+      return (
+        <svg width={size * 0.72} height={size} viewBox="0 0 56 80" style={{ display: 'block' }} aria-label="콘서트 응원봉">
+          <ellipse cx={28} cy={76} rx={16} ry={3.6} fill="rgba(74,59,50,0.14)" />
+          <rect x={24} y={40} width={8} height={36} rx={4} fill="#4A3B32" />
+          <rect x={22} y={36} width={12} height={7} rx={3.5} fill="#6B5A4C" />
+          <circle cx={28} cy={24} r={17} fill="#C7B9F2" opacity={0.5} />
+          <circle cx={28} cy={24} r={12.5} fill="#B48CFF" />
+          <circle cx={23.5} cy={19.5} r={3.4} fill="#fff" opacity={0.85} />
+          <path d="M28 17 l2 4.6 l4.6 2 l-4.6 2 l-2 4.6 l-2 -4.6 l-4.6 -2 l4.6 -2 Z" fill="#FFFDF7" opacity={0.9} />
+        </svg>
+      );
+    case 'nanta-drum': // 구버전 세이브 호환용 (판매 종료)
       return (
         <svg width={size * 0.85} height={size} viewBox="0 0 66 80" style={{ display: 'block' }} aria-label="난타 드럼 화분">
           <ellipse cx={33} cy={76} rx={22} ry={4} fill="rgba(74,59,50,0.14)" />

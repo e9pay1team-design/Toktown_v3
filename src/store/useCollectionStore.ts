@@ -30,6 +30,18 @@ export const useCollectionStore = create<CollectionState>()(
         return true;
       },
     }),
-    { name: 'toktown:collection' },
+    {
+      name: 'toktown:collection',
+      version: 1,
+      migrate: (persisted: unknown) => {
+        // v1: 이벤트 NPC id 개편 — '드러머 까미'(magpie-drummer)를 '까아미'
+        // (magpie-kkaami)로 통합하고 중복을 제거한다. 도감엔 까미·까아미만 남는다.
+        const state = persisted as CollectionState;
+        const dex = [
+          ...new Set((state.dex ?? []).map((id) => (id === 'magpie-drummer' ? 'magpie-kkaami' : id))),
+        ];
+        return { ...state, dex };
+      },
+    },
   ),
 );

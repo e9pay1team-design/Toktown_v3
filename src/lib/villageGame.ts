@@ -1352,20 +1352,27 @@ export class VillageGame {
       applyCamera();
       ctx.globalCompositeOperation = 'lighter';
       const R = 92;
-      const lampLike = [
-        ...this.world.props.filter((p) => p.type === 'lamp'),
+      const lampLike: { x: number; y: number; purple?: boolean }[] = [
+        ...this.world.props.filter((p) => p.type === 'lamp').map((p) => ({ x: p.x, y: p.y })),
         ...this.things
-          .filter((t) => t.kind === 'decor' && t.decorType === 'lamp')
-          .map((t) => ({ x: t.bx + 0.5, y: t.by + 0.5 })),
+          .filter((t) => t.kind === 'decor' && (t.decorType === 'lamp' || t.decorType === 'concert-lightstick'))
+          .map((t) => ({ x: t.bx + 0.5, y: t.by + 0.5, purple: t.decorType === 'concert-lightstick' })),
       ];
       for (const p of lampLike) {
         const { sx, sy } = toScreen(p.x, p.y);
         if (!visible(sx, sy)) continue;
-        const cy = sy - 50;
+        const cy = sy - (p.purple ? 40 : 50);
         const g = ctx.createRadialGradient(sx, cy, 2, sx, cy, R);
-        g.addColorStop(0, `rgba(255,208,132,${0.34 * night})`);
-        g.addColorStop(0.45, `rgba(255,196,118,${0.1 * night})`);
-        g.addColorStop(1, 'rgba(255,196,118,0)');
+        if (p.purple) {
+          // 콘서트 응원봉 — 보랏빛 광원.
+          g.addColorStop(0, `rgba(190,150,255,${0.36 * night})`);
+          g.addColorStop(0.45, `rgba(170,130,255,${0.11 * night})`);
+          g.addColorStop(1, 'rgba(170,130,255,0)');
+        } else {
+          g.addColorStop(0, `rgba(255,208,132,${0.34 * night})`);
+          g.addColorStop(0.45, `rgba(255,196,118,${0.1 * night})`);
+          g.addColorStop(1, 'rgba(255,196,118,0)');
+        }
         ctx.fillStyle = g;
         ctx.fillRect(sx - R, cy - R, R * 2, R * 2);
       }

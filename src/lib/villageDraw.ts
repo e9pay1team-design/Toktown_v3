@@ -887,6 +887,28 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       ctx.fill();
       return;
     }
+    case 'concert-lightstick': {
+      // 이벤트 한정 — 콘서트 응원봉. 밤에는 보라 광원(villageGame 밤 패스)으로 빛난다.
+      shadow(ctx, sx, sy, 8);
+      ctx.fillStyle = '#4a3b32';
+      ctx.fillRect(sx - 2.5, sy - 27, 5, 27);
+      ctx.fillStyle = '#6b5a4c';
+      ctx.fillRect(sx - 4.5, sy - 31, 9, 5);
+      const pulse = 0.5 + Math.sin(time * 2.4) * 0.12;
+      ctx.fillStyle = `rgba(180,140,255,${0.3 + pulse * 0.16})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 41, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#b48cff';
+      ctx.beginPath();
+      ctx.arc(sx, sy - 41, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.arc(sx - 3.5, sy - 44.5, 3, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
     case 'plaza-tile': {
       // 광장 돌바닥 타일 — 지형 드로어(VT.Path)를 그대로 사용해 타일끼리
       // 이어 깔면 원래 광장과 픽셀 단위로 같은 룩이 된다.

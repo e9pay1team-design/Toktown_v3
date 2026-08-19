@@ -10,6 +10,7 @@ import { useToastStore } from '../../store/useToastStore';
 import { OtterSvg } from '../../assets/npcs';
 import { TokkenCoin } from '../../assets/misc';
 import { DecorSvg } from '../../assets/decor';
+import { GROUND_DECOR } from '../../lib/villageGame';
 import { decorName, tr, useT } from '../../i18n';
 
 export function ShopModal({ onClose }: { onClose: () => void }) {
@@ -75,6 +76,11 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
                   <DecorSvg id={item.id} size={46} />
                 </div>
                 <p className="mt-1.5 truncate text-center text-[12.5px] font-extrabold">{decorName(item)}</p>
+                {GROUND_DECOR.has(item.id) && (
+                  <p className="text-center text-[9px] font-bold text-town-inkSoft/70">
+                    {T('바닥 타일은 풍성도에 포함되지 않아요', "Floor tiles don't count toward richness")}
+                  </p>
+                )}
                 {item.eventOnly && (
                   <p className="text-center text-[9px] font-extrabold text-[#8B79C9]">
                     {T(`🎪 ${eventTitle} 한정`, `🎪 ${eventTitle} only`)}
