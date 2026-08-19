@@ -5,7 +5,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { TownLogoMark } from '../../assets/misc';
-import { LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../../data/seed';
+import { LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS } from '../../data/seed';
 import { useVirtualLocation } from '../../mock/location';
 import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useToastStore } from '../../store/useToastStore';
@@ -45,8 +45,8 @@ export function DemoPanel() {
 
   const magpie = REGIONAL_NPCS[0];
   const suspicious = suspiciousUntil > Date.now();
-  const nantaEvent = TOWN_EVENTS[0];
-  const eventOn = activeEventId === nantaEvent.id;
+  const concertEvent = TOWN_EVENTS[0];
+  const eventOn = activeEventId === concertEvent.id;
 
   const moveTo = () => {
     const [kind, id] = target.split(':');
@@ -195,12 +195,11 @@ export function DemoPanel() {
           </button>
           <button
             onClick={() => {
-              const nowOn = toggleEvent(nantaEvent.id);
+              const nowOn = toggleEvent(concertEvent.id);
               if (nowOn) {
-                const venue = storeById(nantaEvent.venueStoreId);
                 setTab('map');
-                if (venue) requestFlyTo({ lat: venue.lat, lng: venue.lng, zoom: 16 });
-                toast(`🎪 ${nantaEvent.title} 활성화! 극장 반경 한정 혜택 + 한정 NPC 출몰`, 'success');
+                requestFlyTo({ lat: concertEvent.venue.lat, lng: concertEvent.venue.lng, zoom: 15 });
+                toast(`🎪 ${concertEvent.title} 활성화! 광장 반경 한정 혜택 + 한정 NPC 출몰 — 배너를 눌러 상세 안내`, 'success');
               } else {
                 toast('Event Map을 종료했어요', 'info');
               }
@@ -211,7 +210,7 @@ export function DemoPanel() {
                 : 'border-2 border-[#C7B9F2] bg-[#F3F0FC] text-[#5F4FA0] shadow-none'
             }`}
           >
-            {eventOn ? '🎪 Event Map 진행 중 (끄기)' : '🎪 Event Map 토글 (난타 위크)'}
+            {eventOn ? '🎪 Event Map 진행 중 (끄기)' : '🎪 Event Map 토글 (광화문 콘서트)'}
           </button>
           <button onClick={reset} className={`${btn} ${resetArmed ? 'bg-town-coralDeep animate-pulse' : 'bg-town-coral'} text-white`}>
             {resetArmed ? '⚠️ 한 번 더 누르면 초기화!' : '데모 리셋 (localStorage 초기화)'}

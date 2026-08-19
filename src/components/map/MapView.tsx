@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { Landmark, LatLng, NpcSpot, Store } from '../../types';
+import type { EventBooth, Landmark, LatLng, NpcSpot, Store } from '../../types';
 import { MAP_CENTER, MAP_ZOOM } from '../../data/seed';
 import {
   PARKS,
@@ -40,6 +40,9 @@ interface MapViewProps {
   follow: boolean;
   /** Event Map 활성 시 혜택 반경 오버레이 (M3) */
   eventCircle: (LatLng & { radiusM: number }) | null;
+  /** Event Map 활성 시 부스·게이트 마커 */
+  eventBooths: EventBooth[] | null;
+  onBoothClick: (booth: EventBooth) => void;
   onStoreClick: (id: number) => void;
   onNpcClick: (spot: NpcSpot) => void;
   onLandmarkClick: (lm: Landmark) => void;
@@ -226,6 +229,15 @@ const IllustratedTileLayer = L.GridLayer.extend({
   },
 }) as unknown as new (options?: L.GridLayerOptions) => L.GridLayer;
 
+/** 이벤트 부스·게이트 마커 — 보라 링 칩 */
+const boothIcon = (emoji: string) =>
+  L.divIcon({
+    className: 'toktown-marker',
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#FFFDF7;border:2.5px solid #8B79C9;box-shadow:0 2px 6px rgba(74,59,50,.28);font-size:15px">${emoji}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+
 function myIcon(character: CharacterConfig): L.DivIcon {
   const char = renderToStaticMarkup(<CharacterSvg config={character} size={58} shadow={false} />);
   return L.divIcon({
@@ -319,7 +331,7 @@ export function MapView(props: MapViewProps) {
         zIndexOffset: drummer ? 600 : 500,
       });
       marker.bindTooltip(
-        `${tr(drummer ? '드러머 까미 🎪' : '까치 까미', drummer ? 'Drummer Kkami 🎪' : 'Kkami the Magpie')} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
+        `${tr(drummer ? '까아미 🎪' : '까치 까미', drummer ? 'Kkaami 🎪' : 'Kkami the Magpie')} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
         {
           direction: 'top',
           offset: [0, -56],
@@ -330,6 +342,29 @@ export function MapView(props: MapViewProps) {
       layer.addLayer(marker);
     }
   }, [props.npcSpots, lang]);
+
+  /* Event Map 부스·게이트 마커 */
+  const boothLayerRef = useRef<L.LayerGroup | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    boothLayerRef.current?.remove();
+    boothLayerRef.current = null;
+    if (!props.eventBooths || props.eventBooths.length === 0) return;
+    const layer = L.layerGroup();
+    for (const booth of props.eventBooths) {
+      const marker = L.marker([booth.lat, booth.lng], { icon: boothIcon(booth.emoji), zIndexOffset: 420 });
+      marker.bindTooltip(tr(booth.name, booth.nameEn ?? booth.name), {
+        direction: 'top',
+        offset: [0, -16],
+        className: 'toktown-tooltip',
+      });
+      marker.on('click', () => cbRef.current.onBoothClick(booth));
+      layer.addLayer(marker);
+    }
+    layer.addTo(map);
+    boothLayerRef.current = layer;
+  }, [props.eventBooths, lang]);
 
   /* Event Map 혜택 반경 */
   const eventLayerRef = useRef<L.Circle | null>(null);

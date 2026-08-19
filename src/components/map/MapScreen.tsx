@@ -17,8 +17,10 @@ import { useVirtualClock } from '../../mock/clock';
 import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../../data/seed';
 import { activeNpcSpots } from '../../lib/game';
 import { checkLandmarkDiscovery } from '../../lib/actions';
+import type { EventBooth } from '../../types';
 import { MapView } from './MapView';
 import { MapJoystick } from './MapJoystick';
+import { EventSheet } from './EventSheet';
 import { SearchOverlay } from './SearchOverlay';
 import { HotSheet } from './HotSheet';
 import { NpcEncounterModal } from './NpcEncounterModal';
@@ -66,11 +68,25 @@ export function MapScreen() {
   const dex = useCollectionStore((s) => s.dex);
   const [encounterNpcId, setEncounterNpcId] = useState<string | null>(null);
   const [joyActive, setJoyActive] = useState(false);
+  const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const T = useT();
 
   const magpie = REGIONAL_NPCS[0];
   const activeEvent = TOWN_EVENTS.find((e) => e.id === activeEventId) ?? null;
-  const eventVenue = activeEvent ? storeById(activeEvent.venueStoreId) : null;
+
+  /* 부스/게이트 길찾기 — 시트를 닫고 지도 이동 + 도보 안내 토스트 */
+  const guideToBooth = (booth: EventBooth) => {
+    setEventSheetOpen(false);
+    requestFlyTo({ lat: booth.lat, lng: booth.lng, zoom: 17 });
+    const d = distanceM(position, booth);
+    toast(
+      tr(
+        `🧭 ${booth.name}까지 ${formatDistance(d)} · 도보 약 ${Math.max(1, Math.ceil(d / 67))}분`,
+        `🧭 ${booth.nameEn ?? booth.name}: ${formatDistance(d)} · ~${Math.max(1, Math.ceil(d / 67))} min walk`,
+      ),
+      'info',
+    );
+  };
 
   const npcSpots = useMemo(() => {
     const spots = [...activeNpcSpots(magpie, dayOffset)];
@@ -100,6 +116,7 @@ export function MapScreen() {
       setSavedListOpen(false);
       setRouteSheetFor(null);
       setHotSheetOpen(false);
+      setEventSheetOpen(false);
       selectStore(null);
     }
   }, [activeTab, setSearchOpen, setSavedListOpen, setRouteSheetFor, setHotSheetOpen, selectStore]);
@@ -130,9 +147,19 @@ export function MapScreen() {
           routeLine={journeyPhase !== 'idle' && journeyRoute ? journeyRoute.polyline : null}
           follow={journeyPhase === 'riding' || joyActive}
           eventCircle={
-            activeEvent && eventVenue
-              ? { lat: eventVenue.lat, lng: eventVenue.lng, radiusM: activeEvent.radiusM }
+            activeEvent
+              ? { lat: activeEvent.venue.lat, lng: activeEvent.venue.lng, radiusM: activeEvent.radiusM }
               : null
+          }
+          eventBooths={activeEvent ? activeEvent.booths : null}
+          onBoothClick={(booth) =>
+            toast(
+              tr(
+                `${booth.emoji} ${booth.name} — ${booth.hours} · ${booth.info}`,
+                `${booth.emoji} ${booth.nameEn ?? booth.name} — ${booth.hoursEn ?? booth.hours} · ${booth.infoEn ?? booth.info}`,
+              ),
+              'info',
+            )
           }
           onStoreClick={openStore}
           onNpcClick={(spot) => {
@@ -218,12 +245,10 @@ export function MapScreen() {
             })}
           </div>
 
-          {/* Event Map 활성 배너 */}
-          {activeEvent && eventVenue && (
+          {/* Event Map 활성 배너 — 탭하면 이벤트 상세 시트 */}
+          {activeEvent && (
             <button
-              onClick={() =>
-                requestFlyTo({ lat: eventVenue.lat, lng: eventVenue.lng, zoom: 16 })
-              }
+              onClick={() => setEventSheetOpen(true)}
               className="pop-in pointer-events-auto mt-2 flex w-full items-center gap-2 rounded-2xl border-2 border-[#8B79C9] bg-[#F3F0FC] px-3.5 py-2.5 text-left shadow-card"
             >
               <span className="text-[18px]">🎪</span>
@@ -233,13 +258,13 @@ export function MapScreen() {
                 </span>
                 <span className="block truncate text-[10px] font-bold text-[#8B79C9]">
                   {T(
-                    `극장 반경 ${activeEvent.radiusM}m 한정 혜택 · 한정 NPC 출몰`,
-                    `Benefits within ${activeEvent.radiusM}m of the theatre · limited NPC`,
+                    `안내·부스 위치·운영시간 · 반경 ${activeEvent.radiusM}m 한정 혜택`,
+                    `Notices · booths · hours · benefits within ${activeEvent.radiusM}m`,
                   )}
                 </span>
               </span>
               <span className="shrink-0 text-[11px] font-extrabold text-[#8B79C9]">
-                {T('보기 →', 'View →')}
+                {T('자세히 →', 'Details →')}
               </span>
             </button>
           )}
@@ -296,6 +321,9 @@ export function MapScreen() {
       {journeyPhase === 'idle' && categoryFilter !== 'saved' && <HotSheet onPick={openStore} />}
 
       {/* 오버레이들 */}
+      {eventSheetOpen && activeEvent && (
+        <EventSheet event={activeEvent} onClose={() => setEventSheetOpen(false)} onGuide={guideToBooth} />
+      )}
       {selectedStoreId !== null && (
         <StoreDetailSheet storeId={selectedStoreId} onClose={() => selectStore(null)} />
       )}

@@ -239,9 +239,7 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
 
   /* Event Map 활성 + 거점 반경 내 매장이면 한정 혜택 노출 */
   const activeEvent = TOWN_EVENTS.find((e) => e.id === activeEventId) ?? null;
-  const eventVenue = activeEvent ? storeById(activeEvent.venueStoreId) : null;
-  const inEventZone =
-    activeEvent && eventVenue ? distanceM(store, eventVenue) <= activeEvent.radiusM : false;
+  const inEventZone = activeEvent ? distanceM(store, activeEvent.venue) <= activeEvent.radiusM : false;
   const saved = savedIds.includes(store.id);
   const myStoreReviews = myReviews.filter((r) => r.storeId === store.id);
   const reviewCount = seedReviews.length + myStoreReviews.length;

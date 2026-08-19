@@ -85,7 +85,7 @@ export interface NpcSpot {
   labelEn?: string;
   lat: number;
   lng: number;
-  /** 이벤트 한정 NPC 변형 (드러머 까미 등) */
+  /** 이벤트 한정 NPC 변형 (까아미 등) */
   variant?: 'drummer';
 }
 
@@ -115,11 +115,28 @@ export interface Landmark {
 }
 
 /** Event Map 모의 이벤트 */
+/** 이벤트 부스·게이트 — 지도 마커 + 상세 시트 목록 + 길찾기 대상 */
+export interface EventBooth {
+  id: string;
+  emoji: string;
+  name: string;
+  nameEn?: string;
+  /** 운영시간 */
+  hours: string;
+  hoursEn?: string;
+  /** 이용정보 한 줄 */
+  info: string;
+  infoEn?: string;
+  lat: number;
+  lng: number;
+}
+
 export interface TownEvent {
   id: string;
   title: string;
   titleEn?: string;
-  venueStoreId: number;
+  /** 행사 거점 — 매장이 아닌 광장/무대일 수 있어 좌표로 직접 지정 */
+  venue: { lat: number; lng: number; label: string; labelEn?: string };
   /** 반경(m) 내 매장에 혜택 노출 */
   radiusM: number;
   benefit: string;
@@ -128,8 +145,17 @@ export interface TownEvent {
   limitedNpcNameEn?: string;
   limitedItemName: string;
   limitedItemNameEn?: string;
+  /** 한정 소품 decor id — 이벤트 체크인 보상으로 지급 */
+  limitedItemId: string;
   desc: string;
   descEn?: string;
+  /** 공연·운영 일정 표기 */
+  period: string;
+  periodEn?: string;
+  /** 기본 안내·유의사항 (도로 통제 등) */
+  notices: string[];
+  noticesEn?: string[];
+  booths: EventBooth[];
 }
 
 /** Tokken 지급 수치 (초기값, 브리프 §4) */

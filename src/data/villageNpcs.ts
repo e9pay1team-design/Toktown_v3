@@ -164,14 +164,14 @@ export function residentNpcs(richness: number): VillageNpcDef[] {
   return VILLAGE_NPCS.filter((n) => n.unlockAt <= richness);
 }
 
-/** 특수 NPC(까치 까미 계열) 캔버스 스킨 */
+/** 특수 NPC(까치 까미 계열) 캔버스 스킨 — 까아미는 보라 반다나 */
 export function magpieSkin(drummer: boolean): VCharSkin {
   return {
     body: '#343B4A',
     bodyDark: '#232936',
     fur: '#F2F4F8',
     furDark: '#2F3541',
-    hair: drummer ? '#C2503F' : '#2F3541',
+    hair: drummer ? '#8A5CF6' : '#2F3541',
     ear: 'bird',
   };
 }

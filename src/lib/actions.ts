@@ -83,19 +83,18 @@ export function tryCheckin(storeId: number): boolean {
   return true;
 }
 
-/** Event Map 활성 중 극장 인근 체크인 → 한정 톡큰 + 한정 소품 (1회) */
+/** Event Map 활성 중 행사 반경 체크인 → 한정 톡큰 + 한정 소품 (1회) */
 function grantEventCheckinReward(store: Store, delayMs: number) {
   const { activeEventId, eventRewardClaimed, claimReward } = useEventStore.getState();
   const event = TOWN_EVENTS.find((e) => e.id === activeEventId);
   if (!event) return;
-  const venue = storeById(event.venueStoreId);
-  if (!venue || distanceM(store, venue) > event.radiusM) return;
+  if (distanceM(store, event.venue) > event.radiusM) return;
   if (eventRewardClaimed[event.id]) return;
   claimReward(event.id);
   const bonus = useEconomyStore
     .getState()
     .earnTokken('checkin', tr(`${event.title} 한정 보너스`, `${event.titleEn ?? event.title} bonus`));
-  useVillageStore.getState().buyDecor('nanta-drum');
+  useVillageStore.getState().buyDecor(event.limitedItemId);
   setTimeout(() => {
     toast(tr(`🎪 ${event.title} 한정 톡큰 +${bonus}!`, `🎪 ${event.titleEn ?? event.title} bonus +${bonus} Tokken!`), 'tokken');
     setTimeout(

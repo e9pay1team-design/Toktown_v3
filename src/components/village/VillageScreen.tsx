@@ -370,7 +370,7 @@ export function VillageScreen() {
       setDialogue({
         name: tr(src.name, src.nameEn ?? src.name),
         title: drummer ? tr('한정 이웃', 'Limited neighbor') : tr('이웃', 'Neighbor'),
-        accent: drummer ? '#C2503F' : '#4A5568',
+        accent: drummer ? '#8A5CF6' : '#4A5568',
         lines: tr(src.lines, src.linesEn ?? src.lines),
       });
       return;
