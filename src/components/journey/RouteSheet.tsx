@@ -52,7 +52,8 @@ export function RouteSheet({ storeId }: { storeId: number }) {
   const toLabel = swapped ? T('내 위치', 'My location') : sName(store);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[570] flex flex-col justify-end px-2 pb-2">
+    // 하단 탭바(z-800)에 가려지지 않게 pb 로 그 높이만큼 띄운다.
+    <div className="pointer-events-none absolute inset-0 z-[570] flex flex-col justify-end px-2 pb-[4.6rem]">
       <div className="sheet-up pointer-events-auto overflow-hidden rounded-[1.6rem] border border-town-line bg-town-paper shadow-sheet">
         <div className="relative flex items-center justify-center pb-1 pt-3">
           <h3 className="text-[15px] font-extrabold">{T('길찾기', 'Directions')}</h3>

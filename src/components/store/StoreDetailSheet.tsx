@@ -256,7 +256,8 @@ export function StoreDetailSheet({ storeId, onClose }: { storeId: number; onClos
 
   return (
     <>
-    <div className="pointer-events-none absolute inset-0 z-[560] flex flex-col justify-end px-2 pb-2">
+    {/* 하단 탭바(z-800, 약 70px)에 가려지지 않게 그 높이만큼 띄운다 */}
+    <div className="pointer-events-none absolute inset-0 z-[560] flex flex-col justify-end px-2 pb-[4.6rem]">
       <div
         className="sheet-up pointer-events-auto flex min-h-[300px] flex-col overflow-hidden rounded-[1.6rem] border border-town-line bg-town-paper shadow-sheet"
         style={{ maxHeight: '540px' }}

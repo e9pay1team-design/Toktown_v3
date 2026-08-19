@@ -92,7 +92,8 @@ export function EventSheet({ event, onClose, onGuide }: EventSheetProps) {
   const T = useT();
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[580] flex flex-col justify-end px-2 pb-2">
+    // 하단 탭바(z-800)에 가려지지 않게 pb 로 그 높이만큼 띄운다.
+    <div className="pointer-events-none absolute inset-0 z-[580] flex flex-col justify-end px-2 pb-[4.6rem]">
       <div
         className="sheet-up pointer-events-auto flex flex-col overflow-hidden rounded-[1.6rem] border-2 border-[#8B79C9] bg-town-paper shadow-sheet"
         style={{ maxHeight: '560px' }}

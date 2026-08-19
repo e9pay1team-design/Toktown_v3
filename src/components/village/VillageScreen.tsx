@@ -3,7 +3,15 @@
 // 잠시 퇴장하고 카메라 패닝 + 오브젝트 드래그 배치, ✓ 확정 / ✕ 보관함.
 // 주민증/도감/상점/꾸미기 메뉴 유지.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
 import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
@@ -142,6 +150,9 @@ export function VillageScreen() {
   const gameRef = useRef<VillageGame | null>(null);
   /** 바닥 타일 연속 배치 방향 추적 — 직전에 확정한 타일 위치 */
   const lastTilePlace = useRef<{ refId: string; bx: number; by: number } | null>(null);
+  /** 보관함 좌우 드래그 스크롤 상태 — 마우스 전용 (터치는 브라우저 네이티브 pan-x) */
+  const trayRef = useRef<HTMLDivElement>(null);
+  const trayDrag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
   const T = useT();
   const lang = useLang();
 
@@ -358,6 +369,45 @@ export function VillageScreen() {
       tr(`🎒 오브젝트 ${count}개를 보관함으로 회수했어요`, `🎒 Recalled ${count} object${count === 1 ? '' : 's'} to storage`),
       'success',
     );
+  };
+
+  /* 보관함 스트립 스크롤 — 마우스 드래그·세로 휠도 좌우 스크롤로 매끄럽게 */
+  const onTrayDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    const el = trayRef.current;
+    if (!el) return;
+    trayDrag.current = { x: e.clientX, left: el.scrollLeft, moved: false };
+  };
+  const onTrayMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = trayDrag.current;
+    const el = trayRef.current;
+    if (!d || !el || e.pointerType !== 'mouse') return;
+    // 폰 프레임 CSS scale 보정 — 화면 px → 로컬 px.
+    const scale = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    const dx = (e.clientX - d.x) / (scale || 1);
+    if (!d.moved && Math.abs(dx) > 5) {
+      d.moved = true;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* 일부 환경(합성 이벤트 등)에선 캡처 불가 — 캡처 없이도 동작 */
+      }
+    }
+    if (d.moved) el.scrollLeft = d.left - dx;
+  };
+  const onTrayUp = () => {
+    // click 이벤트가 moved 플래그를 읽은 뒤 해제되도록 다음 틱에 비운다.
+    if (trayDrag.current) setTimeout(() => (trayDrag.current = null), 0);
+  };
+  const onTrayClickCapture = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (trayDrag.current?.moved) {
+      e.preventDefault();
+      e.stopPropagation(); // 드래그 스크롤 직후의 실수 탭(아이템 스폰) 방지
+    }
+  };
+  const onTrayWheel = (e: ReactWheelEvent<HTMLDivElement>) => {
+    const el = trayRef.current;
+    if (el && Math.abs(e.deltaY) > Math.abs(e.deltaX)) el.scrollLeft += e.deltaY;
   };
 
   const openDialogueFor = (target: VInteractTarget) => {
@@ -663,7 +713,17 @@ export function VillageScreen() {
                 {T('비어 있어요 — 방문·조우·구매로 오브젝트를 모아보세요', 'Empty — collect objects by visiting, encountering, and shopping')}
               </p>
             ) : (
-              <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
+              <div
+                ref={trayRef}
+                onPointerDown={onTrayDown}
+                onPointerMove={onTrayMove}
+                onPointerUp={onTrayUp}
+                onPointerCancel={onTrayUp}
+                onClickCapture={onTrayClickCapture}
+                onWheel={onTrayWheel}
+                className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5"
+                style={{ touchAction: 'pan-x', overscrollBehaviorX: 'contain', cursor: 'grab' }}
+              >
                 {inventory.map((item) => (
                   <button
                     key={`${item.kind}:${item.refId}`}
