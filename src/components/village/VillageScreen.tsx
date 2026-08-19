@@ -204,8 +204,11 @@ export function VillageScreen() {
   }, [certifiedStoreIds, dex, discovered, decorOwned, placements, placedKeys, lang]);
 
   /* 마을 풍성도 → 입주 주민, 새 입주 토스트.
-     기본 광장 구성물(preset)은 세지 않는다 — 풍성도는 직접 모아 배치한 것만. */
-  const userPlacementCount = placements.filter((p) => !p.preset).length;
+     기본 광장 구성물(preset)과 바닥 타일은 세지 않는다 — 풍성도는
+     직접 모아 배치한 오브젝트만 (타일은 값싼 반복 배치라 제외). */
+  const userPlacementCount = placements.filter(
+    (p) => !p.preset && !(p.kind === 'decor' && GROUND_DECOR.has(p.refId)),
+  ).length;
   const richness = villageRichness(userPlacementCount, dex.length, discovered.length);
   const residents = residentNpcs(richness);
   const prevResidents = useRef(residents.length);

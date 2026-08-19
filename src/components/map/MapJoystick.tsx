@@ -10,7 +10,8 @@ import { checkLandmarkDiscovery } from '../../lib/actions';
 
 const BASE_PX = 96; // w-24 — 스케일 보정 기준
 const STICK_R = 34;
-const SPEED_MPS = 30;
+/** 데모 배속 최고 속도 — 명동 도보권을 십수 초에 가로지르는 체감 (요청으로 3배+ 상향) */
+const SPEED_MPS = 100;
 
 export function MapJoystick({ onActive }: { onActive: (on: boolean) => void }) {
   const baseRef = useRef<HTMLDivElement>(null);

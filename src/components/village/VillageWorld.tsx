@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { buildVillageWorld } from '../../lib/villageWorld';
 import {
+  GROUND_DECOR,
   VillageGame,
   type EditMeta,
   type PlacedThing,
@@ -131,8 +132,12 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
 }
 
 function villagersFromState(placements: Placement[], dexCount: number, lmCount: number): VillagerDef[] {
-  // 기본 광장 구성물(preset)은 풍성도에 세지 않는다 — VillageScreen 과 같은 규칙.
-  const richness = villageRichness(placements.filter((p) => !p.preset).length, dexCount, lmCount);
+  // 기본 광장 구성물(preset)·바닥 타일은 풍성도에 세지 않는다 — VillageScreen 과 같은 규칙.
+  const richness = villageRichness(
+    placements.filter((p) => !p.preset && !(p.kind === 'decor' && GROUND_DECOR.has(p.refId))).length,
+    dexCount,
+    lmCount,
+  );
   const defs: VillagerDef[] = residentNpcs(richness).map((n) => ({
     id: n.id,
     name: tr(n.name, n.nameEn),
