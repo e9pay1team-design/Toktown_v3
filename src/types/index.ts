@@ -33,6 +33,12 @@ export interface Store {
   founded?: number;
   tags: string[];
   tagsEn?: string[];
+  /** 웨이팅(대기) 서비스 연동 파트너 — 있으면 상세에 실시간 혼잡도 노출 */
+  waitingPartner?: string;
+  waitingPartnerEn?: string;
+  /** 외국인 주민 방문 팁 (주문 단위·언어 지원·결제 방식 등) */
+  tips?: string[];
+  tipsEn?: string[];
 }
 
 export type ReviewLang = 'ko' | 'en';

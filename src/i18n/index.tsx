@@ -58,6 +58,9 @@ export const sHours = (s: Store): string => tr(s.hours, s.hoursEn ?? s.hours);
 export const sBenefit = (s: Store): string | undefined => tr(s.benefit, s.benefitEn ?? s.benefit);
 export const sDesc = (s: Store): string => tr(s.desc, s.descEn ?? s.desc);
 export const sTags = (s: Store): string[] => tr(s.tags, s.tagsEn ?? s.tags);
+export const sTips = (s: Store): string[] => tr(s.tips ?? [], s.tipsEn ?? s.tips ?? []);
+export const sWaitingPartner = (s: Store): string =>
+  tr(s.waitingPartner ?? '', s.waitingPartnerEn ?? s.waitingPartner ?? '');
 export const lmName = (l: Landmark): string => tr(l.name, l.nameEn ?? l.name);
 export const lmDesc = (l: Landmark): string => tr(l.desc, l.descEn ?? l.desc);
 export const decorName = (d: DecorItem): string => tr(d.name, d.nameEn ?? d.name);
