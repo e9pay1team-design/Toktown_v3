@@ -83,7 +83,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
         <p className="mt-3 text-[14px] leading-relaxed text-town-inkSoft">
           {T('지도로 발견하고, 다녀오면 마을이 자라나는', 'Discover on the map, visit in person,')}
           <br />
-          {T('당신의 서울 라이프 타운', 'and watch your Seoul life-town grow')}
+          {T('당신의 한국 트립 타운', 'and watch your Korea trip-town grow')}
         </p>
       </div>
       <button
@@ -230,7 +230,7 @@ function CardCeremony({
   const T = useT();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const residentNo = useMemo(
-    () => `MD-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+    () => `ToK-${String(Math.floor(Math.random() * 9000) + 1000)}`,
     [],
   );
   const confetti = useMemo(
@@ -290,7 +290,7 @@ function CardCeremony({
           <div className="min-w-0 flex-1">
             <p className="truncate text-[22px] font-extrabold leading-tight">{nickname.trim()}</p>
             <p className="mt-0.5 text-[12px] font-bold text-town-inkSoft">
-              {T('명동 도보권 주민', 'Myeongdong Resident')} · {residentNo}
+              {T('톡타운 주민', 'TokTown Resident')} · {residentNo}
             </p>
             <div className="mt-2.5 space-y-1 text-[11.5px] text-town-inkSoft">
               <p>
