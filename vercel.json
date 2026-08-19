@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/k/:id",
-      "destination": "https://toktown-demo.example.com",
+      "destination": "https://claude.ai/code/artifact/bd324e77-4e89-44ee-b9ef-2d1bdcf138e1",
       "permanent": false
     }
   ]
