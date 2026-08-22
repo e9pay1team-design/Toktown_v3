@@ -1427,6 +1427,8 @@ export class VillageGame {
   /**
    * 페인터 정렬 깊이. 점 하나는 다층 타일 박스와 스칼라 하나로는 완전히
    * 정렬되지 않으므로, 건물 앞면(+x/+y 면)을 지나면 그 건물 위로 띄운다.
+   * 단 해당 앞면 벽의 폭 안에 있을 때만 — 대각(NE·W) 바깥 영역까지 띄우면
+   * 다른 건물 뒤에 서 있는 소품이 그 건물 지붕 위로 올라온다.
    */
   private entityDepth(x: number, y: number): number {
     let d = x + y;
@@ -1435,7 +1437,9 @@ export class VillageGame {
       const bx1 = t.bx + t.w;
       const by1 = t.by + t.h;
       const bd = bx1 + by1;
-      if (bd >= d && (x > bx1 || y > by1)) d = bd + 0.01;
+      const frontSE = x > bx1 && y > t.by; // SE 벽 앞 (벽이 가리는 폭 안)
+      const frontSW = y > by1 && x > t.bx; // SW 벽 앞
+      if (bd >= d && (frontSE || frontSW)) d = bd + 0.01;
     }
     return d;
   }
