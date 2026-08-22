@@ -53,6 +53,8 @@ export interface PlacedThing {
   /** store 전용 */
   emoji?: string;
   skin?: VBuildingSkin;
+  /** store 전용 — 카테고리별 외장 디테일 */
+  cat?: string;
   /** store 전용 — 건물 방향 (기본 sw) */
   facing?: VBuildingFacing;
   /** landmark 전용 */
@@ -87,6 +89,7 @@ export interface EditMeta {
   label: string;
   emoji?: string;
   skin?: VBuildingSkin;
+  cat?: string;
   facing?: VBuildingFacing;
   lmId?: string;
   decorType?: string;
@@ -724,6 +727,7 @@ export class VillageGame {
         label: hit.label,
         emoji: hit.emoji,
         skin: hit.skin,
+        cat: hit.cat,
         facing: hit.facing,
         lmId: hit.lmId,
         decorType: hit.decorType,
@@ -1062,7 +1066,12 @@ export class VillageGame {
   private drawThing(t: PlacedThing | (EditObject & { id?: number }), focus: number, asEdit = false): void {
     const ctx = this.ctx;
     if (t.kind === 'store') {
-      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, { emoji: t.emoji ?? '🏪', facing: t.facing });
+      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, {
+        emoji: t.emoji ?? '🏪',
+        facing: t.facing,
+        cat: t.cat,
+        time: this.time,
+      });
     } else if (t.kind === 'landmark') {
       drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, { time: this.time, facing: t.facing });
     } else if (t.kind === 'npc') {
@@ -1418,6 +1427,8 @@ export class VillageGame {
   /**
    * 페인터 정렬 깊이. 점 하나는 다층 타일 박스와 스칼라 하나로는 완전히
    * 정렬되지 않으므로, 건물 앞면(+x/+y 면)을 지나면 그 건물 위로 띄운다.
+   * 단 해당 앞면 벽의 폭 안에 있을 때만 — 대각(NE·W) 바깥 영역까지 띄우면
+   * 다른 건물 뒤에 서 있는 소품이 그 건물 지붕 위로 올라온다.
    */
   private entityDepth(x: number, y: number): number {
     let d = x + y;
@@ -1426,7 +1437,9 @@ export class VillageGame {
       const bx1 = t.bx + t.w;
       const by1 = t.by + t.h;
       const bd = bx1 + by1;
-      if (bd >= d && (x > bx1 || y > by1)) d = bd + 0.01;
+      const frontSE = x > bx1 && y > t.by; // SE 벽 앞 (벽이 가리는 폭 안)
+      const frontSW = y > by1 && x > t.bx; // SW 벽 앞
+      if (bd >= d && (frontSE || frontSW)) d = bd + 0.01;
     }
     return d;
   }

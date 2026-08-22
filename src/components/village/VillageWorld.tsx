@@ -54,6 +54,7 @@ export function trayMetaFor(kind: PlacementKind, refId: string, label: string): 
       label,
       emoji: store ? CATEGORY_EMOJI[store.category] : '🏪',
       skin: store ? CATEGORY_SKINS[store.category] : undefined,
+      cat: store?.category,
       facing: 'sw',
     };
   }
@@ -79,6 +80,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         label: sName(store),
         emoji: CATEGORY_EMOJI[store.category],
         skin: CATEGORY_SKINS[store.category],
+        cat: store.category,
         facing: p.facing,
         blocking: true,
       });

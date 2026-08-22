@@ -244,6 +244,10 @@ export type VBuildingFacing = 'sw' | 'se';
 export interface VBuildingOpts {
   emoji: string;
   facing?: VBuildingFacing;
+  /** 매장 카테고리 — 카테고리별 외장 디테일(굴뚝·기와·노렌·유리창·마퀴)을 얹는다 */
+  cat?: string;
+  /** 김·전광 애니메이션용 시간 */
+  time?: number;
 }
 
 /**
@@ -346,6 +350,170 @@ export function drawTemplateBuilding(
   ctx.moveTo(mid0.sx, mid0.sy - WALL_H - ROOF_T);
   ctx.lineTo(mid1.sx, mid1.sy - WALL_H - ROOF_T);
   ctx.stroke();
+
+  // ── 카테고리별 외장 디테일 (지도 정보보기 일러스트 톤과 맞춤) ──
+  const t = opts.time ?? 0;
+  if (opts.cat === '국밥') {
+    // 굴뚝 + 모락모락 김.
+    const ch = toScreen(x0 + 0.4, y0 + 0.4);
+    const chTop = ch.sy - WALL_H - ROOF_T - 13;
+    ctx.fillStyle = s.wallShade;
+    ctx.fillRect(ch.sx - 5, chTop, 10, 14);
+    ctx.fillStyle = s.accent;
+    ctx.fillRect(ch.sx - 6.5, chTop - 3, 13, 4);
+    for (let i = 0; i < 3; i++) {
+      const rise = (t * 13 + i * 12) % 34;
+      ctx.fillStyle = `rgba(255,255,255,${0.5 * (1 - rise / 34)})`;
+      ellipse(ctx, ch.sx + Math.sin(t * 2 + i * 1.7) * 3.5, chTop - 6 - rise, 4 + i * 1.4, 3.4 + i);
+      ctx.fill();
+    }
+    // 문 옆 나무 메뉴판.
+    faceQuad(ctx, F0, F1, 0.07, 0.3, 10, 31);
+    ctx.fillStyle = VPALETTE.paper;
+    ctx.fill();
+    faceQuad(ctx, F0, F1, 0.07, 0.3, 28.5, 31);
+    ctx.fillStyle = s.accent;
+    ctx.fill();
+    for (const v of [24, 20, 16]) {
+      faceQuad(ctx, F0, F1, 0.1, 0.27, v, v + 1.6);
+      ctx.fillStyle = 'rgba(74,59,50,0.4)';
+      ctx.fill();
+    }
+  } else if (opts.cat === '한식') {
+    // 처마 기와 (전면 상단 물결).
+    faceQuad(ctx, F0, F1, 0, 1, 42, 45.5);
+    ctx.fillStyle = s.roofShade;
+    ctx.fill();
+    for (let i = 0; i < 6; i++) {
+      const p = facePoint(F0, F1, 0.09 + i * 0.165, 42);
+      ctx.fillStyle = s.roof;
+      ellipse(ctx, p.x, p.y, 4.4, 3);
+      ctx.fill();
+    }
+    // 창문 나무 격자.
+    ctx.fillStyle = s.accent;
+    for (let i = 0; i < Math.max(1, bh - 1); i++) {
+      const u0 = 0.24 + i * 0.36;
+      faceQuad(ctx, W0, W1, u0 + 0.095, u0 + 0.125, 15, 33);
+      ctx.fill();
+      faceQuad(ctx, W0, W1, u0, u0 + 0.22, 23, 24.6);
+      ctx.fill();
+    }
+    // 장독대 (전면 모서리 옆 항아리 2개).
+    const jar = toScreen(x0 + 0.22, y1 + 0.3);
+    for (const [dx2, sc] of [
+      [-7, 1],
+      [6, 0.78],
+    ] as const) {
+      ctx.fillStyle = '#8a6b52';
+      ellipse(ctx, jar.sx + dx2, jar.sy - 7 * sc, 6.4 * sc, 7.4 * sc);
+      ctx.fill();
+      ctx.fillStyle = '#6e523c';
+      ellipse(ctx, jar.sx + dx2, jar.sy - 13.4 * sc, 4.2 * sc, 1.9 * sc);
+      ctx.fill();
+    }
+  } else if (opts.cat === '면') {
+    // 노렌(포렴) — 문 위에 드리운 천 3폭.
+    for (let k = 0; k < 3; k++) {
+      const u0 = 0.5 - dw / 2 - 0.015 + k * ((dw + 0.03) / 3);
+      faceQuad(ctx, F0, F1, u0 + 0.008, u0 + (dw + 0.03) / 3 - 0.008, 25 - (k % 2) * 1.6, 32.6);
+      ctx.fillStyle = k === 1 ? VPALETTE.paper : s.accent;
+      ctx.fill();
+    }
+    // 창가에서 새는 김.
+    const wv = facePoint(W0, W1, 0.35, 33);
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 2; i++) {
+      const rise = (t * 11 + i * 14) % 26;
+      ctx.globalAlpha = 0.7 * (1 - rise / 26);
+      ctx.beginPath();
+      ctx.moveTo(wv.x + i * 9, wv.y - rise);
+      ctx.quadraticCurveTo(wv.x + i * 9 + 4, wv.y - rise - 5, wv.x + i * 9 + 1, wv.y - rise - 10);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (opts.cat === '카페') {
+    // 대형 유리 쇼윈도 (문 오른쪽) + 반사광.
+    faceQuad(ctx, F0, F1, 0.71, 0.95, 4, 30);
+    ctx.fillStyle = '#cfe9f0';
+    ctx.fill();
+    faceQuad(ctx, F0, F1, 0.76, 0.815, 4, 30);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fill();
+    faceQuad(ctx, F0, F1, 0.71, 0.95, 4, 30);
+    ctx.strokeStyle = s.accent;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    // 행잉 플랜트.
+    const hp = facePoint(F0, F1, 0.1, 38);
+    ctx.strokeStyle = 'rgba(74,59,50,0.5)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(hp.x, hp.y - 4);
+    ctx.lineTo(hp.x, hp.y + 3);
+    ctx.stroke();
+    ctx.fillStyle = '#4E9B58';
+    ellipse(ctx, hp.x, hp.y + 7, 5.6, 4.6);
+    ctx.fill();
+    ctx.fillStyle = '#7BC47F';
+    ellipse(ctx, hp.x - 2, hp.y + 5.4, 2.6, 2.2);
+    ctx.fill();
+    // A-보드 (문 앞 입간판).
+    const ab = toScreen(x0 + (opts.facing === 'se' ? bw - 0.2 : 0.55), y1 + 0.28);
+    ctx.fillStyle = '#4a3b32';
+    ctx.beginPath();
+    ctx.moveTo(ab.sx - 6, ab.sy);
+    ctx.lineTo(ab.sx - 3.4, ab.sy - 13);
+    ctx.lineTo(ab.sx + 3.4, ab.sy - 13);
+    ctx.lineTo(ab.sx + 6, ab.sy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(ab.sx - 2.6, ab.sy - 9.5);
+    ctx.lineTo(ab.sx + 2.6, ab.sy - 9.5);
+    ctx.moveTo(ab.sx - 3, ab.sy - 6.5);
+    ctx.lineTo(ab.sx + 3, ab.sy - 6.5);
+    ctx.stroke();
+  } else if (opts.cat === '공연장') {
+    // 마퀴 전광판 — 어닝 위를 덮고 전구가 점멸.
+    faceQuad(ctx, F0, F1, 0.16, 0.84, 32, 44.5);
+    ctx.fillStyle = '#2e2b3f';
+    ctx.fill();
+    faceQuad(ctx, F0, F1, 0.19, 0.81, 35, 41.5);
+    ctx.fillStyle = s.roof;
+    ctx.fill();
+    for (let i = 0; i < 7; i++) {
+      const u = 0.2 + i * 0.1;
+      const on = Math.floor(t * 3 + i) % 2 === 0;
+      ctx.fillStyle = on ? '#FFD66B' : 'rgba(255,255,255,0.3)';
+      const b1 = facePoint(F0, F1, u, 33.4);
+      ellipse(ctx, b1.x, b1.y, 1.7, 1.7);
+      ctx.fill();
+      const b2 = facePoint(F0, F1, u, 43.2);
+      ellipse(ctx, b2.x, b2.y, 1.7, 1.7);
+      ctx.fill();
+    }
+    // 포스터 2장 (창문 면).
+    const posters: [number, string][] = [
+      [0.2, '#f2a7c3'],
+      [0.58, '#7ba7d9'],
+    ];
+    for (const [u0, color] of posters) {
+      faceQuad(ctx, W0, W1, u0, u0 + 0.2, 12, 32);
+      ctx.fillStyle = VPALETTE.paper;
+      ctx.fill();
+      faceQuad(ctx, W0, W1, u0 + 0.02, u0 + 0.18, 19, 30);
+      ctx.fillStyle = color;
+      ctx.fill();
+      faceQuad(ctx, W0, W1, u0 + 0.03, u0 + 0.17, 14.5, 16.5);
+      ctx.fillStyle = 'rgba(74,59,50,0.55)';
+      ctx.fill();
+    }
+  }
 
   // 문 옆 이모지 간판.
   const signAnchor = facePoint(F0, F1, 0.5 + dw / 2 + 0.13, 27);
@@ -460,45 +628,145 @@ export function drawVLandmark(
   ctx.restore();
 
   if (id === 'cathedral') {
-    // 몸체 (석조).
-    faceQuad(ctx, D, C, 0, 1, 0, 40);
-    ctx.fillStyle = '#f4efe8';
+    // 명동성당 — 지도 미니어처(LandmarkSvg)와 같은 붉은 벽돌 + 청회색 지붕 팔레트.
+    const BRICK = '#C17A5B';
+    const BRICK_SH = '#A56247';
+    const BRICK_HI = '#CE8763';
+    const ROOF = '#7E8CA3';
+    const ROOF_SH = '#5E6B84';
+    const CREAM = '#FFF3DC';
+    const TRIM = '#8A5A40';
+    const DOOR = '#6E4A36';
+
+    // 본당 벽돌 벽.
+    faceQuad(ctx, D, C, 0, 1, 0, 38);
+    ctx.fillStyle = BRICK;
     ctx.fill();
-    faceQuad(ctx, C, B, 0, 1, 0, 40);
-    ctx.fillStyle = '#ded5c9';
+    faceQuad(ctx, C, B, 0, 1, 0, 38);
+    ctx.fillStyle = BRICK_SH;
     ctx.fill();
-    // 아치 문 + 장미창.
-    faceQuad(ctx, D, C, 0.38, 0.62, 0, 22);
-    ctx.fillStyle = '#8a7a6b';
+    // 벽돌 줄눈.
+    ctx.strokeStyle = 'rgba(255,244,230,0.28)';
+    ctx.lineWidth = 1.1;
+    for (const [p0, p1] of [
+      [D, C],
+      [C, B],
+    ] as const) {
+      for (const v of [10, 20, 30]) {
+        const a = facePoint(p0, p1, 0.03, v);
+        const b2 = facePoint(p0, p1, 0.97, v);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b2.x, b2.y);
+        ctx.stroke();
+      }
+    }
+    // 아치 창 — 크림색 + 브라운 트림 (정면 2 + 측면 2).
+    const archWin = (p0: Pt, p1: Pt, u: number) => {
+      faceQuad(ctx, p0, p1, u, u + 0.13, 10, 26);
+      ctx.fillStyle = CREAM;
+      ctx.fill();
+      const topPt = facePoint(p0, p1, u + 0.065, 26);
+      const rw = Math.abs(facePoint(p0, p1, u + 0.13, 26).x - facePoint(p0, p1, u, 26).x) / 2;
+      ctx.fillStyle = CREAM;
+      ellipse(ctx, topPt.x, topPt.y, rw, rw * 0.8);
+      ctx.fill();
+      faceQuad(ctx, p0, p1, u, u + 0.13, 10, 26);
+      ctx.strokeStyle = TRIM;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+    };
+    archWin(D, C, 0.1);
+    archWin(D, C, 0.76);
+    archWin(C, B, 0.3);
+    archWin(C, B, 0.6);
+    // 정면 중앙 아치 대문.
+    faceQuad(ctx, D, C, 0.41, 0.59, 0, 16);
+    ctx.fillStyle = DOOR;
     ctx.fill();
-    const rose = facePoint(D, C, 0.5, 31);
-    ctx.fillStyle = '#b9d7ea';
-    ellipse(ctx, rose.x, rose.y, 5, 5);
+    const doorTop = facePoint(D, C, 0.5, 16);
+    const drw = Math.abs(facePoint(D, C, 0.59, 16).x - facePoint(D, C, 0.41, 16).x) / 2;
+    ellipse(ctx, doorTop.x, doorTop.y, drw, drw * 0.85);
     ctx.fill();
-    ctx.strokeStyle = '#8a7a6b';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = CREAM;
+    ctx.lineWidth = 1.6;
+    faceQuad(ctx, D, C, 0.41, 0.59, 0, 16);
     ctx.stroke();
-    // 박공 지붕.
-    vFootprintPath(ctx, x0 - 0.1, y0 - 0.1, x1 + 0.1, y1 + 0.1, 40);
-    ctx.fillStyle = '#8f9aa5';
+    // 본당 지붕 (청회색 슬레이트) + 용마루 하이라이트.
+    vFootprintPath(ctx, x0 - 0.1, y0 - 0.1, x1 + 0.1, y1 + 0.1, 38);
+    ctx.fillStyle = ROOF;
     ctx.fill();
-    // 첨탑 + 십자가.
-    ctx.fillStyle = '#f4efe8';
-    ctx.fillRect(top.sx - 6, top.sy - 78, 12, 40);
-    ctx.beginPath();
-    ctx.moveTo(top.sx - 8, top.sy - 78);
-    ctx.lineTo(top.sx, top.sy - 96);
-    ctx.lineTo(top.sx + 8, top.sy - 78);
-    ctx.closePath();
-    ctx.fillStyle = '#7d8894';
-    ctx.fill();
-    ctx.strokeStyle = '#a89a5b';
+    const rg0 = toScreen(x0, (y0 + y1) / 2);
+    const rg1 = toScreen(x1, (y0 + y1) / 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(top.sx, top.sy - 96);
-    ctx.lineTo(top.sx, top.sy - 106);
-    ctx.moveTo(top.sx - 4, top.sy - 102);
-    ctx.lineTo(top.sx + 4, top.sy - 102);
+    ctx.moveTo(rg0.sx, rg0.sy - 38);
+    ctx.lineTo(rg1.sx, rg1.sy - 38);
+    ctx.stroke();
+
+    // 종탑 (전면 중앙) — 벽돌 몸체 + 장미창 + 종창.
+    ctx.fillStyle = BRICK_HI;
+    ctx.fillRect(top.sx - 9, top.sy - 88, 18, 54);
+    ctx.fillStyle = BRICK;
+    ctx.fillRect(top.sx + 1, top.sy - 88, 8, 54);
+    ctx.strokeStyle = TRIM;
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(top.sx - 9, top.sy - 88, 18, 54);
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 9, top.sy - 52);
+    ctx.lineTo(top.sx + 9, top.sy - 52);
+    ctx.moveTo(top.sx - 9, top.sy - 74);
+    ctx.lineTo(top.sx + 9, top.sy - 74);
+    ctx.stroke();
+    // 장미창.
+    ctx.fillStyle = CREAM;
+    ellipse(ctx, top.sx, top.sy - 62, 5.6, 5.6);
+    ctx.fill();
+    ctx.strokeStyle = TRIM;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(top.sx, top.sy - 67.6);
+    ctx.lineTo(top.sx, top.sy - 56.4);
+    ctx.moveTo(top.sx - 5.6, top.sy - 62);
+    ctx.lineTo(top.sx + 5.6, top.sy - 62);
+    ctx.stroke();
+    // 종창 (상단 슬릿 2개).
+    ctx.fillStyle = CREAM;
+    ctx.fillRect(top.sx - 5.5, top.sy - 84, 4, 8);
+    ctx.fillRect(top.sx + 1.5, top.sy - 84, 4, 8);
+    // 첨탑 (청회색) + 코너 피너클 + 십자가.
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 11, top.sy - 88);
+    ctx.lineTo(top.sx, top.sy - 112);
+    ctx.lineTo(top.sx + 11, top.sy - 88);
+    ctx.closePath();
+    ctx.fillStyle = ROOF;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(top.sx, top.sy - 112);
+    ctx.lineTo(top.sx + 11, top.sy - 88);
+    ctx.lineTo(top.sx + 4, top.sy - 88);
+    ctx.closePath();
+    ctx.fillStyle = ROOF_SH;
+    ctx.fill();
+    for (const dx2 of [-11, 11]) {
+      ctx.beginPath();
+      ctx.moveTo(top.sx + dx2 - 3, top.sy - 87);
+      ctx.lineTo(top.sx + dx2, top.sy - 96);
+      ctx.lineTo(top.sx + dx2 + 3, top.sy - 87);
+      ctx.closePath();
+      ctx.fillStyle = ROOF_SH;
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#5B4A3F';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(top.sx, top.sy - 112);
+    ctx.lineTo(top.sx, top.sy - 122);
+    ctx.moveTo(top.sx - 4.5, top.sy - 118);
+    ctx.lineTo(top.sx + 4.5, top.sy - 118);
     ctx.stroke();
   } else if (id === 'namsan') {
     // 언덕.

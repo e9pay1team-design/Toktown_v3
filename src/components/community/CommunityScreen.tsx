@@ -50,6 +50,83 @@ function StoreTagChip({ storeId }: { storeId: number }) {
   );
 }
 
+/** 내 댓글 스레드 + 입력 — 시드 글·내 글 공용. 댓글은 수정 불가, 삭제만 가능. */
+function MyCommentThread({ postId }: { postId: string }) {
+  const myComments = useCommunityStore((s) => s.myComments);
+  const addComment = useCommunityStore((s) => s.addComment);
+  const deleteComment = useCommunityStore((s) => s.deleteComment);
+  const nickname = useProfileStore((s) => s.profile?.nickname ?? '나');
+  const toast = useToastStore((s) => s.show);
+  const [draft, setDraft] = useState('');
+  const [armed, setArmed] = useState<string | null>(null);
+  const T = useT();
+
+  const mine = myComments.filter((c) => c.postId === postId);
+  const submit = () => {
+    const text = draft.trim();
+    if (text.length < 1) return;
+    addComment(postId, text);
+    setDraft('');
+    toast(tr('댓글을 달았어요', 'Comment posted'), 'success');
+  };
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      {mine.map((c) => (
+        <div key={c.id} className="rounded-xl border border-town-leaf/40 bg-town-leaf/5 p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11.5px] font-extrabold">
+              {nickname}{' '}
+              <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+                {T('나', 'Me')}
+              </span>
+            </p>
+            <button
+              onClick={() => {
+                if (armed === c.id) {
+                  setArmed(null);
+                  deleteComment(c.id);
+                  toast(tr('댓글을 삭제했어요', 'Comment deleted'), 'info');
+                } else {
+                  setArmed(c.id);
+                  setTimeout(() => setArmed((v) => (v === c.id ? null : v)), 3000);
+                }
+              }}
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold transition active:scale-95 ${
+                armed === c.id
+                  ? 'animate-pulse bg-town-coralDeep text-white'
+                  : 'border border-town-line bg-town-paper text-town-inkSoft'
+              }`}
+            >
+              {armed === c.id ? T('한 번 더!', 'Again!') : `🗑️ ${T('삭제', 'Delete')}`}
+            </button>
+          </div>
+          <p className="mt-0.5 text-[12.5px] leading-snug text-town-ink/90">{c.text}</p>
+        </div>
+      ))}
+      <div className="flex items-center gap-1.5">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.slice(0, 120))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+          placeholder={T('댓글 달기…', 'Add a comment…')}
+          aria-label="댓글 입력"
+          className="min-w-0 flex-1 rounded-xl border border-town-line bg-town-cream/60 px-3 py-2 text-[12px] font-medium outline-none focus:border-town-leaf"
+        />
+        <button
+          onClick={submit}
+          disabled={draft.trim().length < 1}
+          className="shrink-0 rounded-xl bg-town-leafDark px-3 py-2 text-[11.5px] font-extrabold text-white transition active:scale-95 disabled:bg-town-line disabled:text-town-inkSoft/50"
+        >
+          {T('등록', 'Post')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** 게시글 사진 — 업로드(dataURL)는 img, 데모 사진은 코드 SVG */
 function PostPhoto({ photo, photoId }: { photo?: string; photoId?: string }) {
   if (!photo && !photoId) return null;
@@ -130,11 +207,15 @@ function TranslateToggle({
 function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id: string) => void }) {
   const likedIds = useCommunityStore((s) => s.likedIds);
   const toggleLike = useCommunityStore((s) => s.toggleLike);
+  const myCommentCount = useCommunityStore(
+    (s) => s.myComments.filter((c) => c.postId === post.id).length,
+  );
   const [showTr, setShowTr] = useState(false);
   const [openComments, setOpenComments] = useState(false);
   const [trComments, setTrComments] = useState<Set<string>>(new Set());
   const T = useT();
   const lang = useLang();
+  const totalComments = post.comments.length + myCommentCount;
 
   const liked = likedIds.includes(post.id);
   // 앱 언어와 일치하는 버전을 기본 표시, 토글로 반대 버전 확인.
@@ -182,19 +263,20 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
         >
           {liked ? '❤️' : '🤍'} {post.likes + (liked ? 1 : 0)}
         </button>
-        {post.comments.length > 0 && (
-          <button
-            onClick={() => setOpenComments(!openComments)}
-            className="flex items-center gap-1 text-[12px] font-extrabold text-town-inkSoft"
-          >
-            💬 {T(`댓글 ${post.comments.length}`, `${post.comments.length} comments`)}{' '}
-            {openComments ? T('접기', 'Hide') : T('보기', 'Show')}
-          </button>
-        )}
+        <button
+          onClick={() => setOpenComments(!openComments)}
+          className="flex items-center gap-1 text-[12px] font-extrabold text-town-inkSoft"
+        >
+          💬{' '}
+          {totalComments > 0
+            ? `${T(`댓글 ${totalComments}`, `${totalComments} comments`)} ${openComments ? T('접기', 'Hide') : T('보기', 'Show')}`
+            : T('댓글 쓰기', 'Comment')}
+        </button>
       </div>
 
       {openComments && (
-        <ul className="fade-in mt-2 flex flex-col gap-2">
+        <div className="fade-in">
+          <ul className="mt-2 flex flex-col gap-2">
           {post.comments.map((c) => {
             const shown = trComments.has(c.id);
             const cPrimary = c.lang === lang ? c.text : c.translated;
@@ -221,7 +303,9 @@ function SeedPostCard({ post, onPickTag }: { post: CommunityPost; onPickTag: (id
               </li>
             );
           })}
-        </ul>
+          </ul>
+          <MyCommentThread postId={post.id} />
+        </div>
       )}
     </article>
   );
@@ -267,6 +351,9 @@ export function CommunityScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   /** 삭제 2단계 확인 — 눌린 글 id (3초 뒤 자동 해제) */
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
+  /** 내 글 카드에서 댓글 스레드가 펼쳐진 글 id 집합 */
+  const [openMyComments, setOpenMyComments] = useState<Set<string>>(new Set());
+  const myComments = useCommunityStore((s) => s.myComments);
   const armedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -492,8 +579,25 @@ export function CommunityScreen() {
             <PostPhoto photo={p.photo} photoId={p.photoId} />
             <PostTagChips ids={p.tags} onPick={(id) => setTagFilter(id)} />
             {p.storeTagId && <StoreTagChip storeId={p.storeTagId} />}
-            {/* 내 글 관리 — 수정 / 삭제(2단계 확인) */}
+            {/* 내 글 관리 — 댓글 / 수정 / 삭제(2단계 확인) */}
             <div className="mt-2.5 flex items-center gap-2 border-t border-town-line/60 pt-2">
+              <button
+                onClick={() =>
+                  setOpenMyComments((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(p.id)) next.delete(p.id);
+                    else next.add(p.id);
+                    return next;
+                  })
+                }
+                className="rounded-full border border-town-line bg-town-paper px-2.5 py-1 text-[11px] font-extrabold text-town-inkSoft transition active:scale-95"
+              >
+                💬{' '}
+                {(() => {
+                  const n = myComments.filter((c) => c.postId === p.id).length;
+                  return n > 0 ? T(`댓글 ${n}`, `${n} comments`) : T('댓글', 'Comment');
+                })()}
+              </button>
               <button
                 onClick={() => startEdit(p)}
                 className="rounded-full border border-town-line bg-town-paper px-2.5 py-1 text-[11px] font-extrabold text-town-inkSoft transition active:scale-95"
@@ -511,6 +615,7 @@ export function CommunityScreen() {
                 {armedDelete === p.id ? T('한 번 더 누르면 삭제!', 'Tap again to delete!') : `🗑️ ${T('삭제', 'Delete')}`}
               </button>
             </div>
+            {openMyComments.has(p.id) && <MyCommentThread postId={p.id} />}
           </article>
         ))}
 
