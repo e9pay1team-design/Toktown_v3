@@ -4,16 +4,16 @@
 
 import { DRUMMER_MAGPIE, REGIONAL_NPCS } from '../../data/seed';
 import { useCollectionStore } from '../../store/useCollectionStore';
-import { MagpieSvg } from '../../assets/npcs';
+import { MagpieSvg, UpcomingNpcSvg } from '../../assets/npcs';
 import { useT } from '../../i18n';
 
-/** 전국 확대 티저 (기획 §4 지역 마스코트 예시) */
+/** 전국 확대 티저 (기획 §4 지역 마스코트 예시) — 디자인은 실루엣으로만 노출 */
 const UPCOMING = [
-  { region: '홍대', regionEn: 'Hongdae', hint: '기타 멘 인디 고양이', hintEn: 'An indie cat with a guitar' },
-  { region: '성수/서울숲', regionEn: 'Seongsu', hint: '커피 든 꽃사슴', hintEn: 'A sika deer holding coffee' },
-  { region: '경복궁/북촌', regionEn: 'Gyeongbokgung', hint: '한옥 지붕 위 아기호랑이', hintEn: 'A tiger cub on a hanok roof' },
-  { region: '부산', regionEn: 'Busan', hint: '서퍼 갈매기', hintEn: 'A surfer seagull' },
-  { region: '제주', regionEn: 'Jeju', hint: '감귤 문 조랑말', hintEn: 'A pony with a tangerine' },
+  { id: 'hongdae-cat', region: '홍대', regionEn: 'Hongdae', hint: '기타 멘 인디 고양이', hintEn: 'An indie cat with a guitar' },
+  { id: 'seongsu-deer', region: '성수/서울숲', regionEn: 'Seongsu', hint: '커피 든 꽃사슴', hintEn: 'A sika deer holding coffee' },
+  { id: 'bukchon-tiger', region: '경복궁/북촌', regionEn: 'Gyeongbokgung', hint: '한옥 지붕 위 아기호랑이', hintEn: 'A tiger cub on a hanok roof' },
+  { id: 'busan-gull', region: '부산', regionEn: 'Busan', hint: '서퍼 갈매기', hintEn: 'A surfer seagull' },
+  { id: 'jeju-pony', region: '제주', regionEn: 'Jeju', hint: '감귤 문 조랑말', hintEn: 'A pony with a tangerine' },
 ];
 
 export function DexModal({ onClose }: { onClose: () => void }) {
@@ -117,17 +117,18 @@ export function DexModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-1 gap-1.5">
             {UPCOMING.map((u) => (
               <div
-                key={u.region}
-                className="flex items-center gap-3 rounded-xl border border-dashed border-town-line bg-town-cream/40 px-3 py-2.5"
+                key={u.id}
+                className="flex items-center gap-3 rounded-xl border border-dashed border-town-line bg-town-cream/40 px-3 py-2"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-town-line text-[16px] font-extrabold text-town-inkSoft/60">
-                  ?
-                </span>
-                <div>
-                  <p className="text-[12.5px] font-extrabold text-town-inkSoft">📍 {T(u.region, u.regionEn)}</p>
-                  <p className="text-[10.5px] text-town-inkSoft/70">
-                    {T(`${u.hint} — 프로토타입 이후 확대`, `${u.hintEn} — after the prototype`)}
+                {/* 미조우 — 검은 실루엣만 */}
+                <div className="shrink-0 opacity-35 brightness-0">
+                  <UpcomingNpcSvg id={u.id} size={52} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-extrabold text-town-inkSoft">
+                    ??? <span className="ml-1 rounded-full bg-town-cream px-2 py-0.5 text-[9.5px] font-bold">📍 {T(u.region, u.regionEn)}</span>
                   </p>
+                  <p className="mt-0.5 text-[10.5px] text-town-inkSoft/70">{T(u.hint, u.hintEn)}</p>
                 </div>
               </div>
             ))}

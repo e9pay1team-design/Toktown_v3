@@ -252,3 +252,132 @@ export function BasicNpcSvg({ role, size = 96 }: { role: string; size?: number }
       return <MagpieSvg size={size} />;
   }
 }
+
+/** 전국 확대 로드맵 NPC — 도감에선 실루엣으로만 노출 (미조우 티저).
+    등록 전이지만 외곽이 한눈에 읽히도록 소품(기타·커피·서프보드 등)을 크게 잡는다. */
+export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number }) {
+  switch (id) {
+    case 'hongdae-cat': // 기타 멘 인디 고양이
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="홍대 인디 고양이 실루엣">
+          <ellipse cx={58} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
+          <path d="M36 40 L30 18 L48 30 Z" fill="#5B5566" />
+          <path d="M84 40 L90 18 L72 30 Z" fill="#5B5566" />
+          <ellipse cx={60} cy={62} rx={33} ry={38} fill="#6B6377" />
+          <ellipse cx={60} cy={80} rx={19} ry={20} fill="#FFFDF7" />
+          <circle cx={48} cy={52} r={3.6} fill="#2B2B33" />
+          <circle cx={72} cy={52} r={3.6} fill="#2B2B33" />
+          <path d="M56 60 q4 4 8 0" stroke="#2B2B33" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+          {blush(40, 60)}
+          {blush(80, 60)}
+          {/* 기타 */}
+          <g transform="rotate(24 74 84)">
+            <ellipse cx={74} cy={92} rx={15} ry={12} fill="#C9885A" />
+            <circle cx={74} cy={91} r={4.5} fill="#5B4A3F" />
+            <rect x={71} y={52} width={6} height={40} rx={3} fill="#8A6B52" />
+            <rect x={68} y={48} width={12} height={8} rx={3} fill="#5B4A3F" />
+            <path d="M74 56 v34" stroke="#FFF3DC" strokeWidth={1.4} />
+          </g>
+          {/* 꼬리 */}
+          <path d="M30 88 q-14 -2 -10 -16" stroke="#5B5566" strokeWidth={9} fill="none" strokeLinecap="round" />
+        </svg>
+      );
+    case 'seongsu-deer': // 커피 든 꽃사슴
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="성수 꽃사슴 실루엣">
+          <ellipse cx={60} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
+          {/* 뿔 */}
+          <path d="M42 30 q-4 -14 -14 -16 M42 30 q-12 -4 -16 4 M78 30 q4 -14 14 -16 M78 30 q12 -4 16 4" stroke="#8A6B52" strokeWidth={5} fill="none" strokeLinecap="round" />
+          <path d="M46 26 L40 12 L54 20 Z" fill="#B98A5F" />
+          <path d="M74 26 L80 12 L66 20 Z" fill="#B98A5F" />
+          <ellipse cx={60} cy={64} rx={31} ry={37} fill="#C89B66" />
+          <ellipse cx={60} cy={82} rx={18} ry={19} fill="#FFF3DC" />
+          {/* 꽃사슴 점무늬 */}
+          <circle cx={42} cy={48} r={2.6} fill="#FFF3DC" />
+          <circle cx={78} cy={46} r={2.6} fill="#FFF3DC" />
+          <circle cx={38} cy={62} r={2.2} fill="#FFF3DC" />
+          <circle cx={82} cy={62} r={2.2} fill="#FFF3DC" />
+          <circle cx={49} cy={54} r={3.4} fill="#2B2B33" />
+          <circle cx={71} cy={54} r={3.4} fill="#2B2B33" />
+          <ellipse cx={60} cy={63} rx={4} ry={3} fill="#5B4A3F" />
+          {blush(41, 61)}
+          {blush(79, 61)}
+          {/* 테이크아웃 커피 */}
+          <g transform="rotate(-8 88 88)">
+            <path d="M80 78 h18 l-2.5 22 h-13 Z" fill="#FFFDF7" />
+            <rect x={78} y={74} width={22} height={6} rx={3} fill="#4FB9A8" />
+            <path d="M89 74 v-8" stroke="#8A6B52" strokeWidth={3.4} strokeLinecap="round" />
+          </g>
+        </svg>
+      );
+    case 'bukchon-tiger': // 한옥 지붕 위 아기호랑이
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="북촌 아기호랑이 실루엣">
+          <ellipse cx={60} cy={114} rx={36} ry={5} fill="rgba(74,59,50,0.14)" />
+          {/* 기와 지붕 조각 */}
+          <path d="M12 106 Q60 88 108 106 L108 112 Q60 96 12 112 Z" fill="#5E6470" />
+          <path d="M20 104 q5 -5 10 0 M44 100 q5 -5 10 0 M68 100 q5 -5 10 0 M92 104 q5 -5 10 0" stroke="#3F4550" strokeWidth={2.6} fill="none" />
+          {/* 호랑이 */}
+          <path d="M40 34 L34 18 L50 26 Z" fill="#E8944B" />
+          <path d="M80 34 L86 18 L70 26 Z" fill="#E8944B" />
+          <ellipse cx={60} cy={62} rx={31} ry={34} fill="#F0A055" />
+          <ellipse cx={60} cy={76} rx={19} ry={19} fill="#FFF3DC" />
+          {/* 줄무늬 */}
+          <path d="M34 46 q6 3 4 9 M86 46 q-6 3 -4 9 M52 32 q3 5 -1 8 M68 32 q-3 5 1 8" stroke="#4A3B32" strokeWidth={4} fill="none" strokeLinecap="round" />
+          <path d="M56 44 h8" stroke="#4A3B32" strokeWidth={3.4} strokeLinecap="round" />
+          <circle cx={49} cy={54} r={3.6} fill="#2B2B33" />
+          <circle cx={71} cy={54} r={3.6} fill="#2B2B33" />
+          <path d="M56 62 q4 4 8 0 M60 62 v4" stroke="#2B2B33" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+          <ellipse cx={60} cy={60} rx={3.6} ry={2.8} fill="#C2503F" />
+          {blush(42, 62)}
+          {blush(78, 62)}
+        </svg>
+      );
+    case 'busan-gull': // 서퍼 갈매기
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="부산 서퍼 갈매기 실루엣">
+          <ellipse cx={60} cy={113} rx={34} ry={5} fill="rgba(74,59,50,0.14)" />
+          {/* 서프보드 */}
+          <g transform="rotate(-16 78 84)">
+            <ellipse cx={80} cy={80} rx={12} ry={40} fill="#5EB3CC" />
+            <path d="M80 44 v72" stroke="#FFFDF7" strokeWidth={3} />
+          </g>
+          {/* 갈매기 */}
+          <ellipse cx={52} cy={66} rx={28} ry={33} fill="#FFFDF7" />
+          <ellipse cx={52} cy={46} rx={20} ry={16} fill="#FFFDF7" />
+          <ellipse cx={38} cy={72} rx={9} ry={16} fill="#C3CBD6" transform="rotate(16 38 72)" />
+          <circle cx={45} cy={44} r={3.2} fill="#2B2B33" />
+          <circle cx={60} cy={44} r={3.2} fill="#2B2B33" />
+          <path d="M48 52 L57 52 L52.5 59 Z" fill="#F5B942" />
+          {blush(38, 52)}
+          {blush(66, 52)}
+          {/* 파도 물방울 */}
+          <path d="M22 96 q6 -5 12 0 M88 100 q6 -5 12 0" stroke="#5EB3CC" strokeWidth={3} fill="none" strokeLinecap="round" />
+        </svg>
+      );
+    case 'jeju-pony': // 감귤 문 조랑말
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="제주 조랑말 실루엣">
+          <ellipse cx={60} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
+          {/* 귀 + 갈기 */}
+          <path d="M42 32 L38 16 L52 24 Z" fill="#6B5A4C" />
+          <path d="M78 32 L82 16 L68 24 Z" fill="#6B5A4C" />
+          <path d="M60 18 q-16 2 -20 16 q10 -8 20 -8 q10 0 20 8 q-4 -14 -20 -16 Z" fill="#4A3B32" />
+          <ellipse cx={60} cy={64} rx={32} ry={36} fill="#8A6B52" />
+          <ellipse cx={60} cy={84} rx={20} ry={18} fill="#D9C4A8" />
+          <circle cx={48} cy={54} r={3.6} fill="#2B2B33" />
+          <circle cx={72} cy={54} r={3.6} fill="#2B2B33" />
+          <ellipse cx={53} cy={82} rx={2.6} ry={3.4} fill="#4A3B32" />
+          <ellipse cx={67} cy={82} rx={2.6} ry={3.4} fill="#4A3B32" />
+          {blush(38, 62)}
+          {blush(82, 62)}
+          {/* 입에 문 감귤 */}
+          <circle cx={60} cy={72} r={9} fill="#F2A65E" />
+          <path d="M60 63 q1 -4 5 -5" stroke="#4E9B58" strokeWidth={3} fill="none" strokeLinecap="round" />
+          <ellipse cx={66} cy={59} rx={4} ry={2.4} fill="#4E9B58" transform="rotate(24 66 59)" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}

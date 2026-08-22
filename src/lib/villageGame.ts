@@ -53,6 +53,8 @@ export interface PlacedThing {
   /** store 전용 */
   emoji?: string;
   skin?: VBuildingSkin;
+  /** store 전용 — 카테고리별 외장 디테일 */
+  cat?: string;
   /** store 전용 — 건물 방향 (기본 sw) */
   facing?: VBuildingFacing;
   /** landmark 전용 */
@@ -87,6 +89,7 @@ export interface EditMeta {
   label: string;
   emoji?: string;
   skin?: VBuildingSkin;
+  cat?: string;
   facing?: VBuildingFacing;
   lmId?: string;
   decorType?: string;
@@ -724,6 +727,7 @@ export class VillageGame {
         label: hit.label,
         emoji: hit.emoji,
         skin: hit.skin,
+        cat: hit.cat,
         facing: hit.facing,
         lmId: hit.lmId,
         decorType: hit.decorType,
@@ -1062,7 +1066,12 @@ export class VillageGame {
   private drawThing(t: PlacedThing | (EditObject & { id?: number }), focus: number, asEdit = false): void {
     const ctx = this.ctx;
     if (t.kind === 'store') {
-      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, { emoji: t.emoji ?? '🏪', facing: t.facing });
+      drawTemplateBuilding(ctx, t.bx, t.by, t.w, t.h, t.skin!, {
+        emoji: t.emoji ?? '🏪',
+        facing: t.facing,
+        cat: t.cat,
+        time: this.time,
+      });
     } else if (t.kind === 'landmark') {
       drawVLandmark(ctx, t.lmId ?? 'cathedral', t.bx, t.by, { time: this.time, facing: t.facing });
     } else if (t.kind === 'npc') {

@@ -488,12 +488,8 @@ export function VillageScreen() {
             {T('🎒 전체 회수', '🎒 Recall all')}
           </button>
         ) : (
-          <button
-            onClick={() => setTab('map')}
-            className="pointer-events-auto flex h-9 items-center gap-1 rounded-xl border border-town-line bg-town-paper/95 px-2.5 text-[12px] font-extrabold shadow-sm"
-          >
-            {T('🗺️ 지도', '🗺️ Map')}
-          </button>
+          // 지도 이동은 하단 탭이 담당 — 타이틀 중앙 유지용 스페이서.
+          <span className="w-[74px]" />
         )}
         <div className="rounded-2xl bg-town-paper/90 px-4 py-1.5 text-center shadow-sm backdrop-blur-sm">
           {editMode ? (

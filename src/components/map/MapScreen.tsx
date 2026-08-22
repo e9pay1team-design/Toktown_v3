@@ -52,7 +52,6 @@ export function MapScreen() {
   const setHotSheetOpen = useUiStore((s) => s.setHotSheetOpen);
   const flyTo = useUiStore((s) => s.flyTo);
   const requestFlyTo = useUiStore((s) => s.requestFlyTo);
-  const setTab = useUiStore((s) => s.setTab);
 
   const savedIds = useSavedStore((s) => s.savedIds);
   const character = useProfileStore((s) => s.profile?.character);
@@ -271,21 +270,8 @@ export function MapScreen() {
         </div>
       )}
 
-      {/* 우측 플로팅: 내 마을 전환 + 현재위치 */}
+      {/* 우측 플로팅: 현재위치 (내 마을 이동은 하단 탭이 담당) */}
       <div className="absolute bottom-40 right-4 z-[500] flex flex-col gap-2.5">
-        <button
-          onClick={() => setTab('village')}
-          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-town-line bg-town-paper shadow-card transition active:scale-95"
-          aria-label="내 마을로 전환"
-          title="내 마을"
-        >
-          <svg width={26} height={26} viewBox="0 0 32 32" aria-hidden>
-            <path d="M16 4 L29 16 L16 28 L3 16 Z" fill="#A8D98A" />
-            <path d="M16 9 L24 16 L16 23 L8 16 Z" fill="#7BC47F" />
-            <path d="M12 14 L16 10.5 L20 14 v4.5 h-8 Z" fill="#F2705E" />
-            <rect x={14.6} y={15.5} width={2.8} height={3} fill="#FFF8EC" />
-          </svg>
-        </button>
         <button
           onClick={() => requestFlyTo({ ...position, zoom: 17 })}
           className="flex h-12 w-12 items-center justify-center rounded-2xl border border-town-line bg-town-paper shadow-card transition active:scale-95"
