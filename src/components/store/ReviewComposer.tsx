@@ -83,8 +83,8 @@ export function ReviewComposer({
         ) : (
           <div className="mb-3 rounded-xl bg-town-cream px-3 py-2.5 text-[12.5px] font-bold text-town-inkSoft">
             {T(
-              `현장 반경 밖(또는 이동 검증 실패) — 일반 리뷰로 등록돼요 (톡큰 ${TOKKEN_ECONOMY.review})`,
-              `Outside the radius (or movement check failed) — posts as a regular review (${TOKKEN_ECONOMY.review} Tokken)`,
+              '현장 반경 밖(또는 이동 검증 실패) — 일반 리뷰로 등록돼요 (톡큰 지급 없음)',
+              'Outside the radius (or movement check failed) — posts as a regular review (no Tokken)',
             )}
           </div>
         )}

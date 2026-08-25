@@ -77,7 +77,7 @@ export interface VillagerDef {
 }
 
 export type VInteractTarget =
-  | { kind: 'thing'; id: number; label: string }
+  | { kind: 'thing'; id: number; label: string; sit?: boolean }
   | { kind: 'npc'; id: string; label: string };
 
 /** 배치 모드에서 편집 중인 오브젝트의 렌더 정보 */
@@ -183,6 +183,10 @@ export class VillageGame {
   private things: PlacedThing[] = [];
   private dynBlocked = new Set<number>();
   private lastTarget: VInteractTarget | null = null;
+  /** 앉는 중인 좌석(벤치·소파) — 일어나면 이전 위치로 복귀 */
+  private sitting: { thingId: number; prevX: number; prevY: number } | null = null;
+  /** 앉기 상태 변경 알림 (React 버튼 라벨 동기화용) */
+  onSitChange: ((sitting: boolean) => void) | null = null;
   private playerSkin: VCharSkin;
 
   /** 렌더 줌 — 평소엔 상수, 전경 스냅샷 때만 일시적으로 바뀐다 */
@@ -268,7 +272,38 @@ export class VillageGame {
     this.playerSkin = skin;
   }
 
+  isSitting(): boolean {
+    return this.sitting !== null;
+  }
+
+  /** 좌석에 앉기/일어나기 토글 — 걷기 모드 전용 */
+  toggleSit(thingId: number): void {
+    if (this.editMode) return;
+    if (this.sitting?.thingId === thingId) {
+      this.standUp();
+      return;
+    }
+    const t = this.things.find((th) => th.id === thingId);
+    if (!t) return;
+    this.sitting = { thingId, prevX: this.player.x, prevY: this.player.y };
+    this.player.x = t.bx + 0.5;
+    this.player.y = t.by + 0.5;
+    this.player.moving = false;
+    this.player.phase = 0;
+    this.player.facing = 's';
+    this.onSitChange?.(true);
+  }
+
+  private standUp(): void {
+    if (!this.sitting) return;
+    this.player.x = this.sitting.prevX;
+    this.player.y = this.sitting.prevY;
+    this.sitting = null;
+    this.onSitChange?.(false);
+  }
+
   setThings(things: PlacedThing[]): void {
+    if (this.sitting && !things.some((t) => t.id === this.sitting!.thingId)) this.standUp();
     this.things = things;
     this.dynBlocked = new Set();
     for (const t of things) {
@@ -314,6 +349,7 @@ export class VillageGame {
   /** 배치 모드 on/off — off 시 편집 중이던 오브젝트는 원위치(신규는 보관함 유지) */
   setEditMode(on: boolean): void {
     if (this.editMode === on) return;
+    if (on) this.standUp();
     this.editMode = on;
     this.edit = null;
     this.editDragging = false;
@@ -889,7 +925,12 @@ export class VillageGame {
       my /= mag;
     }
 
-    const moving = Math.hypot(mx, my) > 0.05;
+    let moving = Math.hypot(mx, my) > 0.05;
+    // 앉은 상태에서 이동 입력 → 일어나서 그대로 걷는다.
+    if (this.sitting) {
+      if (moving) this.standUp();
+      else moving = false;
+    }
     this.player.moving = moving;
 
     if (moving) {
@@ -1035,7 +1076,8 @@ export class VillageGame {
       const dist = Math.hypot(px - this.player.x, py - this.player.y);
       if (dist < bestD) {
         bestD = dist;
-        best = { kind: 'thing', id: t.id, label: t.label };
+        const sit = t.kind === 'decor' && (t.decorType === 'bench' || t.decorType === 'leather-sofa');
+        best = sit ? { kind: 'thing', id: t.id, label: t.label, sit: true } : { kind: 'thing', id: t.id, label: t.label };
       }
     }
     for (const n of this.villagers) {
@@ -1216,6 +1258,7 @@ export class VillageGame {
             phase: this.player.phase,
             moving: this.player.moving,
             skin: this.playerSkin,
+            sit: this.sitting !== null,
           }),
       });
 

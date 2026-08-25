@@ -1177,6 +1177,163 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       ctx.fill();
       return;
     }
+    case 'wood-table': {
+      // 원형 나무 테이블 — 벤치와 같은 정면 빌보드 스타일.
+      shadow(ctx, sx, sy + 1, 15, 0.15);
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.fillRect(sx - 2.75, sy - 20, 5.5, 20);
+      ctx.fillRect(sx - 12, sy - 3, 24, 3);
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ellipse(ctx, sx, sy - 18, 17, 7.5);
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.trunk;
+      ellipse(ctx, sx, sy - 20, 17, 7.5);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(139,90,55,0.4)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 20, 11, 4.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ellipse(ctx, sx - 5, sy - 22, 6, 2.2);
+      ctx.fill();
+      return;
+    }
+    case 'leather-sofa': {
+      // 가죽 2인 소파 — 앉기 가능(벤치와 동일 좌면 높이).
+      shadow(ctx, sx, sy + 1, 17, 0.16);
+      const LEATHER = '#A9713F';
+      const LEATHER_SH = '#8B5A32';
+      // 등받이.
+      ctx.fillStyle = LEATHER;
+      roundRect(ctx, sx - 16, sy - 33, 32, 16, 6);
+      ctx.fill();
+      // 단추 터프팅.
+      ctx.fillStyle = 'rgba(90,55,25,0.45)';
+      ellipse(ctx, sx - 7, sy - 26, 1.5, 1.5);
+      ctx.fill();
+      ellipse(ctx, sx + 7, sy - 26, 1.5, 1.5);
+      ctx.fill();
+      // 좌면 쿠션 2개.
+      ctx.fillStyle = LEATHER;
+      roundRect(ctx, sx - 15, sy - 18, 14.5, 8.5, 4);
+      ctx.fill();
+      roundRect(ctx, sx + 0.5, sy - 18, 14.5, 8.5, 4);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      roundRect(ctx, sx - 14, sy - 17.2, 12.5, 3, 1.5);
+      ctx.fill();
+      roundRect(ctx, sx + 1.5, sy - 17.2, 12.5, 3, 1.5);
+      ctx.fill();
+      // 팔걸이.
+      ctx.fillStyle = LEATHER_SH;
+      roundRect(ctx, sx - 21, sy - 24, 6.5, 15, 3);
+      ctx.fill();
+      roundRect(ctx, sx + 14.5, sy - 24, 6.5, 15, 3);
+      ctx.fill();
+      // 베이스 + 발.
+      ctx.fillStyle = LEATHER_SH;
+      roundRect(ctx, sx - 17, sy - 10, 34, 4.5, 2);
+      ctx.fill();
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.fillRect(sx - 15, sy - 5.5, 3.5, 5.5);
+      ctx.fillRect(sx + 11.5, sy - 5.5, 3.5, 5.5);
+      return;
+    }
+    case 'cherry-tree': {
+      // 벚꽃나무 — 단풍나무와 같은 구조, 분홍 수관 + 흩날리는 꽃잎.
+      const scale = 0.9 + p.v * 0.3;
+      const sway = Math.sin(time * 1.1 + p.v * 9) * 2;
+      shadow(ctx, sx, sy + 2, 15 * scale);
+      ctx.fillStyle = VPALETTE.trunkDark;
+      ctx.beginPath();
+      ctx.moveTo(sx - 4 * scale, sy);
+      ctx.quadraticCurveTo(sx - 2 * scale, sy - 18 * scale, sx - 1 * scale, sy - 26 * scale);
+      ctx.lineTo(sx + 2.5 * scale, sy - 26 * scale);
+      ctx.quadraticCurveTo(sx + 3.5 * scale, sy - 14 * scale, sx + 5 * scale, sy);
+      ctx.closePath();
+      ctx.fill();
+      const cy = sy - 34 * scale;
+      ctx.fillStyle = '#E89BB8';
+      ellipse(ctx, sx + sway, cy + 4 * scale, 20 * scale, 16 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#F4B8CE';
+      ellipse(ctx, sx - 7 * scale + sway, cy, 14 * scale, 12 * scale);
+      ctx.fill();
+      ellipse(ctx, sx + 8 * scale + sway, cy + 1 * scale, 13 * scale, 11 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#FBD3E2';
+      ellipse(ctx, sx - 2 * scale + sway, cy - 8 * scale, 12 * scale, 9 * scale);
+      ctx.fill();
+      // 흩날리는 꽃잎 2장.
+      ctx.fillStyle = '#F7A8C4';
+      const drift = (time * 9 + p.v * 40) % 30;
+      ellipse(ctx, sx + 14 * scale + sway - drift * 0.4, cy + 10 + drift * 0.7, 2, 1.4);
+      ctx.fill();
+      ellipse(ctx, sx - 10 * scale + sway - drift * 0.3, cy + 2 + drift * 0.9, 1.8, 1.3);
+      ctx.fill();
+      return;
+    }
+    case 'statue': {
+      // 캐릭터 동상 — 석재 받침 + 청동 까치 (까미 오마주).
+      shadow(ctx, sx, sy + 1, 16, 0.16);
+      const STONE = '#C7C0B0';
+      const STONE_SH = '#A8A090';
+      const BRONZE = '#8C7A52';
+      const BRONZE_SH = '#6E5F3E';
+      // 받침대.
+      ctx.fillStyle = STONE_SH;
+      roundRect(ctx, sx - 13, sy - 10, 26, 10, 2.5);
+      ctx.fill();
+      ctx.fillStyle = STONE;
+      ellipse(ctx, sx, sy - 10, 13, 5);
+      ctx.fill();
+      // 명판.
+      ctx.fillStyle = '#E8C87F';
+      roundRect(ctx, sx - 5, sy - 7.5, 10, 4, 1.5);
+      ctx.fill();
+      // 청동 까치 — 꼬리·몸·배·날개·부리.
+      ctx.fillStyle = BRONZE_SH;
+      ctx.save();
+      ctx.translate(sx - 9, sy - 22);
+      ctx.rotate(0.5);
+      roundRect(ctx, -8, -2.5, 14, 5, 2.5);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = BRONZE;
+      ellipse(ctx, sx, sy - 26, 10.5, 13);
+      ctx.fill();
+      ctx.fillStyle = '#A5946B';
+      ellipse(ctx, sx, sy - 21, 6, 7);
+      ctx.fill();
+      ctx.fillStyle = BRONZE_SH;
+      ctx.beginPath();
+      ctx.ellipse(sx - 8.5, sy - 24, 3.2, 6, 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(sx + 8.5, sy - 24, 3.2, 6, -0.25, 0, Math.PI * 2);
+      ctx.fill();
+      // 눈·부리 (음각 느낌).
+      ctx.fillStyle = BRONZE_SH;
+      ellipse(ctx, sx - 3.4, sy - 31, 1.3, 1.5);
+      ctx.fill();
+      ellipse(ctx, sx + 3.4, sy - 31, 1.3, 1.5);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(sx - 2.5, sy - 28.5);
+      ctx.lineTo(sx + 2.5, sy - 28.5);
+      ctx.lineTo(sx, sy - 25.5);
+      ctx.closePath();
+      ctx.fill();
+      // 녹청 포인트 + 하이라이트.
+      ctx.fillStyle = 'rgba(127,160,140,0.5)';
+      ellipse(ctx, sx + 6, sy - 33, 3, 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ellipse(ctx, sx - 4.5, sy - 34, 2.6, 1.8);
+      ctx.fill();
+      return;
+    }
     case 'plaza-tile': {
       // 광장 돌바닥 타일 — 지형 드로어(VT.Path)를 그대로 사용해 타일끼리
       // 이어 깔면 원래 광장과 픽셀 단위로 같은 룩이 된다.
@@ -1235,6 +1392,11 @@ export interface VCharSkin {
   /** 0 단발 · 1 숏컷 · 2 긴머리 · 3 번헤어 (플레이어 전용) */
   hairStyle?: number;
   ear?: 'cat' | 'dog' | 'bear' | 'rabbit' | 'bird' | 'owl' | 'none';
+  /** 워드로브(구매 파츠) 치비 표현 — 색/형태 힌트 수준 */
+  premiumHair?: 'pony' | 'twin' | 'wave' | 'braid';
+  bottomColor?: string;
+  shoeColor?: string;
+  faceColor?: string;
 }
 
 export interface VCharOpts {
@@ -1244,6 +1406,8 @@ export interface VCharOpts {
   moving: boolean;
   skin: VCharSkin;
   scale?: number;
+  /** 벤치·소파에 앉은 자세 — 다리를 짧게 늘어뜨리고 좌면 높이로 올림 */
+  sit?: boolean;
 }
 
 export function drawVCharacter(
@@ -1254,23 +1418,35 @@ export function drawVCharacter(
 ): void {
   const { sx, sy } = toScreen(x, y);
   const s = o.scale ?? 1;
-  const swing = o.moving ? Math.sin(o.phase) : 0;
-  const bob = o.moving ? Math.abs(Math.sin(o.phase)) * 2.2 : 0;
+  const sit = o.sit ?? false;
+  const swing = o.moving && !sit ? Math.sin(o.phase) : 0;
+  const bob = o.moving && !sit ? Math.abs(Math.sin(o.phase)) * 2.2 : 0;
   const back = o.facing === 'n';
   const flip = o.facing === 'w' ? -1 : 1;
 
   shadow(ctx, sx, sy, 13 * s, 0.2);
 
   ctx.save();
-  ctx.translate(sx, sy - bob);
+  // 앉기: 좌면 높이만큼 올리고 다리를 짧게 늘어뜨린다.
+  ctx.translate(sx, sy - bob - (sit ? 8 : 0));
   ctx.scale(s * flip, s);
 
-  // 다리
-  ctx.fillStyle = o.skin.bodyDark;
-  roundRect(ctx, -8 + swing * 3, -12, 7, 13, 3);
+  // 다리 (+ 구매 하의 색)
+  ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
+  const legH = sit ? 9 : 13;
+  roundRect(ctx, -8 + swing * 3, -12, 7, legH, 3);
   ctx.fill();
-  roundRect(ctx, 1 - swing * 3, -12, 7, 13, 3);
+  roundRect(ctx, 1 - swing * 3, -12, 7, legH, 3);
   ctx.fill();
+
+  // 구매 신발 — 다리 끝에 작은 발
+  if (o.skin.shoeColor) {
+    ctx.fillStyle = o.skin.shoeColor;
+    ellipse(ctx, -4.5 + swing * 3, -12 + legH, 4, 2.6);
+    ctx.fill();
+    ellipse(ctx, 4.5 - swing * 3, -12 + legH, 4, 2.6);
+    ctx.fill();
+  }
 
   // 몸통
   ctx.fillStyle = o.skin.body;
@@ -1378,6 +1554,51 @@ export function drawVCharacter(
       ellipse(ctx, 0, -58, 6, 5.5);
       ctx.fill();
     }
+    // 구매 헤어 — 치비 스케일 형태 힌트.
+    const ph = o.skin.premiumHair;
+    if (ph === 'pony') {
+      ctx.beginPath();
+      ctx.ellipse(11, -32, 4, 9, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FF8B7B';
+      ellipse(ctx, 10, -41, 2, 2);
+      ctx.fill();
+    } else if (ph === 'twin') {
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(side * 12, -32, 3.8, 8, side * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#FF8B7B';
+      ellipse(ctx, -11, -40, 1.9, 1.9);
+      ctx.fill();
+      ellipse(ctx, 11, -40, 1.9, 1.9);
+      ctx.fill();
+    } else if (ph === 'wave') {
+      for (const [wx, wy, wr] of [
+        [-11.5, -36, 4],
+        [11.5, -36, 4],
+        [-13, -28, 3.4],
+        [13, -28, 3.4],
+      ]) {
+        ellipse(ctx, wx, wy, wr, wr);
+        ctx.fill();
+      }
+    } else if (ph === 'braid') {
+      for (const [bx2, by2] of [
+        [-10, -49],
+        [-5, -52.5],
+        [0, -53.5],
+        [5, -52.5],
+        [10, -49],
+      ]) {
+        ellipse(ctx, bx2, by2, 2.3, 2.3);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#F2A7C3';
+      ellipse(ctx, 9.5, -50, 1.8, 1.8);
+      ctx.fill();
+    }
   }
 
   if (!back) {
@@ -1412,6 +1633,13 @@ export function drawVCharacter(
     ctx.fill();
     ellipse(ctx, 10, -37, 3, 2);
     ctx.fill();
+
+    // 페이스페인팅 — 오른뺨 위 작은 마크.
+    if (o.skin.faceColor) {
+      ctx.fillStyle = o.skin.faceColor;
+      ellipse(ctx, 10, -38, 2, 2);
+      ctx.fill();
+    }
 
     if (ear === 'bird' || ear === 'owl') {
       ctx.fillStyle = '#f0b455';

@@ -97,11 +97,79 @@ export function DecorSvg({ id, size = 56 }: { id: string; size?: number }) {
       );
     case 'plaza-tile':
       return (
-        <svg width={size} height={size * 0.62} viewBox="0 0 80 50" style={{ display: 'block' }} aria-label="광장 돌바닥 타일">
+        <svg width={size} height={size * 0.62} viewBox="0 0 80 50" style={{ display: 'block' }} aria-label="돌바닥 타일">
           <ellipse cx={40} cy={44} rx={27} ry={4} fill="rgba(74,59,50,0.10)" />
           <path d="M40 5 L75 24 L40 43 L5 24 Z" fill="#F0E7D6" />
           <path d="M40 5 L75 24 L40 43 L5 24 Z" fill="none" stroke="#E6DBC5" strokeWidth={2.5} />
           <path d="M40 10 L66 24 L40 38 L14 24 Z" fill="none" stroke="#D8CBB1" strokeWidth={1.6} />
+        </svg>
+      );
+    case 'wood-table':
+      return (
+        <svg width={size} height={size * 0.8} viewBox="0 0 80 64" style={{ display: 'block' }} aria-label="나무 테이블">
+          <ellipse cx={40} cy={59} rx={26} ry={4.5} fill="rgba(74,59,50,0.14)" />
+          <rect x={36} y={22} width={8} height={34} rx={4} fill="#8A6B52" />
+          <rect x={22} y={52} width={36} height={6} rx={3} fill="#8A6B52" />
+          <ellipse cx={40} cy={22} rx={30} ry={12} fill="#B98A5C" />
+          <ellipse cx={40} cy={19} rx={30} ry={12} fill="#CE9F6C" />
+          <ellipse cx={40} cy={19} rx={19} ry={7} fill="none" stroke="#B98A5C" strokeWidth={2} />
+          <ellipse cx={30} cy={15} rx={9} ry={3} fill="#FFF3DC" opacity={0.5} />
+        </svg>
+      );
+    case 'leather-sofa':
+      return (
+        <svg width={size} height={size * 0.78} viewBox="0 0 84 62" style={{ display: 'block' }} aria-label="가죽소파">
+          <ellipse cx={42} cy={57} rx={30} ry={4.5} fill="rgba(74,59,50,0.14)" />
+          <rect x={12} y={8} width={60} height={26} rx={9} fill="#A9713F" />
+          <circle cx={30} cy={20} r={2.2} fill="rgba(90,55,25,0.5)" />
+          <circle cx={54} cy={20} r={2.2} fill="rgba(90,55,25,0.5)" />
+          <rect x={4} y={22} width={13} height={26} rx={6} fill="#8B5A32" />
+          <rect x={67} y={22} width={13} height={26} rx={6} fill="#8B5A32" />
+          <rect x={14} y={32} width={27} height={14} rx={5.5} fill="#B97F4B" />
+          <rect x={43} y={32} width={27} height={14} rx={5.5} fill="#B97F4B" />
+          <rect x={12} y={45} width={60} height={7} rx={3.5} fill="#8B5A32" />
+          <rect x={16} y={52} width={5} height={6} rx={2} fill="#5B4A3F" />
+          <rect x={63} y={52} width={5} height={6} rx={2} fill="#5B4A3F" />
+        </svg>
+      );
+    case 'cherry-tree':
+      return (
+        <svg width={size} height={size * 1.05} viewBox="0 0 76 80" style={{ display: 'block' }} aria-label="벚꽃나무">
+          <ellipse cx={38} cy={76} rx={22} ry={4} fill="rgba(74,59,50,0.14)" />
+          <rect x={33} y={48} width={10} height={28} rx={5} fill="#8A6B52" />
+          <path d="M38 52 q-8 -6 -14 -2" stroke="#8A6B52" strokeWidth={5} fill="none" strokeLinecap="round" />
+          <circle cx={38} cy={26} r={22} fill="#F4B8CE" />
+          <circle cx={20} cy={36} r={13} fill="#E89BB8" />
+          <circle cx={56} cy={36} r={13} fill="#FBD3E2" />
+          <circle cx={30} cy={18} r={4} fill="#FFFDF7" opacity={0.85} />
+          <circle cx={48} cy={24} r={3} fill="#FFFDF7" opacity={0.75} />
+          <path d="M62 54 q4 4 2 9 M14 56 q-3 4 -1 8" stroke="#E89BB8" strokeWidth={3} fill="none" strokeLinecap="round" />
+          <ellipse cx={64} cy={68} rx={3} ry={2} fill="#F7A8C4" />
+          <ellipse cx={12} cy={70} rx={2.6} ry={1.8} fill="#F7A8C4" />
+        </svg>
+      );
+    case 'statue':
+      return (
+        <svg width={size * 0.85} height={size} viewBox="0 0 66 80" style={{ display: 'block' }} aria-label="캐릭터 동상">
+          <ellipse cx={33} cy={76} rx={22} ry={4} fill="rgba(74,59,50,0.14)" />
+          {/* 석재 받침 + 명판 */}
+          <rect x={11} y={58} width={44} height={16} rx={3.5} fill="#A8A090" />
+          <ellipse cx={33} cy={58} rx={22} ry={6.5} fill="#C7C0B0" />
+          <rect x={25} y={63} width={16} height={6.5} rx={2} fill="#E8C87F" />
+          {/* 청동 까치 */}
+          <g transform="rotate(28 14 46)">
+            <rect x={4} y={42} width={20} height={7} rx={3.5} fill="#6E5F3E" />
+          </g>
+          <ellipse cx={33} cy={36} rx={15} ry={18} fill="#8C7A52" />
+          <ellipse cx={33} cy={43} rx={8.5} ry={9.5} fill="#A5946B" />
+          <ellipse cx={21} cy={38} rx={4.5} ry={8.5} fill="#6E5F3E" transform="rotate(14 21 38)" />
+          <ellipse cx={45} cy={38} rx={4.5} ry={8.5} fill="#6E5F3E" transform="rotate(-14 45 38)" />
+          <circle cx={28} cy={29} r={1.9} fill="#6E5F3E" />
+          <circle cx={38} cy={29} r={1.9} fill="#6E5F3E" />
+          <path d="M29.5 33 h7 l-3.5 4.5 Z" fill="#6E5F3E" />
+          {/* 녹청 + 하이라이트 */}
+          <ellipse cx={41} cy={24} rx={4} ry={2.6} fill="#7FA08C" opacity={0.55} />
+          <ellipse cx={26} cy={23} rx={3.6} ry={2.4} fill="#FFFDF7" opacity={0.4} />
         </svg>
       );
     case 'concert-lightstick':
