@@ -398,10 +398,11 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       <circle cx={89} cy={99} r={7.5} fill={torsoFill} />
       <circle cx={30} cy={105} r={4.2} fill={skin} />
       <circle cx={90} cy={105} r={4.2} fill={skin} />
-      {/* 몸통 */}
+      {/* 몸통 — 하의를 먼저 얹고 상의 디테일이 그 위를 덮어야
+          셔츠 밑단·저고리 고름이 허리단 위로 오는 자연스러운 착장이 된다 */}
       <rect x={36} y={84} width={48} height={36} rx={15} fill={torsoFill} />
-      {topWear}
       {bottomWear}
+      {topWear}
     </g>
   );
 

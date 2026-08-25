@@ -1485,6 +1485,39 @@ export function drawVCharacter(
   roundRect(ctx, -8, -28, 7, 16, 4);
   ctx.fill();
 
+
+  // 치마류 — 몸통 밑단 위, 상의 디테일 아래 (상의가 허리단을 덮는 자연 착장).
+  if (skirt) {
+    const chima = bId === 'bottom-chima';
+    ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
+    ctx.beginPath();
+    ctx.moveTo(-9.5, chima ? -17 : -14);
+    ctx.lineTo(9.5, chima ? -17 : -14);
+    ctx.lineTo(chima ? 13 : 12.5, chima ? 0 : -2.5);
+    ctx.lineTo(chima ? -13 : -12.5, chima ? 0 : -2.5);
+    ctx.closePath();
+    ctx.fill();
+    if (o.skin.bottomAccent) {
+      ctx.strokeStyle = o.skin.bottomAccent;
+      ctx.lineWidth = 1.1;
+      const hemY = chima ? -0.5 : -3;
+      const topY = chima ? -16 : -13;
+      ctx.beginPath();
+      ctx.moveTo(-4, topY);
+      ctx.lineTo(-5.5, hemY);
+      ctx.moveTo(0, topY);
+      ctx.lineTo(0, hemY);
+      ctx.moveTo(4, topY);
+      ctx.lineTo(5.5, hemY);
+      ctx.stroke();
+    }
+    if (chima) {
+      ctx.fillStyle = '#F5EFE3';
+      roundRect(ctx, -9, -19, 18, 3.2, 1.6);
+      ctx.fill();
+    }
+  }
+
   // 의상 디테일 — 무료 3종(티셔츠 카라·후드·멜빵바지) / 프리미엄 4종.
   const tAcc = o.skin.topAccent ?? '#FFFDF7';
   if (!tId && o.skin.outfitKind === 1) {
@@ -1590,37 +1623,6 @@ export function drawVCharacter(
     ctx.stroke();
   }
 
-  // 치마류 — 몸통 밑단 위로 겹쳐 하의 실루엣을 만든다.
-  if (skirt) {
-    const chima = bId === 'bottom-chima';
-    ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
-    ctx.beginPath();
-    ctx.moveTo(-9.5, chima ? -17 : -14);
-    ctx.lineTo(9.5, chima ? -17 : -14);
-    ctx.lineTo(chima ? 13 : 12.5, chima ? 0 : -2.5);
-    ctx.lineTo(chima ? -13 : -12.5, chima ? 0 : -2.5);
-    ctx.closePath();
-    ctx.fill();
-    if (o.skin.bottomAccent) {
-      ctx.strokeStyle = o.skin.bottomAccent;
-      ctx.lineWidth = 1.1;
-      const hemY = chima ? -0.5 : -3;
-      const topY = chima ? -16 : -13;
-      ctx.beginPath();
-      ctx.moveTo(-4, topY);
-      ctx.lineTo(-5.5, hemY);
-      ctx.moveTo(0, topY);
-      ctx.lineTo(0, hemY);
-      ctx.moveTo(4, topY);
-      ctx.lineTo(5.5, hemY);
-      ctx.stroke();
-    }
-    if (chima) {
-      ctx.fillStyle = '#F5EFE3';
-      roundRect(ctx, -9, -19, 18, 3.2, 1.6);
-      ctx.fill();
-    }
-  }
 
   // 팔
   ctx.fillStyle = o.skin.fur;
