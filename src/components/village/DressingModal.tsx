@@ -41,7 +41,7 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="mt-4">
-            <PartsEditor config={profile.character} onChange={updateCharacter} />
+            <PartsEditor config={profile.character} onChange={updateCharacter} market />
           </div>
         </div>
       </div>

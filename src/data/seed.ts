@@ -1359,27 +1359,32 @@ export const DRUMMER_MAGPIE = {
   spot: { id: 'concert-gate', label: '광화문 A 게이트 앞', labelEn: 'Gwanghwamun Gate A', lat: 37.5766, lng: 126.9772 },
 };
 
-/** Tokken 경제 수치 — 초기값 (운영하며 튜닝 전제) */
+/** Tokken 경제 수치 — 초기값 (운영하며 튜닝 전제).
+    미인증 리뷰는 지급 제외(0) — submitReview 에서 지급 자체를 건너뛴다. */
 export const TOKKEN_ECONOMY: TokkenEconomy = {
   payment: 50,
   certifiedReview: 30,
-  review: 15,
+  review: 0,
   checkin: 10,
-  attendance: 10,
+  attendance: 5,
   npcEncounter: 20,
   rideTag: 5,
 };
 
-/** Tokken 상점 소품 (M3 사용, 가격 1~500 — 바닥 타일은 부담 없이 깔도록 1) */
+/** Tokken 상점 소품 (M3 사용) — 저렴한 것부터 진열. 벤치·가죽소파는 걷기 모드에서 앉기 가능. */
 export const DECOR_ITEMS: DecorItem[] = [
-  { id: 'bench', name: '나무 벤치', nameEn: 'Wooden Bench', price: 80 },
-  { id: 'lamp', name: '가로등', nameEn: 'Street Lamp', price: 120 },
-  { id: 'flower', name: '꽃밭', nameEn: 'Flower Bed', price: 50 },
-  { id: 'plaza-tile', name: '광장 돌바닥 타일', nameEn: 'Plaza Stone Tile', price: 1 },
-  { id: 'fountain', name: '분수대', nameEn: 'Fountain', price: 500 },
-  { id: 'mailbox', name: '빨간 우체통', nameEn: 'Red Mailbox', price: 150 },
-  { id: 'tree', name: '단풍나무', nameEn: 'Maple Tree', price: 200 },
+  { id: 'plaza-tile', name: '돌바닥 타일', nameEn: 'Stone Tile', price: 1 },
+  { id: 'flower', name: '꽃밭', nameEn: 'Flower Bed', price: 30 },
+  { id: 'bench', name: '나무 벤치', nameEn: 'Wooden Bench', price: 40 },
+  { id: 'wood-table', name: '나무 테이블', nameEn: 'Wooden Table', price: 50 },
+  { id: 'leather-sofa', name: '가죽소파', nameEn: 'Leather Sofa', price: 70 },
+  { id: 'lamp', name: '가로등', nameEn: 'Street Lamp', price: 100 },
+  { id: 'mailbox', name: '빨간 우체통', nameEn: 'Red Postbox', price: 120 },
+  { id: 'cherry-tree', name: '벚꽃나무', nameEn: 'Cherry Blossom Tree', price: 150 },
+  { id: 'tree', name: '단풍나무', nameEn: 'Maple Tree', price: 150 },
+  { id: 'fountain', name: '분수대', nameEn: 'Fountain', price: 300 },
   { id: 'concert-lightstick', name: '콘서트 응원봉', nameEn: 'Concert Light Stick', price: 300, eventOnly: 'gwanghwamun-concert' },
+  { id: 'statue', name: '캐릭터 동상', nameEn: 'Character Statue', price: 333 },
 ];
 
 export const storeById = (id: number): Store | undefined =>

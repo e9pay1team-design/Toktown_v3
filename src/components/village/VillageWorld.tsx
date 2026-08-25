@@ -17,6 +17,7 @@ import { CATEGORY_SKINS, CATEGORY_EMOJI, type VCharSkin } from '../../lib/villag
 import { magpieSkin, residentNpcs, villageRichness } from '../../data/villageNpcs';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
 import { SKIN_TONES, HAIR_COLORS, OUTFIT_COLORS, shade } from '../../assets/characterParts';
+import { wardrobeById } from '../../data/wardrobe';
 import { useVillageStore, footprintOf, type Placement, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useProfileStore } from '../../store/useProfileStore';
@@ -29,7 +30,13 @@ export function playerSkinFromProfile(): VCharSkin {
   const profile = useProfileStore.getState().profile;
   const c = profile?.character ?? { skin: 0, hairStyle: 0, hairColor: 0, outfit: 0, outfitColor: 0 };
   const fur = SKIN_TONES[c.skin] ?? SKIN_TONES[0];
-  const body = OUTFIT_COLORS[c.outfitColor] ?? OUTFIT_COLORS[0];
+  // 워드로브 장착 파츠 — 치비 캔버스에는 색/형태 힌트로 반영.
+  const top = wardrobeById(c.top);
+  const bottom = wardrobeById(c.bottom);
+  const shoes = wardrobeById(c.shoes);
+  const paint = wardrobeById(c.facePaint);
+  const premium = wardrobeById(c.premiumHair)?.id.replace('hair-', '') as VCharSkin['premiumHair'];
+  const body = top ? top.color : OUTFIT_COLORS[c.outfitColor] ?? OUTFIT_COLORS[0];
   return {
     body,
     bodyDark: shade(body, 0.22),
@@ -38,6 +45,10 @@ export function playerSkinFromProfile(): VCharSkin {
     hair: HAIR_COLORS[c.hairColor] ?? HAIR_COLORS[0],
     hairStyle: c.hairStyle,
     ear: 'none',
+    premiumHair: premium,
+    bottomColor: bottom?.color,
+    shoeColor: shoes?.color,
+    faceColor: paint?.color,
   };
 }
 

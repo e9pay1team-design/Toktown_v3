@@ -169,13 +169,19 @@ export interface TokkenEconomy {
   rideTag: number;
 }
 
-/** 캐릭터 커스터마이징 파츠 구성 (인덱스 = 프리셋 배열 참조) */
+/** 캐릭터 커스터마이징 파츠 구성 (인덱스 = 프리셋 배열 참조).
+    구매 전용 슬롯은 워드로브 아이템 id — 미장착이면 undefined/null. */
 export interface CharacterConfig {
   skin: number;
   hairStyle: number;
   hairColor: number;
   outfit: number;
   outfitColor: number;
+  premiumHair?: string | null;
+  top?: string | null;
+  bottom?: string | null;
+  shoes?: string | null;
+  facePaint?: string | null;
 }
 
 export interface ResidentProfile {

@@ -144,6 +144,8 @@ export function VillageScreen() {
   const [villagePhoto, setVillagePhoto] = useState<string | null>(null);
   const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
   const [interact, setInteract] = useState<VInteractTarget | null>(null);
+  /** 좌석(벤치·소파) 앉기 상태 — 게임 엔진 onSitChange 로 동기화 */
+  const [sitting, setSitting] = useState(false);
   const [dialogue, setDialogue] = useState<DialogueData | null>(null);
   const [thingSheetId, setThingSheetId] = useState<number | null>(null);
   const [modal, setModal] = useState<VillageModal>(null);
@@ -473,6 +475,7 @@ export function VillageScreen() {
           onEditSelection={setEditSel}
           onGame={(g) => {
             gameRef.current = g;
+            if (g) g.onSitChange = setSitting;
           }}
         />
       </div>
@@ -597,21 +600,31 @@ export function VillageScreen() {
         )
       )}
 
-      {/* 상호작용 버튼 (걷기 모드) */}
+      {/* 상호작용 버튼 (걷기 모드) — 좌석(벤치·소파)은 앉기 버튼 동반 */}
       {!editMode && interact && !dialogue && !thingSheet && (
-        <div className="absolute inset-x-0 bottom-40 z-20 flex justify-center">
-          <button
-            onClick={() => {
-              if (interact.kind === 'npc') openDialogueFor(interact);
-              else setThingSheetId(interact.id);
-            }}
-            className="pop-in flex items-center gap-2 rounded-full border-2 border-town-ink/10 bg-town-paper px-4 py-2.5 text-[13px] font-extrabold shadow-card transition active:scale-95"
-          >
-            {interact.kind === 'npc' ? '💬' : '👀'} {interact.label}
-            <span className="rounded-full bg-town-sun px-2 py-0.5 text-[10px]">
-              {interact.kind === 'npc' ? T('말 걸기', 'Talk') : T('살펴보기', 'Inspect')}
-            </span>
-          </button>
+        <div className="absolute inset-x-0 bottom-40 z-20 flex flex-col items-center gap-2">
+          {interact.kind === 'thing' && interact.sit && (
+            <button
+              onClick={() => gameRef.current?.toggleSit(interact.id)}
+              className="pop-in flex items-center gap-2 rounded-full border-2 border-town-ink/10 bg-town-leafDark px-4 py-2.5 text-[13px] font-extrabold text-white shadow-card transition active:scale-95"
+            >
+              🪑 {sitting ? T('일어나기', 'Stand up') : T('앉기', 'Sit down')}
+            </button>
+          )}
+          {!sitting && (
+            <button
+              onClick={() => {
+                if (interact.kind === 'npc') openDialogueFor(interact);
+                else setThingSheetId(interact.id);
+              }}
+              className="pop-in flex items-center gap-2 rounded-full border-2 border-town-ink/10 bg-town-paper px-4 py-2.5 text-[13px] font-extrabold shadow-card transition active:scale-95"
+            >
+              {interact.kind === 'npc' ? '💬' : '👀'} {interact.label}
+              <span className="rounded-full bg-town-sun px-2 py-0.5 text-[10px]">
+                {interact.kind === 'npc' ? T('말 걸기', 'Talk') : T('살펴보기', 'Inspect')}
+              </span>
+            </button>
+          )}
         </div>
       )}
 

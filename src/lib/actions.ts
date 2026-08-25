@@ -126,15 +126,16 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
 
   const firstCertifiedVisit = certified && !visits.hasCertifiedVisit(storeId);
   visits.recordReview({ storeId, rating, text, certified, day });
-  const amount = useEconomyStore
-    .getState()
-    .earnTokken(certified ? 'certifiedReview' : 'review', sName(store));
-  toast(
-    certified
-      ? tr(`방문 인증 리뷰 등록! 톡큰 +${amount}`, `Verified review posted! +${amount} Tokken`)
-      : tr(`리뷰 등록 완료! 톡큰 +${amount}`, `Review posted! +${amount} Tokken`),
-    'tokken',
-  );
+  // 미인증 리뷰는 톡큰 지급 제외 — 현장 인증 리뷰만 지급.
+  if (certified) {
+    const amount = useEconomyStore.getState().earnTokken('certifiedReview', sName(store));
+    toast(tr(`방문 인증 리뷰 등록! 톡큰 +${amount}`, `Verified review posted! +${amount} Tokken`), 'tokken');
+  } else {
+    toast(
+      tr('리뷰 등록 완료! (톡큰은 현장 인증 리뷰에만 지급돼요)', 'Review posted! (Tokken is only for on-site verified reviews)'),
+      'success',
+    );
+  }
   if (firstCertifiedVisit) {
     setTimeout(
       () =>

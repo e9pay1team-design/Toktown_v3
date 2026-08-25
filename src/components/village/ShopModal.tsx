@@ -81,6 +81,11 @@ export function ShopModal({ onClose }: { onClose: () => void }) {
                     {T('바닥 타일은 풍성도에 포함되지 않아요', "Floor tiles don't count toward richness")}
                   </p>
                 )}
+                {(item.id === 'bench' || item.id === 'leather-sofa') && (
+                  <p className="text-center text-[9px] font-bold text-town-inkSoft/70">
+                    {T('가까이 가면 앉을 수 있어요', 'Walk up to take a seat')}
+                  </p>
+                )}
                 {item.eventOnly && (
                   <p className="text-center text-[9px] font-extrabold text-[#8B79C9]">
                     {T(`🎪 ${eventTitle} 한정`, `🎪 ${eventTitle} only`)}
