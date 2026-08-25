@@ -1122,7 +1122,7 @@ export class VillageGame {
         phase: 0,
         moving: false,
         skin: t.npcSkin ?? { body: '#343B4A', bodyDark: '#232936', fur: '#F2F4F8', furDark: '#2F3541', ear: 'bird' },
-        scale: 0.94,
+        scale: 1,
       });
       if (asEdit || focus > 0.55) {
         const { sx, sy } = toScreen(t.bx + 0.5, t.by + 0.5);
@@ -1241,7 +1241,7 @@ export class VillageGame {
               phase: n.phase,
               moving: n.moving,
               skin: n.def.skin,
-              scale: 0.94,
+              scale: 1,
             });
             if (near && n.def.chatter.length > 0) {
               drawVBubble(ctx, n.x, n.y, n.def.chatter[n.chatterIdx], this.time);

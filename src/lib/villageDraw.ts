@@ -1392,9 +1392,15 @@ export interface VCharSkin {
   /** 0 단발 · 1 숏컷 · 2 긴머리 · 3 번헤어 (플레이어 전용) */
   hairStyle?: number;
   ear?: 'cat' | 'dog' | 'bear' | 'rabbit' | 'bird' | 'owl' | 'none';
-  /** 워드로브(구매 파츠) 치비 표현 — 색/형태 힌트 수준 */
+  /** 워드로브(구매 파츠)·기본 의상 치비 표현 — SVG 아바타와 같은 실루엣을 축소 재현 */
   premiumHair?: 'pony' | 'twin' | 'wave' | 'braid';
+  /** 무료 의상 종류 (0 티셔츠 · 1 후드 · 2 멜빵바지) — 프리미엄 상의 착용 시 무시 */
+  outfitKind?: number;
+  topId?: string;
+  topAccent?: string;
+  bottomId?: string;
   bottomColor?: string;
+  bottomAccent?: string;
   shoeColor?: string;
   faceColor?: string;
 }
@@ -1431,13 +1437,24 @@ export function drawVCharacter(
   ctx.translate(sx, sy - bob - (sit ? 8 : 0));
   ctx.scale(s * flip, s);
 
-  // 다리 (+ 구매 하의 색)
-  ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
+  // 다리 — 하의 종류별 색/노출 (SVG 아바타와 같은 규칙).
   const legH = sit ? 9 : 13;
+  const bId = o.skin.bottomId;
+  const skirt = bId === 'bottom-pleats' || bId === 'bottom-chima';
+  const bareLegs = skirt || bId === 'bottom-shorts';
+  ctx.fillStyle = bareLegs ? o.skin.fur : o.skin.bottomColor ?? o.skin.bodyDark;
   roundRect(ctx, -8 + swing * 3, -12, 7, legH, 3);
   ctx.fill();
   roundRect(ctx, 1 - swing * 3, -12, 7, legH, 3);
   ctx.fill();
+  if (bId === 'bottom-jeans') {
+    // 청바지 밑단 롤업.
+    ctx.fillStyle = '#8FA6CC';
+    roundRect(ctx, -8 + swing * 3, -12 + legH - 2.4, 7, 2.4, 1.2);
+    ctx.fill();
+    roundRect(ctx, 1 - swing * 3, -12 + legH - 2.4, 7, 2.4, 1.2);
+    ctx.fill();
+  }
 
   // 구매 신발 — 다리 끝에 작은 발
   if (o.skin.shoeColor) {
@@ -1448,13 +1465,162 @@ export function drawVCharacter(
     ctx.fill();
   }
 
-  // 몸통
-  ctx.fillStyle = o.skin.body;
+  // 반바지 — 허벅지 덮개 + 밑단.
+  if (bId === 'bottom-shorts') {
+    ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
+    roundRect(ctx, -9, -13, 18, 7, 3);
+    ctx.fill();
+    ctx.fillStyle = o.skin.bottomAccent ?? '#C4A374';
+    roundRect(ctx, -9, -7.4, 18, 1.8, 0.9);
+    ctx.fill();
+  }
+
+  // 몸통 — 멜빵바지는 크림 이너 위에 빕을 얹는다.
+  const tId = o.skin.topId;
+  const overalls = !tId && o.skin.outfitKind === 2;
+  ctx.fillStyle = overalls ? '#FFF6E6' : o.skin.body;
   roundRect(ctx, -11, -30, 22, 21, 9);
   ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.18)';
   roundRect(ctx, -8, -28, 7, 16, 4);
   ctx.fill();
+
+  // 의상 디테일 — 무료 3종(티셔츠 카라·후드·멜빵바지) / 프리미엄 4종.
+  const tAcc = o.skin.topAccent ?? '#FFFDF7';
+  if (!tId && o.skin.outfitKind === 1) {
+    ctx.fillStyle = o.skin.bodyDark;
+    roundRect(ctx, -8, -32.5, 16, 5.5, 2.75);
+    ctx.fill();
+    roundRect(ctx, -6, -15.5, 12, 5.5, 2.75);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,253,247,0.9)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-2.5, -27);
+    ctx.lineTo(-2.5, -21);
+    ctx.moveTo(2.5, -27);
+    ctx.lineTo(2.5, -21);
+    ctx.stroke();
+  } else if (overalls) {
+    ctx.fillStyle = o.skin.body;
+    roundRect(ctx, -7, -21, 14, 12, 3);
+    ctx.fill();
+    roundRect(ctx, -7, -29, 3, 9, 1.5);
+    ctx.fill();
+    roundRect(ctx, 4, -29, 3, 9, 1.5);
+    ctx.fill();
+    ctx.fillStyle = '#FFD66B';
+    ellipse(ctx, -5.5, -19.5, 1.3, 1.3);
+    ctx.fill();
+    ellipse(ctx, 5.5, -19.5, 1.3, 1.3);
+    ctx.fill();
+  } else if (!tId) {
+    ctx.fillStyle = 'rgba(255,253,247,0.9)';
+    ellipse(ctx, 0, -28.6, 3.8, 1.9);
+    ctx.fill();
+  } else if (tId === 'top-stripe') {
+    ctx.fillStyle = tAcc;
+    roundRect(ctx, -11, -26, 22, 3.2, 1.6);
+    ctx.fill();
+    roundRect(ctx, -11, -20, 22, 3.2, 1.6);
+    ctx.fill();
+    ellipse(ctx, 0, -28.6, 3.6, 1.8);
+    ctx.fill();
+  } else if (tId === 'top-denim') {
+    ctx.fillStyle = '#FFFDF7';
+    roundRect(ctx, -3, -30, 6, 21, 2);
+    ctx.fill();
+    ctx.fillStyle = tAcc;
+    ctx.beginPath();
+    ctx.moveTo(-8, -30);
+    ctx.lineTo(-3, -30);
+    ctx.lineTo(-6.5, -25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(8, -30);
+    ctx.lineTo(3, -30);
+    ctx.lineTo(6.5, -25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#E8C87F';
+    ellipse(ctx, 2, -23, 1, 1);
+    ctx.fill();
+    ellipse(ctx, 2, -18, 1, 1);
+    ctx.fill();
+  } else if (tId === 'top-knit') {
+    ctx.fillStyle = '#FFFDF7';
+    ctx.beginPath();
+    ctx.moveTo(-5.5, -30);
+    ctx.lineTo(0, -21.5);
+    ctx.lineTo(5.5, -30);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = tAcc;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-5.5, -30);
+    ctx.lineTo(0, -21.5);
+    ctx.lineTo(5.5, -30);
+    ctx.stroke();
+    ctx.fillStyle = '#8A6B52';
+    for (const yy of [-19, -15.5, -12]) {
+      ellipse(ctx, 0, yy, 1.2, 1.2);
+      ctx.fill();
+    }
+  } else if (tId === 'top-jeogori') {
+    ctx.strokeStyle = '#FFFDF7';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(-5, -30);
+    ctx.lineTo(2.5, -15);
+    ctx.stroke();
+    ctx.strokeStyle = tAcc;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-3.6, -29.4);
+    ctx.lineTo(3.4, -15.6);
+    ctx.stroke();
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(2.5, -15);
+    ctx.lineTo(5.5, -7.5);
+    ctx.moveTo(0.8, -14.6);
+    ctx.lineTo(3.2, -6.5);
+    ctx.stroke();
+  }
+
+  // 치마류 — 몸통 밑단 위로 겹쳐 하의 실루엣을 만든다.
+  if (skirt) {
+    const chima = bId === 'bottom-chima';
+    ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
+    ctx.beginPath();
+    ctx.moveTo(-9.5, chima ? -17 : -14);
+    ctx.lineTo(9.5, chima ? -17 : -14);
+    ctx.lineTo(chima ? 13 : 12.5, chima ? 0 : -2.5);
+    ctx.lineTo(chima ? -13 : -12.5, chima ? 0 : -2.5);
+    ctx.closePath();
+    ctx.fill();
+    if (o.skin.bottomAccent) {
+      ctx.strokeStyle = o.skin.bottomAccent;
+      ctx.lineWidth = 1.1;
+      const hemY = chima ? -0.5 : -3;
+      const topY = chima ? -16 : -13;
+      ctx.beginPath();
+      ctx.moveTo(-4, topY);
+      ctx.lineTo(-5.5, hemY);
+      ctx.moveTo(0, topY);
+      ctx.lineTo(0, hemY);
+      ctx.moveTo(4, topY);
+      ctx.lineTo(5.5, hemY);
+      ctx.stroke();
+    }
+    if (chima) {
+      ctx.fillStyle = '#F5EFE3';
+      roundRect(ctx, -9, -19, 18, 3.2, 1.6);
+      ctx.fill();
+    }
+  }
 
   // 팔
   ctx.fillStyle = o.skin.fur;
@@ -1462,6 +1628,15 @@ export function drawVCharacter(
   ctx.fill();
   roundRect(ctx, 9, -28 + swing * 3, 6, 15, 3);
   ctx.fill();
+  // 한복 저고리 — 색동 끝동 소매.
+  if (tId === 'top-jeogori') {
+    const CUFFS = ['#D95A4A', '#FFD66B', '#7BC47F'];
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = CUFFS[i];
+      ctx.fillRect(-15, -18.6 - swing * 3 + i * 1.8, 6, 1.8);
+      ctx.fillRect(9, -18.6 + swing * 3 + i * 1.8, 6, 1.8);
+    }
+  }
 
   // 귀 — 머리(중심 -42, 반경 14×13) 위로 나와야 보인다.
   const ear = o.skin.ear ?? 'none';
@@ -1536,9 +1711,26 @@ export function drawVCharacter(
     ctx.ellipse(0, -46, 14, 11, 0, Math.PI, Math.PI * 2);
     ctx.fill();
     if (style !== 1) {
-      // 옆머리 (숏컷 제외).
+      // 옆머리 (숏컷 제외) — 양쪽 대칭.
       ctx.beginPath();
       ctx.ellipse(-9, -44, 5, 8, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(9, -44, 5, 8, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // 숏컷 — 정수리 삐침 2가닥.
+      ctx.beginPath();
+      ctx.moveTo(-6, -54);
+      ctx.lineTo(-3, -61);
+      ctx.lineTo(-0.5, -53.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(2, -55);
+      ctx.lineTo(5, -61);
+      ctx.lineTo(7, -53.5);
+      ctx.closePath();
       ctx.fill();
     }
     if (style === 2) {
