@@ -1475,18 +1475,7 @@ export function drawVCharacter(
     ctx.fill();
   }
 
-  // 몸통 — 멜빵바지는 크림 이너 위에 빕을 얹는다.
-  const tId = o.skin.topId;
-  const overalls = !tId && o.skin.outfitKind === 2;
-  ctx.fillStyle = overalls ? '#FFF6E6' : o.skin.body;
-  roundRect(ctx, -11, -30, 22, 21, 9);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  roundRect(ctx, -8, -28, 7, 16, 4);
-  ctx.fill();
-
-
-  // 치마류 — 몸통 밑단 위, 상의 디테일 아래 (상의가 허리단을 덮는 자연 착장).
+  // 치마류 — 상의(몸통)보다 항상 아래 레이어. 허리단은 상의에 가려진다.
   if (skirt) {
     const chima = bId === 'bottom-chima';
     ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
@@ -1517,6 +1506,18 @@ export function drawVCharacter(
       ctx.fill();
     }
   }
+
+  // 몸통 — 멜빵바지는 크림 이너 위에 빕을 얹는다.
+  const tId = o.skin.topId;
+  const overalls = !tId && o.skin.outfitKind === 2;
+  ctx.fillStyle = overalls ? '#FFF6E6' : o.skin.body;
+  roundRect(ctx, -11, -30, 22, 21, 9);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  roundRect(ctx, -8, -28, 7, 16, 4);
+  ctx.fill();
+
+
 
   // 의상 디테일 — 무료 3종(티셔츠 카라·후드·멜빵바지) / 프리미엄 4종.
   const tAcc = o.skin.topAccent ?? '#FFFDF7';

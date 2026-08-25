@@ -393,15 +393,16 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       <rect x={46} y={108} width={11} height={26} rx={5.5} fill={skin} />
       <rect x={63} y={108} width={11} height={26} rx={5.5} fill={skin} />
       {feet}
+      {/* 하의 — 상의(몸통 전체)보다 항상 아래 레이어. 허리단은 상의
+          밑단에 가려지고 다리 쪽 실루엣만 밖으로 드러난다 */}
+      {bottomWear}
       {/* 팔 */}
       <circle cx={31} cy={99} r={7.5} fill={torsoFill} />
       <circle cx={89} cy={99} r={7.5} fill={torsoFill} />
       <circle cx={30} cy={105} r={4.2} fill={skin} />
       <circle cx={90} cy={105} r={4.2} fill={skin} />
-      {/* 몸통 — 하의를 먼저 얹고 상의 디테일이 그 위를 덮어야
-          셔츠 밑단·저고리 고름이 허리단 위로 오는 자연스러운 착장이 된다 */}
+      {/* 몸통(상의 베이스) + 상의 디테일 */}
       <rect x={36} y={84} width={48} height={36} rx={15} fill={torsoFill} />
-      {bottomWear}
       {topWear}
     </g>
   );
