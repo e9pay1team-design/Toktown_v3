@@ -46,7 +46,12 @@ export function playerSkinFromProfile(): VCharSkin {
     hairStyle: c.hairStyle,
     ear: 'none',
     premiumHair: premium,
+    outfitKind: c.outfit,
+    topId: top?.id,
+    topAccent: top?.accent,
+    bottomId: bottom?.id,
     bottomColor: bottom?.color,
+    bottomAccent: bottom?.accent,
     shoeColor: shoes?.color,
     faceColor: paint?.color,
   };

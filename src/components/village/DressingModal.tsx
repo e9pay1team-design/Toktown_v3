@@ -1,6 +1,8 @@
 // ─── 캐릭터 꾸미기 (기획 §6 화면 9) ───────────────────────────────
 // 온보딩과 동일한 파츠 에디터 재사용. 변경 즉시 적용(지도 마커·주민증 반영).
 
+import { useState } from 'react';
+import type { CharacterConfig } from '../../types';
 import { useProfileStore } from '../../store/useProfileStore';
 import { useToastStore } from '../../store/useToastStore';
 import { CharacterSvg } from '../../assets/CharacterSvg';
@@ -12,6 +14,8 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
   const profile = useProfileStore((s) => s.profile);
   const updateCharacter = useProfileStore((s) => s.updateCharacter);
   const toast = useToastStore((s) => s.show);
+  /** 구매 전 미리보기 임시 착용 (저장 안 됨) */
+  const [previewCfg, setPreviewCfg] = useState<CharacterConfig | null>(null);
 
   if (!profile) return null;
 
@@ -35,13 +39,25 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-8 pt-3">
-          <div className="mx-auto flex h-[170px] w-[170px] items-center justify-center rounded-full bg-gradient-to-b from-[#D8F0DA] to-[#BFE5C4]">
-            <div className="char-bob">
-              <CharacterSvg config={profile.character} size={132} />
+          <div className="relative mx-auto h-[170px] w-[170px]">
+            <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-b from-[#D8F0DA] to-[#BFE5C4]">
+              <div className="char-bob">
+                <CharacterSvg config={previewCfg ?? profile.character} size={132} />
+              </div>
             </div>
+            {previewCfg && (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-town-skyDeep px-2.5 py-1 text-[10px] font-extrabold text-white shadow-pop">
+                {T('👀 구매 전 미리보기', '👀 Preview before buying')}
+              </span>
+            )}
           </div>
           <div className="mt-4">
-            <PartsEditor config={profile.character} onChange={updateCharacter} market />
+            <PartsEditor
+              config={profile.character}
+              onChange={updateCharacter}
+              market
+              onPreviewChange={setPreviewCfg}
+            />
           </div>
         </div>
       </div>
