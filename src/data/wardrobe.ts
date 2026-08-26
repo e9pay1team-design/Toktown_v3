@@ -21,7 +21,7 @@ export const WARDROBE_ITEMS: WardrobeItem[] = [
   { id: 'hair-pony', cat: 'hair', name: '포니테일', nameEn: 'Ponytail', price: 20, color: '#FF8B7B' },
   { id: 'hair-twin', cat: 'hair', name: '양갈래', nameEn: 'Twin Tails', price: 60, color: '#FF8B7B' },
   { id: 'hair-wave', cat: 'hair', name: '웨이브 펌', nameEn: 'Wavy Perm', price: 120, color: '#FF8B7B' },
-  { id: 'hair-braid', cat: 'hair', name: '꽃 브레이드', nameEn: 'Flower Braid', price: 200, color: '#F2A7C3' },
+  { id: 'hair-braid', cat: 'hair', name: '꽃 화관', nameEn: 'Flower Crown', price: 200, color: '#F2A7C3' },
   // 상의 (30~300)
   { id: 'top-stripe', cat: 'top', name: '스트라이프 티', nameEn: 'Striped Tee', price: 30, color: '#FFFDF7', accent: '#FF8B7B' },
   { id: 'top-denim', cat: 'top', name: '데님 재킷', nameEn: 'Denim Jacket', price: 90, color: '#6E90C2', accent: '#5E7FB1' },

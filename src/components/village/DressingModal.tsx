@@ -27,8 +27,8 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
   if (!profile) return null;
 
   return (
-    <div className="absolute inset-0 z-[860] flex flex-col justify-end bg-town-ink/40 pb-16 fade-in">
-      <div className="sheet-up mx-2 mb-1 flex max-h-[82%] flex-col overflow-hidden rounded-[1.6rem] bg-town-paper shadow-sheet">
+    <div className="absolute inset-0 z-[860] flex flex-col bg-town-ink/40 pb-16 fade-in">
+      <div className="fade-in flex h-full flex-col overflow-hidden rounded-b-[1.6rem] bg-town-paper shadow-sheet">
         <div className="flex items-center justify-between border-b border-town-line px-5 pb-3 pt-4">
           <div>
             <h3 className="text-[16px] font-extrabold">{T('캐릭터 꾸미기', 'Style Your Character')}</h3>
