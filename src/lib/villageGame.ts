@@ -5,6 +5,7 @@
 // 빈 곳 드래그=카메라 패닝, 오브젝트 탭=선택, 드래그=이동, 캔버스에
 // 그려지는 ✓(확정)/✕(보관함 반환) 버튼으로 마무리한다.
 
+import { useVirtualClock } from '../mock/clock';
 import {
   TW,
   TH,
@@ -1097,6 +1098,10 @@ export class VillageGame {
   // ------------------------------------------------------------ render
 
   private nightFactor(): number {
+    // 데모 패널 낮/밤 강제 — 시연 중 조명 연출을 위해 실제 시각을 무시할 수 있다.
+    const mode = useVirtualClock.getState().nightMode;
+    if (mode === 'day') return 0;
+    if (mode === 'night') return 1;
     const now = new Date();
     const h = now.getHours() + now.getMinutes() / 60;
     if (h >= 20 || h < 5) return 1;

@@ -47,10 +47,17 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
         fill={paint.color}
       />
     ) : paint.id === 'face-star' ? (
-      <path
-        d="M83 57.5 l1.35 2.85 l3.15 0.4 l-2.3 2.2 l0.55 3.1 l-2.75 -1.5 l-2.75 1.5 l0.55 -3.1 l-2.3 -2.2 l3.15 -0.4 Z"
-        fill={paint.color}
-      />
+      // 별은 노랑이 피부색에 묻히기 쉬워 크기를 키우고 외곽선·하이라이트를 더한다.
+      <g>
+        <path
+          d="M83 55.6 l1.8 3.75 l4.15 0.55 l-3.05 2.9 l0.8 4.1 l-3.7 -2 l-3.7 2 l0.8 -4.1 l-3.05 -2.9 l4.15 -0.55 Z"
+          fill={paint.color}
+          stroke={paint.accent}
+          strokeWidth={1.4}
+          strokeLinejoin="round"
+        />
+        <circle cx={81} cy={59.6} r={1.05} fill="#FFFDF7" opacity={0.95} />
+      </g>
     ) : (
       <g>
         {[0, 72, 144, 216, 288].map((deg) => (

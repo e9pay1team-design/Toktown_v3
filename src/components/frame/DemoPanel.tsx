@@ -31,6 +31,8 @@ export function DemoPanel() {
   const suspiciousUntil = useVirtualLocation((s) => s.suspiciousUntil);
   const dayOffset = useVirtualClock((s) => s.dayOffset);
   const addDay = useVirtualClock((s) => s.addDay);
+  const nightMode = useVirtualClock((s) => s.nightMode);
+  const cycleNightMode = useVirtualClock((s) => s.cycleNightMode);
   const toast = useToastStore((s) => s.show);
   const clickTeleportArmed = useDemoStore((s) => s.clickTeleportArmed);
   const setClickTeleportArmed = useDemoStore((s) => s.setClickTeleportArmed);
@@ -192,6 +194,22 @@ export function DemoPanel() {
             className={`${btn} bg-town-lilac text-town-ink`}
           >
             📅 날짜 +1
+          </button>
+          <button
+            onClick={() => {
+              const next = cycleNightMode();
+              toast(
+                next === 'day'
+                  ? '☀️ 내 마을 낮 고정 — 조명 연출 없이 밝게 보여요'
+                  : next === 'night'
+                    ? '🌙 내 마을 밤 고정 — 가로등·응원봉 조명이 켜져요'
+                    : '🌗 낮/밤 자동 — 실제 시각을 따라가요',
+                'info',
+              );
+            }}
+            className={`${btn} ${nightMode === 'night' ? 'bg-town-ink text-white' : nightMode === 'day' ? 'bg-town-sun text-town-ink' : 'bg-town-cream text-town-ink'}`}
+          >
+            {nightMode === 'auto' ? '🌗 내 마을 낮/밤: 자동' : nightMode === 'day' ? '☀️ 내 마을 낮/밤: 낮 고정' : '🌙 내 마을 낮/밤: 밤 고정'}
           </button>
           <button
             onClick={() => {

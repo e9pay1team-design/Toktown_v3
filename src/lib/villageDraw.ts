@@ -1403,6 +1403,7 @@ export interface VCharSkin {
   bottomAccent?: string;
   shoeColor?: string;
   faceColor?: string;
+  faceAccent?: string;
 }
 
 export interface VCharOpts {
@@ -1829,11 +1830,16 @@ export function drawVCharacter(
     ellipse(ctx, 10, -37, 3, 2);
     ctx.fill();
 
-    // 페이스페인팅 — 오른뺨 위 작은 마크.
+    // 페이스페인팅 — 오른뺨 위 작은 마크 (외곽선으로 피부색과 분리).
     if (o.skin.faceColor) {
       ctx.fillStyle = o.skin.faceColor;
-      ellipse(ctx, 10, -38, 2, 2);
+      ellipse(ctx, 10, -38, 2.2, 2.2);
       ctx.fill();
+      if (o.skin.faceAccent) {
+        ctx.strokeStyle = o.skin.faceAccent;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     }
 
     if (ear === 'bird' || ear === 'owl') {
