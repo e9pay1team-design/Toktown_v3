@@ -20,8 +20,8 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
   if (!profile) return null;
 
   return (
-    <div className="absolute inset-0 z-[860] flex flex-col justify-end bg-town-ink/40 pb-16 fade-in">
-      <div className="sheet-up mx-2 mb-1 flex max-h-[82%] flex-col overflow-hidden rounded-[1.6rem] bg-town-paper shadow-sheet">
+    <div className="absolute inset-x-0 bottom-0 top-12 z-[860] flex flex-col bg-town-ink/40 pb-16 fade-in">
+      <div className="sheet-up mx-1.5 flex h-full min-h-0 flex-col overflow-hidden rounded-[1.6rem] bg-town-paper shadow-sheet">
         <div className="flex items-center justify-between border-b border-town-line px-5 pb-3 pt-4">
           <div>
             <h3 className="text-[16px] font-extrabold">{T('캐릭터 꾸미기', 'Style Your Character')}</h3>
@@ -38,11 +38,11 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-8 pt-3">
-          <div className="relative mx-auto h-[170px] w-[170px]">
+        <div className="shrink-0 px-5 pt-3">
+          <div className="relative mx-auto h-[158px] w-[158px]">
             <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-b from-[#D8F0DA] to-[#BFE5C4]">
               <div className="char-bob">
-                <CharacterSvg config={previewCfg ?? profile.character} size={132} />
+                <CharacterSvg config={previewCfg ?? profile.character} size={124} />
               </div>
             </div>
             {previewCfg && (
@@ -51,14 +51,14 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
               </span>
             )}
           </div>
-          <div className="mt-4">
-            <PartsEditor
-              config={profile.character}
-              onChange={updateCharacter}
-              market
-              onPreviewChange={setPreviewCfg}
-            />
-          </div>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col px-5 pb-2 pt-3">
+          <PartsEditor
+            config={profile.character}
+            onChange={updateCharacter}
+            market
+            onPreviewChange={setPreviewCfg}
+          />
         </div>
       </div>
     </div>

@@ -1403,6 +1403,7 @@ export interface VCharSkin {
   bottomAccent?: string;
   shoeColor?: string;
   faceColor?: string;
+  faceAccent?: string;
 }
 
 export interface VCharOpts {
@@ -1480,16 +1481,29 @@ export function drawVCharacter(
     const chima = bId === 'bottom-chima';
     ctx.fillStyle = o.skin.bottomColor ?? o.skin.bodyDark;
     ctx.beginPath();
-    ctx.moveTo(-9.5, chima ? -17 : -14);
-    ctx.lineTo(9.5, chima ? -17 : -14);
-    ctx.lineTo(chima ? 13 : 12.5, chima ? 0 : -2.5);
-    ctx.lineTo(chima ? -13 : -12.5, chima ? 0 : -2.5);
+    if (chima) {
+      ctx.moveTo(-9.5, -17);
+      ctx.lineTo(9.5, -17);
+      ctx.lineTo(13, 0);
+      ctx.lineTo(-13, 0);
+    } else {
+      // 미니 플리츠 — 짧은 A라인 + 지그재그 밑단.
+      ctx.moveTo(-9.5, -14);
+      ctx.lineTo(9.5, -14);
+      ctx.lineTo(11.5, -6.5);
+      ctx.lineTo(7.6, -4.8);
+      ctx.lineTo(3.8, -6.8);
+      ctx.lineTo(0, -4.5);
+      ctx.lineTo(-3.8, -6.8);
+      ctx.lineTo(-7.6, -4.8);
+      ctx.lineTo(-11.5, -6.5);
+    }
     ctx.closePath();
     ctx.fill();
     if (o.skin.bottomAccent) {
       ctx.strokeStyle = o.skin.bottomAccent;
       ctx.lineWidth = 1.1;
-      const hemY = chima ? -0.5 : -3;
+      const hemY = chima ? -0.5 : -6;
       const topY = chima ? -16 : -13;
       ctx.beginPath();
       ctx.moveTo(-4, topY);
@@ -1710,6 +1724,22 @@ export function drawVCharacter(
   if (o.skin.hair) {
     const style = o.skin.hairStyle ?? 0;
     ctx.fillStyle = o.skin.hair;
+    if (back) {
+      // 뒷모습 — 뒷통수 전체를 머리카락으로 덮는다 (맨살 방지).
+      ellipse(ctx, 0, -42.3, 14.3, 13.3);
+      ctx.fill();
+      if (style === 1 && !o.skin.premiumHair) {
+        // 숏컷 — 목덜미 라인이 드러나는 짧은 커트.
+        ctx.fillStyle = o.skin.fur;
+        ellipse(ctx, 0, -30.6, 5, 2.6);
+        ctx.fill();
+        ctx.fillStyle = o.skin.hair;
+      } else if (style === 2 && !o.skin.premiumHair) {
+        // 긴머리 — 등 뒤로 흘러내리는 머리채.
+        roundRect(ctx, -8.5, -40, 17, 20, 7);
+        ctx.fill();
+      }
+    }
     ctx.beginPath();
     ctx.ellipse(0, -46, 14, 11, 0, Math.PI, Math.PI * 2);
     ctx.fill();
@@ -1752,12 +1782,34 @@ export function drawVCharacter(
     // 구매 헤어 — 치비 스케일 형태 힌트.
     const ph = o.skin.premiumHair;
     if (ph === 'pony') {
-      ctx.beginPath();
-      ctx.ellipse(11, -32, 4, 9, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#FF8B7B';
-      ellipse(ctx, 10, -41, 2, 2);
-      ctx.fill();
+      // 하이포니 — 말꼬리처럼 끝이 뾰족한 S-커브 꼬리.
+      if (back) {
+        ctx.beginPath();
+        ctx.moveTo(-4, -52);
+        ctx.quadraticCurveTo(6, -46, 3.5, -31);
+        ctx.quadraticCurveTo(2.5, -25, -1, -22);
+        ctx.quadraticCurveTo(-1.5, -35, -4.5, -44);
+        ctx.quadraticCurveTo(-6, -49, -4, -52);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#FF8B7B';
+        ellipse(ctx, -1, -50.5, 2.3, 2.3);
+        ctx.fill();
+      } else {
+        ellipse(ctx, 4, -56, 5, 3.2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(5, -55);
+        ctx.quadraticCurveTo(17, -50, 14, -34);
+        ctx.quadraticCurveTo(12.5, -27, 9, -23);
+        ctx.quadraticCurveTo(12, -34, 9.5, -44);
+        ctx.quadraticCurveTo(7.5, -51, 2, -54);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#FF8B7B';
+        ellipse(ctx, 7.5, -53.5, 2.2, 2.2);
+        ctx.fill();
+      }
     } else if (ph === 'twin') {
       for (const side of [-1, 1]) {
         ctx.beginPath();
@@ -1780,19 +1832,31 @@ export function drawVCharacter(
         ctx.fill();
       }
     } else if (ph === 'braid') {
-      for (const [bx2, by2] of [
-        [-10, -49],
+      // 꽃 화관 — 머리를 두르는 꽃(핑크/흰)과 잎.
+      ctx.fillStyle = '#7BC47F';
+      for (const [lx, ly] of [
+        [-7.6, -51.6],
+        [7.6, -51.6],
+      ]) {
+        ellipse(ctx, lx, ly, 2, 1.2);
+        ctx.fill();
+      }
+      const petals = ['#F2A7C3', '#FFFDF7', '#F2A7C3', '#FFFDF7', '#F2A7C3'];
+      const spots = [
+        [-11, -48.5],
         [-5, -52.5],
         [0, -53.5],
         [5, -52.5],
-        [10, -49],
-      ]) {
-        ellipse(ctx, bx2, by2, 2.3, 2.3);
+        [11, -48.5],
+      ];
+      for (let i = 0; i < spots.length; i++) {
+        ctx.fillStyle = petals[i];
+        ellipse(ctx, spots[i][0], spots[i][1], 2.5, 2.5);
+        ctx.fill();
+        ctx.fillStyle = '#FFD66B';
+        ellipse(ctx, spots[i][0], spots[i][1], 1, 1);
         ctx.fill();
       }
-      ctx.fillStyle = '#F2A7C3';
-      ellipse(ctx, 9.5, -50, 1.8, 1.8);
-      ctx.fill();
     }
   }
 
@@ -1826,14 +1890,21 @@ export function drawVCharacter(
     ctx.fillStyle = 'rgba(244,140,150,0.5)';
     ellipse(ctx, -10, -37, 3, 2);
     ctx.fill();
-    ellipse(ctx, 10, -37, 3, 2);
-    ctx.fill();
+    if (!o.skin.faceColor) {
+      ellipse(ctx, 10, -37, 3, 2);
+      ctx.fill();
+    }
 
-    // 페이스페인팅 — 오른뺨 위 작은 마크.
+    // 페이스페인팅 — 오른뺨 위 작은 마크 (외곽선으로 피부색과 분리).
     if (o.skin.faceColor) {
       ctx.fillStyle = o.skin.faceColor;
-      ellipse(ctx, 10, -38, 2, 2);
+      ellipse(ctx, 10, -38, 2.2, 2.2);
       ctx.fill();
+      if (o.skin.faceAccent) {
+        ctx.strokeStyle = o.skin.faceAccent;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     }
 
     if (ear === 'bird' || ear === 'owl') {

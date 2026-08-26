@@ -21,7 +21,7 @@ export const WARDROBE_ITEMS: WardrobeItem[] = [
   { id: 'hair-pony', cat: 'hair', name: '포니테일', nameEn: 'Ponytail', price: 20, color: '#FF8B7B' },
   { id: 'hair-twin', cat: 'hair', name: '양갈래', nameEn: 'Twin Tails', price: 60, color: '#FF8B7B' },
   { id: 'hair-wave', cat: 'hair', name: '웨이브 펌', nameEn: 'Wavy Perm', price: 120, color: '#FF8B7B' },
-  { id: 'hair-braid', cat: 'hair', name: '꽃 브레이드', nameEn: 'Flower Braid', price: 200, color: '#F2A7C3' },
+  { id: 'hair-braid', cat: 'hair', name: '꽃 화관', nameEn: 'Flower Crown', price: 200, color: '#F2A7C3' },
   // 상의 (30~300)
   { id: 'top-stripe', cat: 'top', name: '스트라이프 티', nameEn: 'Striped Tee', price: 30, color: '#FFFDF7', accent: '#FF8B7B' },
   { id: 'top-denim', cat: 'top', name: '데님 재킷', nameEn: 'Denim Jacket', price: 90, color: '#6E90C2', accent: '#5E7FB1' },
@@ -38,9 +38,9 @@ export const WARDROBE_ITEMS: WardrobeItem[] = [
   { id: 'shoes-boots', cat: 'shoes', name: '노랑 장화', nameEn: 'Rain Boots', price: 120, color: '#FFD66B', accent: '#E8B84B' },
   { id: 'shoes-kkotsin', cat: 'shoes', name: '꽃신', nameEn: 'Flower Shoes', price: 200, color: '#E86A8A', accent: '#FFD66B' },
   // 페이스페인팅 (각 30)
-  { id: 'face-heart', cat: 'face', name: '하트 스티커', nameEn: 'Heart Sticker', price: 30, color: '#FF6B8A' },
-  { id: 'face-star', cat: 'face', name: '별 페인팅', nameEn: 'Star Paint', price: 30, color: '#FFC93C' },
-  { id: 'face-blossom', cat: 'face', name: '벚꽃 페인팅', nameEn: 'Blossom Paint', price: 30, color: '#F7A8C4' },
+  { id: 'face-heart', cat: 'face', name: '하트 스티커', nameEn: 'Heart Sticker', price: 30, color: '#FF6B8A', accent: '#D9486B' },
+  { id: 'face-star', cat: 'face', name: '별 페인팅', nameEn: 'Star Paint', price: 30, color: '#FFB627', accent: '#D9822B' },
+  { id: 'face-blossom', cat: 'face', name: '벚꽃 페인팅', nameEn: 'Blossom Paint', price: 30, color: '#F7A8C4', accent: '#DE8FB0' },
 ];
 
 export const wardrobeById = (id?: string | null): WardrobeItem | undefined =>

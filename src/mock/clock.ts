@@ -7,16 +7,28 @@ import { persist } from 'zustand/middleware';
 
 const DAY_MS = 86_400_000;
 
+type NightMode = 'auto' | 'day' | 'night';
+
 interface VirtualClockState {
   dayOffset: number;
+  /** 데모용 낮/밤 강제 — auto 는 실제 시각 기준 (마을 조명 연출) */
+  nightMode: NightMode;
   addDay: () => void;
+  cycleNightMode: () => NightMode;
 }
 
 export const useVirtualClock = create<VirtualClockState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       dayOffset: 0,
+      nightMode: 'auto',
       addDay: () => set((s) => ({ dayOffset: s.dayOffset + 1 })),
+      cycleNightMode: () => {
+        const next: NightMode =
+          get().nightMode === 'auto' ? 'day' : get().nightMode === 'day' ? 'night' : 'auto';
+        set({ nightMode: next });
+        return next;
+      },
     }),
     { name: 'toktown:clock' },
   ),

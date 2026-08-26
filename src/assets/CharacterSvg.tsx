@@ -47,10 +47,17 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
         fill={paint.color}
       />
     ) : paint.id === 'face-star' ? (
-      <path
-        d="M83 57.5 l1.35 2.85 l3.15 0.4 l-2.3 2.2 l0.55 3.1 l-2.75 -1.5 l-2.75 1.5 l0.55 -3.1 l-2.3 -2.2 l3.15 -0.4 Z"
-        fill={paint.color}
-      />
+      // 별은 노랑이 피부색에 묻히기 쉬워 크기를 키우고 외곽선·하이라이트를 더한다.
+      <g>
+        <path
+          d="M83 55.6 l1.8 3.75 l4.15 0.55 l-3.05 2.9 l0.8 4.1 l-3.7 -2 l-3.7 2 l0.8 -4.1 l-3.05 -2.9 l4.15 -0.55 Z"
+          fill={paint.color}
+          stroke={paint.accent}
+          strokeWidth={1.4}
+          strokeLinejoin="round"
+        />
+        <circle cx={81} cy={59.6} r={1.05} fill="#FFFDF7" opacity={0.95} />
+      </g>
     ) : (
       <g>
         {[0, 72, 144, 216, 288].map((deg) => (
@@ -73,9 +80,9 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       <circle cx={74} cy={54} r={3.4} fill="#4A3B32" />
       <circle cx={47.2} cy={52.8} r={1.1} fill="#fff" />
       <circle cx={75.2} cy={52.8} r={1.1} fill="#fff" />
-      {/* 볼터치 */}
+      {/* 볼터치 — 페이스페인팅 착용 시 오른뺨은 페인팅이 자리를 대신한다 */}
       <circle cx={39} cy={63} r={5} fill="#FF9D9D" opacity={0.45} />
-      <circle cx={81} cy={63} r={5} fill="#FF9D9D" opacity={0.45} />
+      {!paint && <circle cx={81} cy={63} r={5} fill="#FF9D9D" opacity={0.45} />}
       {/* 입 */}
       <path
         d="M55 64 q5 5 10 0"
@@ -133,9 +140,12 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       )}
       {premiumHair === 'hair-pony' && (
         <g>
-          {/* 포니테일 — 옆머리 + 곱창밴드 */}
-          <rect x={21} y={44} width={12} height={26} rx={6} fill={hair} />
-          <circle cx={90} cy={45} r={3.6} fill="#FF8B7B" />
+          {/* 하이포니 — 머리를 위로 당겨 묶은 실루엣: 정수리 묶음 + 슈슈 + 잔머리 */}
+          <ellipse cx={68} cy={15} rx={8.5} ry={5.5} fill={hair} transform="rotate(18 68 15)" />
+          <circle cx={75} cy={19} r={4} fill="#FF8B7B" />
+          <circle cx={75} cy={19} r={1.5} fill="#E86A5A" />
+          <path d="M25 48 q-3 7 -1 12 M95 48 q3 7 1 12" stroke={hair} strokeWidth={2.6} fill="none" strokeLinecap="round" />
+          <path d="M40 30 Q56 22 70 20" stroke={shade(hair, 0.2)} strokeWidth={1.6} fill="none" strokeLinecap="round" />
         </g>
       )}
       {premiumHair === 'hair-twin' && (
@@ -156,28 +166,35 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       )}
       {premiumHair === 'hair-braid' && (
         <g>
-          {/* 꽃 브레이드 — 헤어라인 왕관 땋기 + 꽃 */}
+          {/* 꽃 화관 — 헤어라인을 따라 꽃과 잎이 두르는 왕관 */}
+          <rect x={21} y={44} width={12} height={28} rx={6} fill={hair} />
+          <rect x={87} y={44} width={12} height={28} rx={6} fill={hair} />
           {[
-            [30, 45],
-            [38, 36.5],
-            [48, 31],
-            [60, 29],
-            [72, 31],
-            [82, 36.5],
-            [90, 45],
-          ].map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r={4.7} fill={i % 2 ? shade(hair, 0.2) : hair} />
+            [33, 41, '#F2A7C3'],
+            [44, 31, '#FFFDF7'],
+            [57, 26.5, '#F2A7C3'],
+            [70, 28.5, '#FFFDF7'],
+            [82, 35, '#F2A7C3'],
+            [90, 44, '#FFFDF7'],
+          ].map(([x, y, c], i) => (
+            <g key={i}>
+              {[0, 72, 144, 216, 288].map((deg) => (
+                <circle
+                  key={deg}
+                  cx={Number(x) + Math.cos(((deg - 90) * Math.PI) / 180) * 3.1}
+                  cy={Number(y) + Math.sin(((deg - 90) * Math.PI) / 180) * 3.1}
+                  r={2.1}
+                  fill={String(c)}
+                />
+              ))}
+              <circle cx={Number(x)} cy={Number(y)} r={1.8} fill="#FFD66B" />
+            </g>
           ))}
-          {[0, 72, 144, 216, 288].map((deg) => (
-            <circle
-              key={deg}
-              cx={88 + Math.cos(((deg - 90) * Math.PI) / 180) * 3}
-              cy={40 + Math.sin(((deg - 90) * Math.PI) / 180) * 3}
-              r={2}
-              fill="#F2A7C3"
-            />
-          ))}
-          <circle cx={88} cy={40} r={1.7} fill="#FFD66B" />
+          <ellipse cx={38.5} cy={35} rx={3.6} ry={1.9} fill="#7BC47F" transform="rotate(-38 38.5 35)" />
+          <ellipse cx={50.5} cy={27.5} rx={3.6} ry={1.9} fill="#7BC47F" transform="rotate(-16 50.5 27.5)" />
+          <ellipse cx={63.5} cy={26.5} rx={3.6} ry={1.9} fill="#7BC47F" transform="rotate(10 63.5 26.5)" />
+          <ellipse cx={76.5} cy={31} rx={3.6} ry={1.9} fill="#7BC47F" transform="rotate(30 76.5 31)" />
+          <ellipse cx={86.5} cy={39} rx={3.6} ry={1.9} fill="#7BC47F" transform="rotate(48 86.5 39)" />
         </g>
       )}
     </g>
@@ -193,7 +210,14 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
         </g>
       )}
       {premiumHair === 'hair-pony' && (
-        <ellipse cx={93} cy={66} rx={8} ry={19} fill={shade(hair, 0.1)} transform="rotate(-12 93 66)" />
+        <g>
+          {/* 말꼬리처럼 한 번의 S-커브로 떨어지며 끝이 뾰족해지는 꼬리 */}
+          <path
+            d="M70 13 C 94 14, 104 34, 99 58 C 96 74, 90 84, 83 90 C 87 76, 90 58, 87 44 C 84 29, 77 20, 66 18 Z"
+            fill={shade(hair, 0.1)}
+          />
+          <path d="M78 25 C 90 37, 93 55, 87 73" stroke={shade(hair, 0.24)} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+        </g>
       )}
       {premiumHair === 'hair-twin' && (
         <g>
@@ -291,9 +315,10 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       )}
       {bottom.id === 'bottom-pleats' && (
         <g>
-          <path d="M42 112 L78 112 L84 133 L36 133 Z" fill={bottom.color} />
-          <path d="M48 112 L44 133 M54 112 L52 133 M60 112 V133 M66 112 L68 133 M72 112 L76 133" stroke={bottom.accent} strokeWidth={1.7} />
-          <rect x={42} y={109.5} width={36} height={4.5} rx={2.2} fill={bottom.accent} />
+          {/* 트렌디 미니 플리츠 — 짧고 살짝 퍼지는 A라인, 지그재그 플리츠 밑단 */}
+          <path d="M43 110 L77 110 L81 122.5 L74.5 126 L68 122.8 L60 126.5 L52 122.8 L45.5 126 L39 122.5 Z" fill={bottom.color} />
+          <path d="M52 111 L52 123 M60 111 L60 126.5 M68 111 L68 123" stroke={bottom.accent} strokeWidth={1.5} opacity={0.75} />
+          <rect x={42} y={107.5} width={36} height={4.5} rx={2.2} fill={bottom.accent} />
         </g>
       )}
       {bottom.id === 'bottom-chima' && (

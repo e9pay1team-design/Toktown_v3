@@ -54,6 +54,7 @@ export function playerSkinFromProfile(): VCharSkin {
     bottomAccent: bottom?.accent,
     shoeColor: shoes?.color,
     faceColor: paint?.color,
+    faceAccent: paint?.accent,
   };
 }
 
