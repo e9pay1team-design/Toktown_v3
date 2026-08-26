@@ -211,10 +211,12 @@ export function CharacterSvg({ config, size = 120, bust = false, shadow = true }
       )}
       {premiumHair === 'hair-pony' && (
         <g>
-          {/* 정수리에서 시작해 어깨 뒤로 떨어지는 하이포니 꼬리 */}
-          <path d="M76 16 Q100 24 99 50 Q98 74 86 88 Q92 62 86 44 Q81 28 70 22 Z" fill={shade(hair, 0.1)} />
-          <path d="M83 30 Q93 44 90 64" stroke={shade(hair, 0.24)} strokeWidth={2} fill="none" strokeLinecap="round" />
-          <ellipse cx={87} cy={86} rx={4.5} ry={6.5} fill={shade(hair, 0.1)} transform="rotate(20 87 86)" />
+          {/* 말꼬리처럼 한 번의 S-커브로 떨어지며 끝이 뾰족해지는 꼬리 */}
+          <path
+            d="M70 13 C 94 14, 104 34, 99 58 C 96 74, 90 84, 83 90 C 87 76, 90 58, 87 44 C 84 29, 77 20, 66 18 Z"
+            fill={shade(hair, 0.1)}
+          />
+          <path d="M78 25 C 90 37, 93 55, 87 73" stroke={shade(hair, 0.24)} strokeWidth={1.8} fill="none" strokeLinecap="round" />
         </g>
       )}
       {premiumHair === 'hair-twin' && (

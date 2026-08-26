@@ -1782,22 +1782,32 @@ export function drawVCharacter(
     // 구매 헤어 — 치비 스케일 형태 힌트.
     const ph = o.skin.premiumHair;
     if (ph === 'pony') {
-      // 하이포니 — 정수리 묶음에서 아래로 떨어지는 꼬리.
+      // 하이포니 — 말꼬리처럼 끝이 뾰족한 S-커브 꼬리.
       if (back) {
         ctx.beginPath();
-        ctx.ellipse(0, -33, 5, 11, 0, 0, Math.PI * 2);
+        ctx.moveTo(-4, -52);
+        ctx.quadraticCurveTo(6, -46, 3.5, -31);
+        ctx.quadraticCurveTo(2.5, -25, -1, -22);
+        ctx.quadraticCurveTo(-1.5, -35, -4.5, -44);
+        ctx.quadraticCurveTo(-6, -49, -4, -52);
+        ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#FF8B7B';
-        ellipse(ctx, 0, -47, 2.4, 2.4);
+        ellipse(ctx, -1, -50.5, 2.3, 2.3);
         ctx.fill();
       } else {
-        ellipse(ctx, 6, -55.5, 5.5, 3.6);
+        ellipse(ctx, 4, -56, 5, 3.2);
         ctx.fill();
         ctx.beginPath();
-        ctx.ellipse(11.5, -44, 4.2, 10, -0.25, 0, Math.PI * 2);
+        ctx.moveTo(5, -55);
+        ctx.quadraticCurveTo(17, -50, 14, -34);
+        ctx.quadraticCurveTo(12.5, -27, 9, -23);
+        ctx.quadraticCurveTo(12, -34, 9.5, -44);
+        ctx.quadraticCurveTo(7.5, -51, 2, -54);
+        ctx.closePath();
         ctx.fill();
         ctx.fillStyle = '#FF8B7B';
-        ellipse(ctx, 9.5, -53, 2.2, 2.2);
+        ellipse(ctx, 7.5, -53.5, 2.2, 2.2);
         ctx.fill();
       }
     } else if (ph === 'twin') {

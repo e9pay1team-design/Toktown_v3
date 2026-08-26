@@ -256,7 +256,7 @@ export function PartsEditor({
   const marketProps = { config, onChange: change, previewId: preview?.id ?? null, onPreview: emitPreview };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={market ? 'flex min-h-0 flex-1 flex-col gap-3' : 'flex flex-col gap-4'}>
       {market && (
         <div className="flex items-center justify-between rounded-xl bg-town-cream px-3.5 py-2">
           <span className="text-[11.5px] font-extrabold text-town-inkSoft">
@@ -281,7 +281,8 @@ export function PartsEditor({
         ))}
       </div>
 
-      <div className="flex flex-col justify-center gap-5">
+      <div className={market ? 'no-scrollbar min-h-0 flex-1 overflow-y-auto' : ''}>
+      <div className="flex flex-col justify-center gap-5 pb-6">
         {tab === 'skin' && (
           <Swatch
             colors={SKIN_TONES}
@@ -332,6 +333,7 @@ export function PartsEditor({
         {tab === 'bottom' && <MarketList cat="bottom" {...marketProps} />}
         {tab === 'shoes' && <MarketList cat="shoes" {...marketProps} />}
         {tab === 'face' && <MarketList cat="face" {...marketProps} />}
+      </div>
       </div>
     </div>
   );
