@@ -1,7 +1,7 @@
 // ─── 캐릭터 꾸미기 (기획 §6 화면 9) ───────────────────────────────
 // 온보딩과 동일한 파츠 에디터 재사용. 변경 즉시 적용(지도 마커·주민증 반영).
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CharacterConfig } from '../../types';
 import { useProfileStore } from '../../store/useProfileStore';
 import { useToastStore } from '../../store/useToastStore';
@@ -16,6 +16,13 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
   const toast = useToastStore((s) => s.show);
   /** 구매 전 미리보기 임시 착용 (저장 안 됨) */
   const [previewCfg, setPreviewCfg] = useState<CharacterConfig | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 목록을 내려 보다가 미리보기를 켜면, 착용 모습이 보이도록 아바타로 스크롤.
+  const handlePreview = (c: CharacterConfig | null) => {
+    setPreviewCfg(c);
+    if (c) scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   if (!profile) return null;
 
@@ -38,7 +45,7 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-8 pt-3">
+        <div ref={scrollRef} className="no-scrollbar flex-1 overflow-y-auto px-5 pb-8 pt-3">
           <div className="relative mx-auto h-[170px] w-[170px]">
             <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-b from-[#D8F0DA] to-[#BFE5C4]">
               <div className="char-bob">
@@ -56,7 +63,7 @@ export function DressingModal({ onClose }: { onClose: () => void }) {
               config={profile.character}
               onChange={updateCharacter}
               market
-              onPreviewChange={setPreviewCfg}
+              onPreviewChange={handlePreview}
             />
           </div>
         </div>

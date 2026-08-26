@@ -164,18 +164,34 @@ function MarketList({
                 {isOn ? T('장착 중', 'Equipped') : T('보유 · 장착하기', 'Owned · Equip')}
               </span>
             ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  buy(item);
-                }}
-                aria-label={`${item.name} 구매`}
-                className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-extrabold transition active:scale-95 ${
-                  tokken >= item.price ? 'bg-town-leafDark text-white' : 'bg-town-line text-town-inkSoft/60'
-                }`}
-              >
-                <TokkenCoin size={13} /> {item.price} {T('구매', 'Buy')}
-              </button>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPreview(slot, isPreview ? null : item.id);
+                  }}
+                  aria-label={`${item.name} 미리보기 버튼`}
+                  className={`rounded-lg px-2 py-1 text-[11.5px] font-extrabold transition active:scale-95 ${
+                    isPreview
+                      ? 'bg-town-skyDeep text-white'
+                      : 'border border-town-skyDeep/50 bg-town-sky/10 text-town-skyDeep'
+                  }`}
+                >
+                  👀 {isPreview ? T('해제', 'Stop') : T('미리보기', 'Try on')}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    buy(item);
+                  }}
+                  aria-label={`${item.name} 구매`}
+                  className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-extrabold transition active:scale-95 ${
+                    tokken >= item.price ? 'bg-town-leafDark text-white' : 'bg-town-line text-town-inkSoft/60'
+                  }`}
+                >
+                  <TokkenCoin size={13} /> {item.price}
+                </button>
+              </span>
             )}
           </div>
         );
