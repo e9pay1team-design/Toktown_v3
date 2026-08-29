@@ -130,8 +130,10 @@ export function WalletScreen() {
                       {new Date(h.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[13.5px] font-extrabold text-town-leafDark">
-                    +{h.amount}
+                  <span
+                    className={`shrink-0 text-[13.5px] font-extrabold ${h.amount < 0 ? 'text-town-coralDeep' : 'text-town-leafDark'}`}
+                  >
+                    {h.amount < 0 ? h.amount : `+${h.amount}`}
                   </span>
                 </li>
               ))}

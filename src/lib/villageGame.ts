@@ -11,13 +11,16 @@ import {
   TH,
   VW,
   VH,
+  VZ,
   VT,
   toScreen,
   toWorld,
   vidx,
   vinBounds,
   canPlaceFootprint,
+  zoneOrigin,
   type VillageWorld,
+  type VillageZoneId,
   type VTerrainId,
 } from './villageWorld';
 import {
@@ -27,6 +30,7 @@ import {
   drawVCharacter,
   drawVBubble,
   drawVButterfly,
+  drawVClover,
   drawVGull,
   drawVPlacementCursor,
   drawTemplateBuilding,
@@ -62,6 +66,8 @@ export interface PlacedThing {
   lmId?: string;
   /** decor 전용 — villageDraw prop type */
   decorType?: string;
+  /** decor 전용 — 배치 시 굴린 외형 시드 (꽃 화단 색 등) */
+  variant?: number;
   /** npc 전용 — 배치 모드 정적 렌더용 */
   npcSkin?: VCharSkin;
   blocking: boolean;
@@ -94,6 +100,8 @@ export interface EditMeta {
   facing?: VBuildingFacing;
   lmId?: string;
   decorType?: string;
+  /** decor 외형 시드 — 보관함에서 꺼낼 때 굴려 배치까지 유지 */
+  variant?: number;
   npcSkin?: VCharSkin;
 }
 
@@ -105,8 +113,22 @@ interface EditObject extends EditMeta {
   ok: boolean;
 }
 
+/** 미소유 확장 구역 팻말 정보 — React(i18n)가 문구까지 만들어 넘긴다 */
+export interface LockedZoneSign {
+  zone: VillageZoneId;
+  available: boolean;
+  /** 팻말 1행 (예: "🏕️ 뒷숲 캠프") */
+  title: string;
+  /** 팻말 2행 (예: "🔒 200 톡큰으로 확장" / "양옆을 이은 뒤 열려요") */
+  sub: string;
+}
+
 export interface VillageHooks {
   onInteractChange(target: VInteractTarget | null): void;
+  /** 미소유 구역 팻말 탭 (걷기 모드) */
+  onZoneTap(zone: VillageZoneId): void;
+  /** 오늘의 네잎클로버 수집 (플레이어가 가까이 걸어감) */
+  onClover(): void;
   /** ✓ — 배치 확정 (placementId null 이면 신규 place, 아니면 move) */
   onEditCommit(e: {
     placementId: number | null;
@@ -115,6 +137,7 @@ export interface VillageHooks {
     bx: number;
     by: number;
     facing?: VBuildingFacing;
+    variant?: number;
   }): void;
   /** ✕ — 보관함 반환 (placementId null 이면 그냥 취소) */
   onEditReturn(e: { placementId: number | null }): void;
@@ -158,6 +181,11 @@ const JOYSTICK_RADIUS = 58;
 const TAP_SLOP = 10;
 const ZOOM = 0.84;
 const EDIT_BTN_R = 16;
+/** 사용자 줌 배율 범위 (기본 ZOOM 에 곱해진다) */
+const ZOOM_USER_MIN = 0.6;
+const ZOOM_USER_MAX = 1.9;
+/** 클로버 자동 수집 반경 (타일) */
+const CLOVER_RANGE = 0.85;
 
 export class VillageGame {
   private ctx: CanvasRenderingContext2D;
@@ -190,8 +218,17 @@ export class VillageGame {
   onSitChange: ((sitting: boolean) => void) | null = null;
   private playerSkin: VCharSkin;
 
-  /** 렌더 줌 — 평소엔 상수, 전경 스냅샷 때만 일시적으로 바뀐다 */
+  /** 렌더 줌 = ZOOM × zoomUser — 전경 스냅샷 때만 일시적으로 덮어쓴다 */
   private zoom = ZOOM;
+  /** 사용자 줌 배율 (버튼·휠·핀치) */
+  private zoomUser = 1;
+  /** 핀치 줌 — 활성 포인터 2개 추적 */
+  private pointers = new Map<number, { x: number; y: number }>();
+  private pinch: { d0: number; z0: number } | null = null;
+  /** 미소유 확장 구역 팻말 */
+  private lockedZones: LockedZoneSign[] = [];
+  /** 오늘의 네잎클로버 타일 (null = 없음/수집됨) */
+  private clover: { tx: number; ty: number } | null = null;
   private editMode = false;
   private edit: EditObject | null = null;
   private editDragging = false;
@@ -271,6 +308,81 @@ export class VillageGame {
 
   setPlayerSkin(skin: VCharSkin): void {
     this.playerSkin = skin;
+  }
+
+  /** 섬 확장 등으로 월드가 다시 지어졌을 때 교체 — 캐릭터가 낀 자리는 풀어준다 */
+  setWorld(world: VillageWorld): void {
+    this.world = world;
+    if (!this.canStand(this.player.x, this.player.y)) {
+      const spot = this.nearestWalkable(Math.floor(this.player.x), Math.floor(this.player.y));
+      this.player.x = spot.tx + 0.5;
+      this.player.y = spot.ty + 0.5;
+    }
+    for (const n of this.villagers) {
+      if (this.solid(Math.floor(n.x), Math.floor(n.y))) {
+        const spot = this.nearestWalkable(Math.floor(n.def.anchor.x), Math.floor(n.def.anchor.y));
+        n.x = spot.tx + 0.5;
+        n.y = spot.ty + 0.5;
+        n.target = null;
+      }
+    }
+    this.clampCam();
+  }
+
+  /** 미소유 확장 구역 팻말 목록 갱신 */
+  setLockedZones(signs: LockedZoneSign[]): void {
+    this.lockedZones = signs;
+  }
+
+  /** 오늘의 네잎클로버 위치 (null = 없음) */
+  setClover(tile: { tx: number; ty: number } | null): void {
+    this.clover = tile;
+  }
+
+  // ------------------------------------------------------------ 줌
+
+  getZoom(): number {
+    return this.zoomUser;
+  }
+
+  setZoom(z: number): void {
+    this.zoomUser = Math.max(ZOOM_USER_MIN, Math.min(ZOOM_USER_MAX, z));
+    this.zoom = ZOOM * this.zoomUser;
+    this.clampCam();
+  }
+
+  /** 줌 배율 곱하기 — ➕/➖ 버튼·휠·핀치 공용 */
+  zoomBy(factor: number): void {
+    this.setZoom(this.zoomUser * factor);
+  }
+
+  /** e2e/디버그 — 줌·구역 팻말·클로버·주민의 캔버스 CSS 좌표 */
+  getVillageDebug(): {
+    zoom: number;
+    zoneSigns: { zone: VillageZoneId; available: boolean; x: number; y: number }[];
+    clover: { tx: number; ty: number; x: number; y: number } | null;
+    villagerIds: string[];
+  } {
+    const toCss = (sx: number, sy: number) => ({
+      x: (sx - this.cam.sx) * this.zoom + this.anchorX,
+      y: (sy - this.cam.sy) * this.zoom + this.anchorY,
+    });
+    return {
+      zoom: this.zoomUser,
+      zoneSigns: this.lockedZones.map((z) => {
+        const c = zoneSignCenter(z.zone);
+        const css = toCss(c.sx, c.sy);
+        return { zone: z.zone, available: z.available, x: css.x, y: css.y };
+      }),
+      clover: this.clover
+        ? (() => {
+            const s = toScreen(this.clover!.tx + 0.5, this.clover!.ty + 0.5);
+            const css = toCss(s.sx, s.sy);
+            return { tx: this.clover!.tx, ty: this.clover!.ty, x: css.x, y: css.y };
+          })()
+        : null,
+      villagerIds: this.villagers.map((v) => v.def.id),
+    };
   }
 
   isSitting(): boolean {
@@ -384,10 +496,11 @@ export class VillageGame {
   spawnFromTray(meta: EditMeta, near?: { bx: number; by: number }): void {
     if (!this.editMode) return;
     const center = toWorld(this.cam.sx, this.cam.sy);
+    const b = this.world.bounds;
     let bx = near ? near.bx : Math.round(center.x - meta.w / 2);
     let by = near ? near.by : Math.round(center.y - meta.h / 2);
-    bx = Math.max(0, Math.min(VW - meta.w, bx));
-    by = Math.max(0, Math.min(VH - meta.h, by));
+    bx = Math.max(b.x0, Math.min(b.x1 - meta.w, bx));
+    by = Math.max(b.y0, Math.min(b.y1 - meta.h, by));
     // 가까운 유효 자리 나선 탐색.
     outer: for (let r = 0; r < 8; r++) {
       for (let dy = -r; dy <= r; dy++) {
@@ -403,6 +516,8 @@ export class VillageGame {
     }
     this.edit = {
       ...meta,
+      // 배치 시마다 랜덤 외형(꽃 화단 색 등) — 미리보기부터 확정까지 유지.
+      variant: meta.variant ?? Math.random(),
       placementId: null,
       bx,
       by,
@@ -427,7 +542,13 @@ export class VillageGame {
   /** 마을 전경 스냅샷 — 월드 전체가 한 화면에 담기도록 멀리서 찍은
       기념 사진(PNG dataURL). 현재 시간대(낮/밤)·주민·나비까지 그대로 담는다. */
   captureSnapshot(width = 1200, height = 800): string {
-    const corners = [toScreen(0, 0), toScreen(VW, 0), toScreen(VW, VH), toScreen(0, VH)];
+    const b = this.world.bounds;
+    const corners = [
+      toScreen(b.x0, b.y0),
+      toScreen(b.x1, b.y0),
+      toScreen(b.x1, b.y1),
+      toScreen(b.x0, b.y1),
+    ];
     const xs = corners.map((c) => c.sx);
     const ys = corners.map((c) => c.sy);
     const padTop = 170; // 숲 나무·건물 높이 여유
@@ -624,6 +745,7 @@ export class VillageGame {
     window.addEventListener('pointercancel', this.onUp);
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('keyup', this.onKeyUp);
+    this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
   }
 
   private detach(): void {
@@ -633,6 +755,34 @@ export class VillageGame {
     window.removeEventListener('pointercancel', this.onUp);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKeyUp);
+    this.canvas.removeEventListener('wheel', this.onWheel);
+  }
+
+  /** 휠/트랙패드 — 캔버스 위에서 줌 */
+  private onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    this.zoomBy(Math.exp(-e.deltaY * 0.0016));
+  };
+
+  /** 두 손가락 핀치 줌 — 걷기/배치 모드 공통. 시작되면 조이스틱·패닝은 놓는다. */
+  private tryStartPinch(): boolean {
+    if (this.pointers.size !== 2) return false;
+    const [a, b] = [...this.pointers.values()];
+    this.pinch = { d0: Math.max(24, Math.hypot(a.x - b.x, a.y - b.y)), z0: this.zoomUser };
+    this.stick = null;
+    this.stickView = null;
+    this.move.x = 0;
+    this.move.y = 0;
+    this.editPointer = null;
+    this.editDragging = false;
+    return true;
+  }
+
+  private updatePinch(): void {
+    if (!this.pinch || this.pointers.size < 2) return;
+    const [a, b] = [...this.pointers.values()];
+    const d = Math.max(24, Math.hypot(a.x - b.x, a.y - b.y));
+    this.setZoom(this.pinch.z0 * (d / this.pinch.d0));
   }
 
   /** 클라이언트 좌표 → 월드 스크린 좌표(카메라 역변환) */
@@ -647,6 +797,8 @@ export class VillageGame {
   }
 
   private onDown = (e: PointerEvent) => {
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.tryStartPinch()) return;
     if (this.editMode) {
       this.onEditDown(e);
       return;
@@ -663,6 +815,13 @@ export class VillageGame {
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.pointers.has(e.pointerId)) {
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (this.pinch) {
+      this.updatePinch();
+      return;
+    }
     if (this.editMode) {
       this.onEditMove(e);
       return;
@@ -693,15 +852,37 @@ export class VillageGame {
   };
 
   private onUp = (e: PointerEvent) => {
+    this.pointers.delete(e.pointerId);
+    if (this.pinch) {
+      if (this.pointers.size < 2) this.pinch = null;
+      return;
+    }
     if (this.editMode) {
       this.onEditUp(e);
       return;
     }
     if (!this.stick || e.pointerId !== this.stick.id) return;
+    const wasTap = !this.stick.moved;
+    const tapX = this.stick.ox;
+    const tapY = this.stick.oy;
     this.stick = null;
     this.stickView = null;
     this.move.x = 0;
     this.move.y = 0;
+    // 드래그 없는 탭 → 미소유 구역 팻말 히트 테스트 (걷기 모드).
+    if (wasTap) {
+      const ws = {
+        sx: (tapX - this.anchorX) / this.zoom + this.cam.sx,
+        sy: (tapY - this.anchorY) / this.zoom + this.cam.sy,
+      };
+      for (const z of this.lockedZones) {
+        const c = zoneSignCenter(z.zone);
+        if (Math.abs(ws.sx - c.sx) < 96 && Math.abs(ws.sy - (c.sy - 20)) < 56) {
+          this.hooks.onZoneTap(z.zone);
+          return;
+        }
+      }
+    }
   };
 
   private onKey = (e: KeyboardEvent) => {
@@ -768,6 +949,7 @@ export class VillageGame {
         facing: hit.facing,
         lmId: hit.lmId,
         decorType: hit.decorType,
+        variant: hit.variant,
         npcSkin: hit.npcSkin,
         bx: hit.bx,
         by: hit.by,
@@ -799,17 +981,18 @@ export class VillageGame {
     if (Math.hypot(e.clientX - p.lastX, e.clientY - p.lastY) > 2) p.moved = true;
 
     if (p.mode === 'pan') {
-      this.cam.sx -= dx / ZOOM;
-      this.cam.sy -= dy / ZOOM;
+      this.cam.sx -= dx / this.zoom;
+      this.cam.sy -= dy / this.zoom;
       this.clampCam();
     } else if (this.edit) {
       this.editDragging = true;
       const ws = this.clientToWorldScreen(e.clientX, e.clientY);
       const w = toWorld(ws.sx, ws.sy);
+      const b = this.world.bounds;
       let bx = Math.round(w.x - this.edit.w / 2);
       let by = Math.round(w.y - this.edit.h / 2);
-      bx = Math.max(0, Math.min(VW - this.edit.w, bx));
-      by = Math.max(0, Math.min(VH - this.edit.h, by));
+      bx = Math.max(b.x0, Math.min(b.x1 - this.edit.w, bx));
+      by = Math.max(b.y0, Math.min(b.y1 - this.edit.h, by));
       this.edit.bx = bx;
       this.edit.by = by;
       this.edit.ok = this.canPlaceEdit(this.edit, this.edit.placementId, bx, by, this.edit.w, this.edit.h);
@@ -862,11 +1045,11 @@ export class VillageGame {
 
   private commitEdit(): void {
     if (!this.edit || !this.edit.ok) return;
-    const { placementId, kind, refId, bx, by, facing } = this.edit;
+    const { placementId, kind, refId, bx, by, facing, variant } = this.edit;
     this.edit = null;
     this.editDragging = false;
     this.hooks.onEditSelection(null);
-    this.hooks.onEditCommit({ placementId, kind, refId, bx, by, facing });
+    this.hooks.onEditCommit({ placementId, kind, refId, bx, by, facing, variant });
   }
 
   private returnEdit(): void {
@@ -879,7 +1062,13 @@ export class VillageGame {
   }
 
   private clampCam(): void {
-    const corners = [toScreen(0, 0), toScreen(VW, 0), toScreen(VW, VH), toScreen(0, VH)];
+    const b = this.world.bounds;
+    const corners = [
+      toScreen(b.x0, b.y0),
+      toScreen(b.x1, b.y0),
+      toScreen(b.x1, b.y1),
+      toScreen(b.x0, b.y1),
+    ];
     const xs = corners.map((c) => c.sx);
     const ys = corners.map((c) => c.sy);
     const pad = 80;
@@ -963,6 +1152,15 @@ export class VillageGame {
     this.updateVillagers(dt);
     this.updateAmbient(dt);
     this.updateInteract();
+
+    // 오늘의 네잎클로버 — 가까이 걸어가면 자동 수집.
+    if (this.clover) {
+      const d = Math.hypot(this.clover.tx + 0.5 - this.player.x, this.clover.ty + 0.5 - this.player.y);
+      if (d < CLOVER_RANGE) {
+        this.clover = null;
+        this.hooks.onClover();
+      }
+    }
   }
 
   private updateVillagers(dt: number): void {
@@ -1051,9 +1249,12 @@ export class VillageGame {
         const ny = b.y + (Math.random() * 2 - 1) * 4;
         const tx = Math.max(3, Math.min(VW - 6, Math.round(nx)));
         const ty = Math.max(3, Math.min(VH - 6, Math.round(ny)));
-        if (vinBounds(tx, ty) && this.world.terrain[vidx(tx, ty)] !== VT.Water) {
-          b.tx = tx + 0.5;
-          b.ty = ty + 0.5;
+        if (vinBounds(tx, ty)) {
+          const t = this.world.terrain[vidx(tx, ty)];
+          if (t !== VT.Water && t !== VT.Void) {
+            b.tx = tx + 0.5;
+            b.ty = ty + 0.5;
+          }
         }
       } else {
         const sp = 0.9 * dt;
@@ -1138,7 +1339,8 @@ export class VillageGame {
       const cx = t.bx + 0.5;
       const cy = t.by + 0.5;
       const seed = 'id' in t && t.id !== undefined ? t.id : 7;
-      drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v: (Number(seed) % 97) / 97 }, this.time);
+      const v = t.variant ?? (Number(seed) % 97) / 97;
+      drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v }, this.time);
     }
   }
 
@@ -1164,12 +1366,14 @@ export class VillageGame {
       return vx > -pad && vx < this.vw + pad && vy > -pad * 2 && vy < this.vh + pad;
     };
 
-    // 지형.
+    // 지형 (미소유 구역 Void 는 그리지 않는다 — 심해 배경이 드러난다).
     for (let ty = 0; ty < VH; ty++) {
       for (let tx = 0; tx < VW; tx++) {
+        const t = this.world.terrain[vidx(tx, ty)] as VTerrainId;
+        if (t === VT.Void) continue;
         const { sx, sy } = toScreen(tx + 0.5, ty + 0.5);
         if (!visible(sx, sy)) continue;
-        drawVTile(ctx, tx, ty, this.world.terrain[vidx(tx, ty)] as VTerrainId, this.time);
+        drawVTile(ctx, tx, ty, t, this.time);
       }
     }
     for (let i = 0; i < this.world.shore.length; i++) {
@@ -1179,6 +1383,32 @@ export class VillageGame {
       const { sx, sy } = toScreen(tx + 0.5, ty + 0.5);
       if (!visible(sx, sy)) continue;
       drawVFoam(ctx, tx, ty, this.time);
+    }
+
+    // 미소유 확장 구역 — 유령 윤곽(마름모) + 팻말은 최상단 패스에서.
+    if (!this.editMode) {
+      for (const z of this.lockedZones) {
+        const { x0, y0 } = zoneOrigin(z.zone);
+        const c0 = toScreen(x0 + 0.6, y0 + 0.6);
+        const c1 = toScreen(x0 + VZ - 0.6, y0 + 0.6);
+        const c2 = toScreen(x0 + VZ - 0.6, y0 + VZ - 0.6);
+        const c3 = toScreen(x0 + 0.6, y0 + VZ - 0.6);
+        ctx.beginPath();
+        ctx.moveTo(c0.sx, c0.sy);
+        ctx.lineTo(c1.sx, c1.sy);
+        ctx.lineTo(c2.sx, c2.sy);
+        ctx.lineTo(c3.sx, c3.sy);
+        ctx.closePath();
+        const pulse = 0.5 + Math.sin(this.time * 1.6) * 0.14;
+        ctx.fillStyle = z.available ? `rgba(255,253,247,${0.07 + pulse * 0.05})` : 'rgba(255,253,247,0.05)';
+        ctx.fill();
+        ctx.setLineDash([14, 10]);
+        ctx.lineDashOffset = -this.time * 14;
+        ctx.strokeStyle = z.available ? `rgba(255,253,247,${pulse})` : 'rgba(255,253,247,0.22)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
 
     // 바닥 소품(광장 돌바닥 타일) — 지형 직후, 캐릭터/오브젝트보다 아래에 깐다.
@@ -1287,6 +1517,18 @@ export class VillageGame {
           items.push({
             d: this.entityDepth(gx, gy) + 3,
             draw: () => drawVGull(ctx, gx, gy, 58 + Math.sin(this.time * 1.3) * 6, this.time * 5),
+          });
+        }
+      }
+
+      // 오늘의 네잎클로버 — 반짝이는 수집 대상.
+      if (this.clover) {
+        const cl = this.clover;
+        const { sx, sy } = toScreen(cl.tx + 0.5, cl.ty + 0.5);
+        if (visible(sx, sy, 80)) {
+          items.push({
+            d: this.entityDepth(cl.tx + 0.5, cl.ty + 0.5) - 0.2,
+            draw: () => drawVClover(ctx, cl.tx + 0.5, cl.ty + 0.5, this.time),
           });
         }
       }
@@ -1399,6 +1641,11 @@ export class VillageGame {
       }
     }
 
+    // 미소유 구역 팻말 — 모든 오브젝트 위, 카메라 공간 최상단.
+    if (!this.editMode) {
+      for (const z of this.lockedZones) this.drawZoneSign(z);
+    }
+
     ctx.restore();
 
     // 밤: 남색 틴트 + 가로등 광원 (배치 모드에선 항상 낮).
@@ -1472,6 +1719,48 @@ export class VillageGame {
     }
   }
 
+  /** 미소유 확장 구역 팻말 — 나무 표지판 + 자물쇠/비용 문구 */
+  private drawZoneSign(z: LockedZoneSign): void {
+    const ctx = this.ctx;
+    const c = zoneSignCenter(z.zone);
+    const bob = Math.sin(this.time * 1.8 + (z.zone === 'west' ? 0 : z.zone === 'north' ? 2 : 4)) * 2.4;
+    const cx = c.sx;
+    const cy = c.sy - 20 + (z.available ? bob : 0);
+    const W = 172;
+    const H = 62;
+    ctx.save();
+    ctx.globalAlpha = z.available ? 1 : 0.72;
+    // 말뚝.
+    ctx.fillStyle = '#8a6b52';
+    ctx.fillRect(cx - 4, cy + H / 2 - 4, 8, 26);
+    // 보드.
+    ctx.beginPath();
+    const r = 14;
+    const x = cx - W / 2;
+    const y = cy - H / 2;
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + W, y, x + W, y + H, r);
+    ctx.arcTo(x + W, y + H, x, y + H, r);
+    ctx.arcTo(x, y + H, x, y, r);
+    ctx.arcTo(x, y, x + W, y, r);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,253,247,0.96)';
+    ctx.fill();
+    ctx.strokeStyle = z.available ? '#4E9B58' : 'rgba(74,59,50,0.35)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // 문구.
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#2b2b33';
+    ctx.font = "800 17px system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+    ctx.fillText(z.title, cx, cy - 12);
+    ctx.fillStyle = z.available ? '#3d7a46' : '#8c7b6e';
+    ctx.font = "700 13.5px system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+    ctx.fillText(z.sub, cx, cy + 13);
+    ctx.restore();
+  }
+
   /**
    * 페인터 정렬 깊이. 점 하나는 다층 타일 박스와 스칼라 하나로는 완전히
    * 정렬되지 않으므로, 건물 앞면(+x/+y 면)을 지나면 그 건물 위로 띄운다.
@@ -1508,4 +1797,12 @@ function facingFromWorldDelta(dx: number, dy: number): VFacing {
 function targetKey(t: VInteractTarget | null): string {
   if (!t) return '';
   return `${t.kind}:${t.kind === 'thing' ? t.id : t.id}`;
+}
+
+/** 확장 구역 팻말 중심 — 사분면 중앙보다 기본 섬 쪽에 붙여 잘 보이게 */
+function zoneSignCenter(zone: VillageZoneId): { sx: number; sy: number } {
+  const { x0, y0 } = zoneOrigin(zone);
+  const cx = x0 === 0 ? VZ - 6.5 : VZ + VZ / 2;
+  const cy = y0 === 0 ? VZ - 6.5 : VZ + VZ / 2;
+  return toScreen(cx, cy);
 }

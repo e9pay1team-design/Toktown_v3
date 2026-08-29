@@ -2605,6 +2605,117 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       }
       return;
     }
+    case 'flowerbed': {
+      // 상점 '꽃 화단' — 나무 플랜터 박스 + 흙 + 꽃송이.
+      // 색은 배치 시 굴린 variant(p.v)로 3팔레트(핑크/노랑/보라) 중 결정.
+      const pal = [
+        { petal: '#F2A7C3', deep: '#E87C9B' },
+        { petal: '#FFD66B', deep: '#F5A03C' },
+        { petal: '#C7B9F2', deep: '#9F86E8' },
+      ][Math.min(2, Math.floor(p.v * 3))];
+      shadow(ctx, sx, sy + 3, 24);
+      // 플랜터 박스 — 낮은 아이소 박스 (높이 8).
+      const H = 8;
+      const hw = 23;
+      const hh = 11.5;
+      // 좌하단 면.
+      ctx.beginPath();
+      ctx.moveTo(sx - hw, sy - H);
+      ctx.lineTo(sx, sy + hh - H);
+      ctx.lineTo(sx, sy + hh);
+      ctx.lineTo(sx - hw, sy);
+      ctx.closePath();
+      ctx.fillStyle = '#B98A5C';
+      ctx.fill();
+      // 우하단 면.
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + hh - H);
+      ctx.lineTo(sx + hw, sy - H);
+      ctx.lineTo(sx + hw, sy);
+      ctx.lineTo(sx, sy + hh);
+      ctx.closePath();
+      ctx.fillStyle = '#9C714C';
+      ctx.fill();
+      // 판재 결.
+      ctx.strokeStyle = 'rgba(122,92,66,0.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx - hw + 2, sy - H + 4.5);
+      ctx.lineTo(sx - 1, sy + hh - H + 4.5);
+      ctx.moveTo(sx + 1, sy + hh - H + 4.5);
+      ctx.lineTo(sx + hw - 2, sy - H + 4.5);
+      ctx.stroke();
+      // 윗테 (림) + 흙.
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - hh - H);
+      ctx.lineTo(sx + hw, sy - H);
+      ctx.lineTo(sx, sy + hh - H);
+      ctx.lineTo(sx - hw, sy - H);
+      ctx.closePath();
+      ctx.fillStyle = '#CE9F6C';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - hh - H + 3.6);
+      ctx.lineTo(sx + hw - 7, sy - H);
+      ctx.lineTo(sx, sy + hh - H - 3.6);
+      ctx.lineTo(sx - hw + 7, sy - H);
+      ctx.closePath();
+      ctx.fillStyle = '#6E4A33';
+      ctx.fill();
+      ctx.fillStyle = 'rgba(84,56,42,0.7)';
+      for (const [dx, dy] of [
+        [-9, -1],
+        [7, 2],
+        [-2, 4],
+        [10, -3],
+      ] as const) {
+        ellipse(ctx, sx + dx, sy - H + dy * 0.6, 1.3, 0.9);
+        ctx.fill();
+      }
+      // 잎 + 꽃송이 5 (본색·짙은색 교차) + 흰 들꽃 포인트.
+      ctx.fillStyle = '#79AE60';
+      for (const [lx, ly] of [
+        [-13, -2],
+        [5, 3],
+        [12, -4],
+        [-4, -6],
+      ] as const) {
+        ellipse(ctx, sx + lx, sy - H + ly * 0.7 - 3, 3.2, 2.2);
+        ctx.fill();
+      }
+      const spots = [
+        [-12, -3, 1],
+        [-4, 2.5, 0.9],
+        [4, -4.5, 1],
+        [12, 0, 0.9],
+        [1, -0.5, 1.15],
+      ] as const;
+      spots.forEach(([fx, fyRaw, s], i) => {
+        const fy = sy - H + fyRaw * 0.75;
+        const bob = Math.sin(time * 2 + p.v * 8 + i * 1.7) * 0.8;
+        ctx.strokeStyle = VPALETTE.grassBlade;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(sx + fx, fy);
+        ctx.lineTo(sx + fx + bob, fy - 7 * s);
+        ctx.stroke();
+        ctx.fillStyle = i % 2 ? pal.deep : pal.petal;
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2 + i;
+          ellipse(ctx, sx + fx + bob + Math.cos(a) * 3 * s, fy - 8 * s + Math.sin(a) * 3 * s, 2.4 * s, 2.4 * s);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#FFE680';
+        ellipse(ctx, sx + fx + bob, fy - 8 * s, 1.7 * s, 1.7 * s);
+        ctx.fill();
+      });
+      ctx.fillStyle = '#FFFDF7';
+      ellipse(ctx, sx - 8, sy - H - 6, 1.6, 1.6);
+      ctx.fill();
+      ellipse(ctx, sx + 9, sy - H - 7.5, 1.4, 1.4);
+      ctx.fill();
+      return;
+    }
     case 'rock': {
       const scale = 0.8 + p.v * 0.5;
       shadow(ctx, sx, sy + 1, 11 * scale);
@@ -3578,6 +3689,58 @@ export function drawVButterfly(
   ctx.fill();
   ctx.fillStyle = VPALETTE.ink;
   ellipse(ctx, sx, cy, 1.2, 3);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** 오늘의 네잎클로버 — 반짝임 링과 함께 살랑이는 수집 대상 (일일 미션) */
+export function drawVClover(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  time: number,
+): void {
+  const { sx, sy } = toScreen(x, y);
+  const bob = Math.sin(time * 2.4) * 1.6;
+  const cy = sy - 10 + bob;
+  ctx.save();
+  // 발밑 그림자 + 반짝임 링.
+  ctx.fillStyle = 'rgba(40,50,35,0.16)';
+  ellipse(ctx, sx, sy - 1, 7, 2.6);
+  ctx.fill();
+  const pulse = 0.5 + Math.sin(time * 3.1) * 0.3;
+  ctx.strokeStyle = `rgba(255,253,247,${pulse * 0.75})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy - 1, 10 + pulse * 3, 4 + pulse * 1.2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // 줄기.
+  ctx.strokeStyle = '#3d7a46';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - 2);
+  ctx.quadraticCurveTo(sx + 1.5, cy + 5, sx, cy + 2);
+  ctx.stroke();
+  // 잎 4장 — 하트형 잎을 십자로.
+  const sway = Math.sin(time * 2.4 + 1) * 0.08;
+  for (let i = 0; i < 4; i++) {
+    const a = (Math.PI / 2) * i + Math.PI / 4 + sway;
+    const lx = sx + Math.cos(a) * 4.6;
+    const ly = cy + Math.sin(a) * 4.6 * 0.78;
+    ctx.fillStyle = i % 2 ? '#4E9B58' : '#5fae69';
+    ellipse(ctx, lx, ly, 3.6, 3);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#8cc073';
+  ellipse(ctx, sx, cy, 1.6, 1.4);
+  ctx.fill();
+  // 반짝이 별 2.
+  const tw = Math.abs(Math.sin(time * 3.6));
+  ctx.fillStyle = `rgba(255,214,107,${0.4 + tw * 0.6})`;
+  ellipse(ctx, sx + 8, cy - 6, 1.4 + tw, 1.4 + tw);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,253,247,${0.9 - tw * 0.5})`;
+  ellipse(ctx, sx - 8, cy - 2, 1.2, 1.2);
   ctx.fill();
   ctx.restore();
 }

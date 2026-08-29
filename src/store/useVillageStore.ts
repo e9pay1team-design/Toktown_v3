@@ -8,7 +8,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DEFAULT_LAMP_TILES, defaultPlazaTiles } from '../lib/villageWorld';
+import { DEFAULT_LAMP_TILES, VZ, defaultPlazaTiles, type VillageZoneId } from '../lib/villageWorld';
 
 export type PlacementKind = 'store' | 'npc' | 'landmark' | 'decor';
 
@@ -30,6 +30,8 @@ export interface Placement {
   h: number;
   /** 건물 방향 — sw(좌측 하단, 기본) | se(우측 하단) */
   facing?: 'sw' | 'se';
+  /** 배치 시 굴린 외형 시드 0..1 — 꽃 화단 색 등 (없으면 id 기반 폴백) */
+  variant?: number;
   /** 기본 마을 구성물(광장 돌바닥·가로등) — 풍성도 계산에서 제외 */
   preset?: boolean;
 }
@@ -38,13 +40,17 @@ interface VillageState {
   placements: Placement[];
   /** 상점에서 구매한 소품 수량 (+ 기본 지급분) */
   decorOwned: Record<string, number>;
+  /** 소유한 섬 구역 — base 는 항상 포함 (R5 섬 확장) */
+  zonesOwned: VillageZoneId[];
 
-  place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se') => void;
+  place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se', variant?: number) => void;
   move: (placementId: number, bx: number, by: number, facing?: 'sw' | 'se') => void;
   remove: (placementId: number) => void;
   /** 배치된 모든 오브젝트를 보관함으로 회수 (획득물은 유지) */
   recallAll: () => void;
   buyDecor: (decorId: string) => void;
+  /** 섬 구역 확장 — 비용 차감은 호출부(useEconomyStore.spendTokken)에서 */
+  expandZone: (zone: VillageZoneId) => void;
 }
 
 let placementSeq = Date.now() % 1_000_000;
@@ -69,11 +75,15 @@ export const useVillageStore = create<VillageState>()(
     (set) => ({
       placements: defaultVillagePlacements(),
       decorOwned: defaultDecorOwned(),
+      zonesOwned: ['base'],
 
-      place: (kind, refId, bx, by, facing) => {
+      place: (kind, refId, bx, by, facing, variant) => {
         const { w, h } = footprintOf(kind);
         set((s) => ({
-          placements: [...s.placements, { id: ++placementSeq, kind, refId, bx, by, w, h, facing }],
+          placements: [
+            ...s.placements,
+            { id: ++placementSeq, kind, refId, bx, by, w, h, facing, variant: variant ?? Math.random() },
+          ],
         }));
       },
 
@@ -93,10 +103,15 @@ export const useVillageStore = create<VillageState>()(
         set((s) => ({
           decorOwned: { ...s.decorOwned, [decorId]: (s.decorOwned[decorId] ?? 0) + 1 },
         })),
+
+      expandZone: (zone) =>
+        set((s) => ({
+          zonesOwned: s.zonesOwned.includes(zone) ? s.zonesOwned : [...s.zonesOwned, zone],
+        })),
     }),
     {
       name: 'toktown:village',
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
         let state = persisted as VillageState;
         if (version < 3) {
@@ -117,19 +132,33 @@ export const useVillageStore = create<VillageState>()(
               for (let tx = p.bx; tx < p.bx + p.w; tx++) occupied.add(`${tx},${ty}`);
             }
           }
-          const seeded = defaultVillagePlacements().filter((p) => !occupied.has(`${p.bx},${p.by}`));
+          // 기본 배치물은 현재(52×52) 좌표로 생성되므로, 아래 v5 시프트(+VZ)와
+          // 상쇄되도록 옛(26×26) 좌표계로 되돌려 놓는다.
+          const seeded = defaultVillagePlacements()
+            .map((p) => ({ ...p, bx: p.bx - VZ, by: p.by - VZ }))
+            .filter((p) => !occupied.has(`${p.bx},${p.by}`));
           for (const [id, n] of Object.entries(defaultDecorOwned())) {
             decorOwned[id] = (decorOwned[id] ?? 0) + n;
           }
           state = { ...state, placements: [...seeded, ...kept], decorOwned };
         }
         // v4: 이벤트 NPC id 개편 — 배치된 '드러머 까미'를 '까아미'로 통합.
-        return {
+        state = {
           ...state,
           placements: (state.placements ?? []).map((p) =>
             p.kind === 'npc' && p.refId === 'magpie-drummer' ? { ...p, refId: 'magpie-kkaami' } : p,
           ),
         };
+        // v5: 섬 확장 — 좌표계가 52×52 로 넓어지고 기본 섬이 우하단 구역
+        // (base, +VZ 오프셋)으로 이동. 기존 배치를 그대로 시프트한다.
+        if (version < 5) {
+          state = {
+            ...state,
+            placements: (state.placements ?? []).map((p) => ({ ...p, bx: p.bx + VZ, by: p.by + VZ })),
+            zonesOwned: ['base'],
+          };
+        }
+        return { ...state, zonesOwned: state.zonesOwned ?? ['base'] };
       },
     },
   ),

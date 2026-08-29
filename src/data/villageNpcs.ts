@@ -5,6 +5,7 @@
 
 import { BASIC_NPCS } from './seed';
 import type { VCharSkin } from '../lib/villageDraw';
+import type { VillageZoneId } from '../lib/villageWorld';
 
 export interface VillageNpcDef {
   id: string;
@@ -149,6 +150,138 @@ export const VILLAGE_NPCS: VillageNpcDef[] = [
     anchorOffset: { x: -2, y: 5 },
   },
 ];
+
+// ─── 확장 구역 기본 NPC (R5 섬 확장) ──────────────────────────────
+// 확장 구역을 살 때마다 그 구역의 전문가 주민이 1명씩 입주한다.
+// unlockAt 은 쓰지 않는다 — 입주 조건이 풍성도가 아니라 구역 소유.
+
+export interface ZoneInfo {
+  zone: Exclude<VillageZoneId, 'base'>;
+  emoji: string;
+  name: string;
+  nameEn: string;
+}
+
+/** 확장 구역 이름 — 팻말·확장 모달·토스트 공용 */
+export const ZONE_INFO: ZoneInfo[] = [
+  { zone: 'west', emoji: '🏕️', name: '뒷숲 캠프', nameEn: 'Back-Forest Camp' },
+  { zone: 'north', emoji: '🌌', name: '별보기 언덕', nameEn: 'Stargazer Hill' },
+  { zone: 'peak', emoji: '⛰️', name: '구름마루', nameEn: 'Cloud Ridge' },
+];
+
+export function zoneInfo(zone: VillageZoneId): ZoneInfo | undefined {
+  return ZONE_INFO.find((z) => z.zone === zone);
+}
+
+/** 구역 앵커(사분면 안 배회 중심) — 26×26 사분면의 중앙 부근 */
+const ZONE_ANCHORS: Record<Exclude<VillageZoneId, 'base'>, { x: number; y: number }> = {
+  west: { x: 13, y: 39 },
+  north: { x: 39, y: 13 },
+  peak: { x: 13, y: 13 },
+};
+
+export const ZONE_NPCS: Record<Exclude<VillageZoneId, 'base'>, VillageNpcDef> = {
+  west: {
+    id: 'zone-raccoon-survivalist',
+    name: '덕구',
+    nameEn: 'Deokgu',
+    title: '생존전문가',
+    titleEn: 'Survival Expert',
+    species: '너구리',
+    speciesEn: 'Raccoon',
+    skin: {
+      body: '#6b7a4e',
+      bodyDark: '#54613c',
+      fur: '#8a7b6a',
+      furDark: '#5e5347',
+      hair: '#3f4636',
+      ear: 'bear',
+    },
+    chatter: ['이 숲, 내가 다 파악했어.', '모닥불엔 마른 가지가 최고야.', '비 오기 전엔 흙냄새가 달라져.'],
+    chatterEn: ['I know every inch of this forest.', 'Dry twigs make the best campfire.', 'The soil smells different before rain.'],
+    dialogue: [
+      '오, 새 이웃! 난 생존전문가 덕구야. 뒷숲은 내 앞마당이지.',
+      '캠프의 기본은 물, 불, 지붕. 마을의 기본은… 맛집이더라?',
+      '길 잃으면 이끼 낀 쪽이 북쪽… 아니, 그냥 광장 종소리를 따라와.',
+    ],
+    dialogueEn: [
+      "New neighbor! I'm Deokgu, survival expert. This back forest is my front yard.",
+      'Camping basics: water, fire, shelter. Village basics: good restaurants, apparently.',
+      'If you get lost, moss grows on the north side… or just follow the plaza bell.',
+    ],
+    unlockAt: 0,
+    anchorOffset: { x: 0, y: 0 },
+  },
+  north: {
+    id: 'zone-hedgehog-stargazer',
+    name: '초롱',
+    nameEn: 'Chorong',
+    title: '별지기',
+    titleEn: 'Stargazer',
+    species: '고슴도치',
+    speciesEn: 'Hedgehog',
+    skin: {
+      body: '#3b4a72',
+      bodyDark: '#2c3856',
+      fur: '#c9a97e',
+      furDark: '#8a6f52',
+      hair: '#2c3856',
+      ear: 'bear',
+    },
+    chatter: ['오늘 밤은 별이 잘 보이겠어.', '가시는 뾰족, 마음은 몽글.', '유성우 오는 날 알려줄게!'],
+    chatterEn: ['The stars will be clear tonight.', 'Spiky quills, soft heart.', "I'll tell you when the meteor shower comes!"],
+    dialogue: [
+      '안녕! 별지기 초롱이야. 이 언덕은 마을에서 하늘이 제일 넓게 보여.',
+      '밤에 가로등을 조금만 꺼두면 은하수도 보인다? 이사 오길 잘했지.',
+      '소원은 별똥별에 비는 게 아니라, 내일 갈 맛집을 정하는 거야.',
+    ],
+    dialogueEn: [
+      "Hi! I'm Chorong the stargazer. This hill has the widest sky in the village.",
+      'Dim the lamps a little at night and you can even see the Milky Way. Great move, right?',
+      "Don't wish on shooting stars — decide tomorrow's restaurant instead.",
+    ],
+    unlockAt: 0,
+    anchorOffset: { x: 0, y: 0 },
+  },
+  peak: {
+    id: 'zone-goat-alpinist',
+    name: '바위',
+    nameEn: 'Bawi',
+    title: '등산대장',
+    titleEn: 'Trek Captain',
+    species: '산양',
+    speciesEn: 'Mountain Goat',
+    skin: {
+      body: '#c65a4a',
+      bodyDark: '#a34537',
+      fur: '#e8e2d4',
+      furDark: '#b8ae9a',
+      hair: '#8c7b6e',
+      ear: 'cat',
+    },
+    chatter: ['정상 공기는 다르다니까!', '오르막이 있어야 내리막이 달지.', '구름이 발 밑이야, 하핫.'],
+    chatterEn: ['Summit air hits different!', 'You need the climb to enjoy the descent.', 'Clouds under my hooves, haha.'],
+    dialogue: [
+      '왔구나! 등산대장 바위다. 여기가 이 섬의 꼭대기, 구름마루야.',
+      '양옆 구역을 다 이어 붙이다니, 자네 개척 정신이 대단해.',
+      '정상에서 보면 다 보여 — 광장, 바다, 그리고 자네가 만든 마을 전부.',
+    ],
+    dialogueEn: [
+      "You made it! I'm Bawi, trek captain. This is Cloud Ridge, the island's peak.",
+      'Linking both side zones to get here — that pioneer spirit of yours is something.',
+      'From the top you can see it all — the plaza, the sea, and everything you built.',
+    ],
+    unlockAt: 0,
+    anchorOffset: { x: 0, y: 0 },
+  },
+};
+
+/** 소유 구역의 기본 NPC 목록 (base 제외) */
+export function zoneNpcs(zones: readonly VillageZoneId[]): (VillageNpcDef & { anchor: { x: number; y: number } })[] {
+  return (Object.keys(ZONE_NPCS) as Array<Exclude<VillageZoneId, 'base'>>)
+    .filter((z) => zones.includes(z))
+    .map((z) => ({ ...ZONE_NPCS[z], anchor: ZONE_ANCHORS[z] }));
+}
 
 /** 마을 풍성도 = 배치물 수 + 도감 등록 수 + 발견 랜드마크 수 */
 export function villageRichness(

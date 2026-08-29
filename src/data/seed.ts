@@ -2848,7 +2848,7 @@ export const TOKKEN_ECONOMY: TokkenEconomy = {
   certifiedReview: 30,
   review: 0,
   checkin: 10,
-  attendance: 5,
+  attendance: 10,
   npcEncounter: 20,
   rideTag: 5,
 };
@@ -2856,7 +2856,8 @@ export const TOKKEN_ECONOMY: TokkenEconomy = {
 /** Tokken 상점 소품 (M3 사용) — 저렴한 것부터 진열. 벤치·가죽소파는 걷기 모드에서 앉기 가능. */
 export const DECOR_ITEMS: DecorItem[] = [
   { id: 'plaza-tile', name: '돌바닥 타일', nameEn: 'Stone Tile', price: 1 },
-  { id: 'flower', name: '꽃밭', nameEn: 'Flower Bed', price: 30 },
+  // 꽃 화단 — 배치할 때마다 3색(핑크/노랑/보라) 중 랜덤으로 핀다.
+  { id: 'flower', name: '꽃 화단', nameEn: 'Flower Planter', price: 30 },
   { id: 'bench', name: '나무 벤치', nameEn: 'Wooden Bench', price: 40 },
   { id: 'wood-table', name: '나무 테이블', nameEn: 'Wooden Table', price: 50 },
   { id: 'leather-sofa', name: '가죽소파', nameEn: 'Leather Sofa', price: 70 },
