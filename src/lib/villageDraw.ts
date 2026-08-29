@@ -2716,6 +2716,603 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       ctx.fill();
       return;
     }
+    case 'darktree': {
+      // 뒷숲 캠프 — 짙은 활엽수 (어두운 숲 변주).
+      const scale = 0.85 + p.v * 0.3;
+      const sway = Math.sin(time * 1.1 + p.v * 9) * 2;
+      shadow(ctx, sx, sy + 2, 15 * scale, 0.2);
+      ctx.fillStyle = '#3d3227';
+      ctx.beginPath();
+      ctx.moveTo(sx - 4 * scale, sy);
+      ctx.lineTo(sx + 4 * scale, sy);
+      ctx.lineTo(sx + 2.5 * scale, sy - 26 * scale);
+      ctx.lineTo(sx - 2.5 * scale, sy - 26 * scale);
+      ctx.closePath();
+      ctx.fill();
+      const cy = sy - 34 * scale;
+      ctx.fillStyle = '#274634';
+      ellipse(ctx, sx + sway, cy + 4 * scale, 20 * scale, 16 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#325a42';
+      ellipse(ctx, sx - 7 * scale + sway, cy, 14 * scale, 12 * scale);
+      ctx.fill();
+      ellipse(ctx, sx + 8 * scale + sway, cy + 1 * scale, 13 * scale, 11 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#3f6b4f';
+      ellipse(ctx, sx - 2 * scale + sway, cy - 8 * scale, 12 * scale, 9 * scale);
+      ctx.fill();
+      return;
+    }
+    case 'darkpine': {
+      // 뒷숲 캠프 — 짙은 침엽수.
+      const scale = 0.9 + p.v * 0.4;
+      const sway = Math.sin(time * 0.9 + p.v * 7) * 1.4;
+      shadow(ctx, sx, sy + 2, 12 * scale, 0.2);
+      ctx.fillStyle = '#3d3227';
+      ctx.fillRect(sx - 3 * scale, sy - 14 * scale, 6 * scale, 14 * scale);
+      for (let i = 0; i < 3; i++) {
+        const w = (20 - i * 4.5) * scale;
+        const yb = sy - 12 * scale - i * 13 * scale;
+        ctx.fillStyle = i === 2 ? '#2c5743' : '#1f4433';
+        ctx.beginPath();
+        ctx.moveTo(sx + sway * (i * 0.4), yb - 20 * scale);
+        ctx.lineTo(sx + w, yb);
+        ctx.lineTo(sx - w, yb);
+        ctx.closePath();
+        ctx.fill();
+      }
+      return;
+    }
+    case 'tent': {
+      // 뒷숲 캠프 — A형 주황 텐트.
+      shadow(ctx, sx, sy + 2, 22);
+      // 우측(그늘) 면.
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 34);
+      ctx.lineTo(sx + 22, sy - 24);
+      ctx.lineTo(sx + 22, sy - 2);
+      ctx.lineTo(sx, sy + 6);
+      ctx.closePath();
+      ctx.fillStyle = '#c9723a';
+      ctx.fill();
+      // 정면(입구) 면.
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 34);
+      ctx.lineTo(sx - 20, sy - 20);
+      ctx.lineTo(sx - 20, sy + 2);
+      ctx.lineTo(sx, sy + 6);
+      ctx.closePath();
+      ctx.fillStyle = '#e8944b';
+      ctx.fill();
+      // 입구 (지퍼 열린 삼각).
+      ctx.beginPath();
+      ctx.moveTo(sx - 10, sy - 18);
+      ctx.lineTo(sx - 16, sy - 1);
+      ctx.lineTo(sx - 4, sy + 1);
+      ctx.closePath();
+      ctx.fillStyle = '#4a3b32';
+      ctx.fill();
+      // 능선 폴대 + 고정줄.
+      ctx.strokeStyle = '#8a6b52';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 34);
+      ctx.lineTo(sx, sy - 38);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,253,247,0.6)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx + 22, sy - 24);
+      ctx.lineTo(sx + 30, sy - 14);
+      ctx.moveTo(sx - 20, sy - 20);
+      ctx.lineTo(sx - 27, sy - 10);
+      ctx.stroke();
+      // 작은 깃발.
+      ctx.fillStyle = '#ffd66b';
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 38);
+      ctx.lineTo(sx + 8, sy - 35.5);
+      ctx.lineTo(sx, sy - 33);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+    case 'campfire': {
+      // 뒷숲 캠프 — 돌 화덕 + 장작 + 일렁이는 불꽃 (밤엔 광원).
+      shadow(ctx, sx, sy + 1, 13);
+      // 돌 링.
+      ctx.fillStyle = '#8c8377';
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        ellipse(ctx, sx + Math.cos(a) * 11, sy + Math.sin(a) * 5.2, 3, 2.2);
+        ctx.fill();
+      }
+      // 장작 2개 교차.
+      ctx.strokeStyle = '#6e4a33';
+      ctx.lineWidth = 3.4;
+      ctx.beginPath();
+      ctx.moveTo(sx - 7, sy + 1);
+      ctx.lineTo(sx + 7, sy - 4);
+      ctx.moveTo(sx - 7, sy - 4);
+      ctx.lineTo(sx + 7, sy + 1);
+      ctx.stroke();
+      // 불꽃 — 2겹 일렁임.
+      const fl = Math.sin(time * 7 + p.v * 5) * 1.8;
+      const fl2 = Math.sin(time * 9.3 + 2) * 1.2;
+      ctx.fillStyle = '#f58a3c';
+      ctx.beginPath();
+      ctx.moveTo(sx - 6, sy - 3);
+      ctx.quadraticCurveTo(sx - 7 + fl, sy - 12, sx + fl, sy - 18 - Math.abs(fl));
+      ctx.quadraticCurveTo(sx + 7 + fl, sy - 12, sx + 6, sy - 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffd66b';
+      ctx.beginPath();
+      ctx.moveTo(sx - 3, sy - 3.5);
+      ctx.quadraticCurveTo(sx - 3 + fl2, sy - 8, sx + fl2 * 0.6, sy - 11 - Math.abs(fl2));
+      ctx.quadraticCurveTo(sx + 3 + fl2, sy - 8, sx + 3, sy - 3.5);
+      ctx.closePath();
+      ctx.fill();
+      // 불티.
+      const em = (time * 22 + p.v * 30) % 16;
+      ctx.fillStyle = `rgba(255,180,90,${Math.max(0, 1 - em / 16)})`;
+      ellipse(ctx, sx + Math.sin(time * 3) * 4, sy - 12 - em, 1.2, 1.2);
+      ctx.fill();
+      return;
+    }
+    case 'woodswing': {
+      // 뒷숲 캠프 — 나무 그네 (살랑 흔들림).
+      shadow(ctx, sx, sy + 2, 18);
+      ctx.strokeStyle = '#7a5c42';
+      ctx.lineWidth = 3.6;
+      ctx.beginPath();
+      ctx.moveTo(sx - 16, sy + 2);
+      ctx.lineTo(sx - 9, sy - 30);
+      ctx.moveTo(sx + 16, sy + 2);
+      ctx.lineTo(sx + 9, sy - 30);
+      ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(sx - 12, sy - 30);
+      ctx.lineTo(sx + 12, sy - 30);
+      ctx.stroke();
+      const sw = Math.sin(time * 1.7 + p.v * 4) * 3;
+      ctx.strokeStyle = '#c9b18c';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(sx - 5, sy - 29);
+      ctx.lineTo(sx - 5 + sw, sy - 8);
+      ctx.moveTo(sx + 5, sy - 29);
+      ctx.lineTo(sx + 5 + sw, sy - 8);
+      ctx.stroke();
+      ctx.fillStyle = '#a3835f';
+      ctx.fillRect(sx - 7.5 + sw, sy - 8, 15, 3.4);
+      return;
+    }
+    case 'stump': {
+      // 그루터기 — 나이테 윗면.
+      const scale = 0.9 + p.v * 0.3;
+      shadow(ctx, sx, sy + 1, 10 * scale);
+      ctx.fillStyle = '#7a5c42';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 2 * scale, 9 * scale, 5 * scale, 0, 0, Math.PI);
+      ctx.lineTo(sx - 9 * scale, sy - 8 * scale);
+      ctx.ellipse(sx, sy - 8 * scale, 9 * scale, 5 * scale, 0, Math.PI, 0, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c9b18c';
+      ellipse(ctx, sx, sy - 8 * scale, 9 * scale, 5 * scale);
+      ctx.fill();
+      ctx.strokeStyle = '#a3835f';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 8 * scale, 5.5 * scale, 3 * scale, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - 8 * scale, 2.4 * scale, 1.3 * scale, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      return;
+    }
+    case 'telescope': {
+      // 별보기 언덕 — 백사장 망원경.
+      shadow(ctx, sx, sy + 1, 10);
+      ctx.strokeStyle = '#4a3b32';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 12);
+      ctx.lineTo(sx - 7, sy + 2);
+      ctx.moveTo(sx, sy - 12);
+      ctx.lineTo(sx + 7, sy + 2);
+      ctx.moveTo(sx, sy - 12);
+      ctx.lineTo(sx, sy + 3);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(sx, sy - 14);
+      ctx.rotate(-0.62);
+      ctx.fillStyle = '#3b4a72';
+      ctx.fillRect(-4, -3.4, 17, 6.8);
+      ctx.fillStyle = '#5a6b94';
+      ctx.fillRect(9, -4.2, 5, 8.4);
+      ctx.restore();
+      const tw = Math.abs(Math.sin(time * 2.6));
+      ctx.fillStyle = `rgba(255,253,247,${0.35 + tw * 0.5})`;
+      ellipse(ctx, sx + 14, sy - 26, 1.5, 1.5);
+      ctx.fill();
+      return;
+    }
+    case 'falls-mountain': {
+      // 구름마루 — 무지개 폭포 산 (최종 콘텐츠 랜드마크).
+      const W2 = 176;
+      shadow(ctx, sx, sy + 8, W2 * 0.52, 0.18);
+      // 배경 산맥 — 폭포 산 뒤로 이어지는 원경 봉우리들 (옅은 톤, 설선 힌트).
+      const bgPeak = (ox: number, hw2: number, h2: number, tone: string) => {
+        ctx.fillStyle = tone;
+        ctx.beginPath();
+        ctx.moveTo(sx + ox - hw2, sy - 34);
+        ctx.lineTo(sx + ox - hw2 * 0.24, sy - 34 - h2);
+        ctx.lineTo(sx + ox + hw2 * 0.18, sy - 34 - h2 * 0.62);
+        ctx.lineTo(sx + ox + hw2 * 0.5, sy - 34 - h2 * 0.84);
+        ctx.lineTo(sx + ox + hw2, sy - 34);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#eef0e9';
+        ctx.beginPath();
+        ctx.moveTo(sx + ox - hw2 * 0.34, sy - 34 - h2 * 0.9);
+        ctx.lineTo(sx + ox - hw2 * 0.24, sy - 34 - h2);
+        ctx.lineTo(sx + ox - hw2 * 0.12, sy - 34 - h2 * 0.87);
+        ctx.lineTo(sx + ox - hw2 * 0.2, sy - 34 - h2 * 0.82);
+        ctx.closePath();
+        ctx.fill();
+      };
+      bgPeak(-W2 * 0.52, 74, 78, '#98a29b');
+      bgPeak(W2 * 0.5, 84, 64, '#a5aea3');
+      bgPeak(-W2 * 0.14, 60, 96, '#8f9a91');
+      bgPeak(W2 * 0.2, 56, 72, '#9aa49c');
+      // 산 본체 3겹.
+      ctx.fillStyle = '#6f675c';
+      ctx.beginPath();
+      ctx.moveTo(sx - W2 * 0.55, sy + 6);
+      ctx.lineTo(sx - W2 * 0.2, sy - 96);
+      ctx.lineTo(sx + W2 * 0.06, sy - 118);
+      ctx.lineTo(sx + W2 * 0.34, sy - 84);
+      ctx.lineTo(sx + W2 * 0.55, sy + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#8c8377';
+      ctx.beginPath();
+      ctx.moveTo(sx - W2 * 0.42, sy + 6);
+      ctx.lineTo(sx - W2 * 0.12, sy - 88);
+      ctx.lineTo(sx + W2 * 0.06, sy - 112);
+      ctx.lineTo(sx + W2 * 0.2, sy - 70);
+      ctx.lineTo(sx + W2 * 0.3, sy + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#a39a8c';
+      ctx.beginPath();
+      ctx.moveTo(sx - W2 * 0.2, sy + 6);
+      ctx.lineTo(sx - W2 * 0.02, sy - 74);
+      ctx.lineTo(sx + W2 * 0.1, sy - 40);
+      ctx.lineTo(sx + W2 * 0.16, sy + 6);
+      ctx.closePath();
+      ctx.fill();
+      // 설선(눈 덮인 꼭대기).
+      ctx.fillStyle = '#f4f1ea';
+      ctx.beginPath();
+      ctx.moveTo(sx - W2 * 0.05, sy - 103);
+      ctx.lineTo(sx + W2 * 0.06, sy - 118);
+      ctx.lineTo(sx + W2 * 0.17, sy - 100);
+      ctx.lineTo(sx + W2 * 0.1, sy - 94);
+      ctx.lineTo(sx + W2 * 0.02, sy - 100);
+      ctx.closePath();
+      ctx.fill();
+      // 폭포 — 절벽을 타고 내리는 2줄 물줄기 (흐름 애니메이션).
+      const fall = (fx: number, topY: number, botY: number, w: number) => {
+        ctx.fillStyle = '#b3d9e8';
+        ctx.fillRect(sx + fx - w / 2, sy + topY, w, botY - topY);
+        ctx.fillStyle = '#dceef5';
+        const seg = 9;
+        const off = (time * 34) % seg;
+        for (let yy = sy + topY - seg + off; yy < sy + botY; yy += seg) {
+          const h = Math.min(4.5, sy + botY - yy);
+          if (yy + h > sy + topY) ctx.fillRect(sx + fx - w / 2 + 1, Math.max(yy, sy + topY), w - 2, h);
+        }
+      };
+      fall(2, -66, 2, 13);
+      fall(-14, -44, 2, 7);
+      // 물안개 + 소(웅덩이) + 포말.
+      ctx.fillStyle = '#9fd0e0';
+      ellipse(ctx, sx - 2, sy + 8, 34, 12);
+      ctx.fill();
+      ctx.fillStyle = '#c3e2ec';
+      ellipse(ctx, sx - 2, sy + 6.5, 26, 8.5);
+      ctx.fill();
+      const foam = Math.sin(time * 2.4) * 2;
+      ctx.strokeStyle = 'rgba(255,253,247,0.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(sx + 1, sy + 5, 12 + foam, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ellipse(ctx, sx - 5, sy - 2 - Math.abs(foam), 5, 3);
+      ctx.fill();
+      ellipse(ctx, sx + 9, sy - 1 - Math.abs(foam) * 0.6, 4, 2.6);
+      ctx.fill();
+      // 무지개 (은은한 호).
+      const arc = (r: number, c: string) => {
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(sx + 20, sy - 6, r, Math.PI * 1.06, Math.PI * 1.66);
+        ctx.stroke();
+      };
+      arc(34, 'rgba(242,112,94,0.5)');
+      arc(31, 'rgba(255,214,107,0.5)');
+      arc(28, 'rgba(126,192,124,0.5)');
+      arc(25, 'rgba(126,166,242,0.45)');
+      // 기슭 침엽수 2.
+      for (const [ox, oy, sc] of [
+        [-W2 * 0.38, 2, 0.8],
+        [W2 * 0.4, 0, 0.7],
+      ] as const) {
+        ctx.fillStyle = '#3d3227';
+        ctx.fillRect(sx + ox - 2 * sc, sy + oy - 10 * sc, 4 * sc, 10 * sc);
+        for (let i = 0; i < 2; i++) {
+          ctx.fillStyle = i === 1 ? '#2c5743' : '#1f4433';
+          ctx.beginPath();
+          ctx.moveTo(sx + ox, sy + oy - (22 + i * 10) * sc);
+          ctx.lineTo(sx + ox + (14 - i * 4) * sc, sy + oy - (8 + i * 10) * sc);
+          ctx.lineTo(sx + ox - (14 - i * 4) * sc, sy + oy - (8 + i * 10) * sc);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      return;
+    }
+    case 'shipwreck': {
+      // 별보기 언덕 백사장 — 부서진 난파선 (복구 전).
+      shadow(ctx, sx, sy + 6, 44, 0.2);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(-0.1);
+      // 선체 (기울어 반쯤 묻힘).
+      ctx.fillStyle = '#5b4433';
+      ctx.beginPath();
+      ctx.moveTo(-42, -6);
+      ctx.quadraticCurveTo(-30, 12, 0, 14);
+      ctx.quadraticCurveTo(30, 12, 44, -10);
+      ctx.lineTo(38, -20);
+      ctx.quadraticCurveTo(12, -10, -34, -16);
+      ctx.closePath();
+      ctx.fill();
+      // 판재 결 + 부서진 구멍.
+      ctx.strokeStyle = '#4a3527';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-36, -8);
+      ctx.quadraticCurveTo(0, 6, 40, -12);
+      ctx.moveTo(-30, -1);
+      ctx.quadraticCurveTo(0, 11, 36, -5);
+      ctx.stroke();
+      ctx.fillStyle = '#2b2018';
+      ctx.beginPath();
+      ctx.moveTo(6, -4);
+      ctx.lineTo(18, -7);
+      ctx.lineTo(16, 4);
+      ctx.lineTo(4, 6);
+      ctx.closePath();
+      ctx.fill();
+      // 부러진 돛대 + 늘어진 밧줄.
+      ctx.fillStyle = '#4a3527';
+      ctx.save();
+      ctx.rotate(0.34);
+      ctx.fillRect(-14, -46, 5, 34);
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(201,177,140,0.8)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-24, -40);
+      ctx.quadraticCurveTo(-10, -22, 6, -16);
+      ctx.stroke();
+      ctx.restore();
+      // 해초·불가사리.
+      ctx.fillStyle = '#4e8f5c';
+      ellipse(ctx, sx - 34, sy + 10, 5, 2.6);
+      ctx.fill();
+      ellipse(ctx, sx + 30, sy + 9, 4, 2.2);
+      ctx.fill();
+      ctx.fillStyle = '#f2915e';
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2 - 0.3;
+        ellipse(ctx, sx + 40 + Math.cos(a) * 3.4, sy + 13 + Math.sin(a) * 2.2, 1.6, 1.2);
+        ctx.fill();
+      }
+      return;
+    }
+    case 'shipwreck-fixed': {
+      // 복구된 범선 — 돛·깃발이 살아나고 매일 표류물이 도착한다.
+      shadow(ctx, sx, sy + 6, 44, 0.2);
+      const flap = Math.sin(time * 2.6) * 2.4;
+      // 선체.
+      ctx.fillStyle = '#8a6b52';
+      ctx.beginPath();
+      ctx.moveTo(-42 + sx, sy - 8);
+      ctx.quadraticCurveTo(sx - 28, sy + 12, sx, sy + 14);
+      ctx.quadraticCurveTo(sx + 30, sy + 12, sx + 44, sy - 12);
+      ctx.lineTo(sx + 38, sy - 20);
+      ctx.quadraticCurveTo(sx + 10, sy - 10, sx - 34, sy - 18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#6e4a33';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(sx - 36, sy - 10);
+      ctx.quadraticCurveTo(sx, sy + 6, sx + 40, sy - 14);
+      ctx.stroke();
+      // 뱃전 테.
+      ctx.strokeStyle = '#ce9f6c';
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(sx - 35, sy - 15);
+      ctx.quadraticCurveTo(sx + 8, sy - 7, sx + 39, sy - 19);
+      ctx.stroke();
+      // 돛대 + 가로활대 + 흰 돛.
+      ctx.fillStyle = '#5b4433';
+      ctx.fillRect(sx - 2.4, sy - 64, 4.8, 52);
+      ctx.strokeStyle = '#5b4433';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx - 22, sy - 56);
+      ctx.lineTo(sx + 22, sy - 56);
+      ctx.stroke();
+      ctx.fillStyle = '#fffdf7';
+      ctx.beginPath();
+      ctx.moveTo(sx - 20, sy - 54);
+      ctx.quadraticCurveTo(sx - 14 + flap, sy - 34, sx - 18, sy - 18);
+      ctx.lineTo(sx + 18, sy - 18);
+      ctx.quadraticCurveTo(sx + 15 + flap, sy - 36, sx + 20, sy - 54);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(74,59,50,0.25)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx - 16, sy - 42);
+      ctx.quadraticCurveTo(sx + flap * 0.6, sy - 38, sx + 16, sy - 42);
+      ctx.stroke();
+      // 깃발 (감귤빛) + 랜턴.
+      ctx.fillStyle = '#f5a03c';
+      ctx.beginPath();
+      ctx.moveTo(sx - 1, sy - 64);
+      ctx.lineTo(sx + 11 + flap, sy - 60.5);
+      ctx.lineTo(sx - 1, sy - 57);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffd66b';
+      ellipse(ctx, sx + 40, sy - 22, 2.6, 2.6);
+      ctx.fill();
+      // 뱃머리 화물 상자.
+      ctx.fillStyle = '#b98a5c';
+      ctx.fillRect(sx - 34, sy - 14, 11, 9);
+      ctx.strokeStyle = '#8a6b52';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(sx - 34, sy - 14, 11, 9);
+      ctx.beginPath();
+      ctx.moveTo(sx - 34, sy - 9.5);
+      ctx.lineTo(sx - 23, sy - 9.5);
+      ctx.stroke();
+      return;
+    }
+    case 'ridgehill': {
+      // 구름마루 — 낮은 언덕 능선 (폭포 산에서 산맥이 이어지는 느낌).
+      const scale = 0.85 + p.v * 0.45;
+      shadow(ctx, sx, sy + 2, 26 * scale, 0.15);
+      // 언덕 본체 2겹 (초록빛 산릉).
+      ctx.fillStyle = '#5f7a58';
+      ctx.beginPath();
+      ctx.moveTo(sx - 30 * scale, sy + 2);
+      ctx.quadraticCurveTo(sx - 16 * scale, sy - 30 * scale, sx + 2 * scale, sy - 32 * scale);
+      ctx.quadraticCurveTo(sx + 20 * scale, sy - 30 * scale, sx + 30 * scale, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#75925f';
+      ctx.beginPath();
+      ctx.moveTo(sx - 22 * scale, sy + 2);
+      ctx.quadraticCurveTo(sx - 12 * scale, sy - 24 * scale, sx + 4 * scale, sy - 26 * scale);
+      ctx.quadraticCurveTo(sx + 12 * scale, sy - 22 * scale, sx + 18 * scale, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      // 바위 이마.
+      ctx.fillStyle = '#8c8377';
+      ellipse(ctx, sx + 6 * scale, sy - 24 * scale, 7 * scale, 4.4 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#a39a8c';
+      ellipse(ctx, sx + 4 * scale, sy - 26 * scale, 4.4 * scale, 2.6 * scale);
+      ctx.fill();
+      // 능선 위 침엽수 1~2.
+      const sway = Math.sin(time * 0.9 + p.v * 7) * 1;
+      const drawPine = (px: number, py: number, sc: number) => {
+        ctx.fillStyle = '#3d3227';
+        ctx.fillRect(px - 2 * sc, py - 8 * sc, 4 * sc, 8 * sc);
+        for (let i = 0; i < 2; i++) {
+          ctx.fillStyle = i === 1 ? '#2c5743' : '#1f4433';
+          ctx.beginPath();
+          ctx.moveTo(px + sway * (i * 0.5), py - (18 + i * 9) * sc);
+          ctx.lineTo(px + (12 - i * 3.6) * sc, py - (6 + i * 9) * sc);
+          ctx.lineTo(px - (12 - i * 3.6) * sc, py - (6 + i * 9) * sc);
+          ctx.closePath();
+          ctx.fill();
+        }
+      };
+      drawPine(sx - 8 * scale, sy - 22 * scale, 0.85 * scale);
+      if (p.v > 0.45) drawPine(sx + 13 * scale, sy - 12 * scale, 0.62 * scale);
+      return;
+    }
+    case 'tent-ruined': {
+      // 무너진 텐트 — 복구 전 캠프촌. 주저앉은 색바랜 천막 + 부러진 폴대.
+      shadow(ctx, sx, sy + 2, 20);
+      ctx.fillStyle = '#a8764b';
+      ctx.beginPath();
+      ctx.moveTo(sx - 20, sy + 2);
+      ctx.quadraticCurveTo(sx - 12, sy - 12, sx + 2, sy - 10);
+      ctx.quadraticCurveTo(sx + 16, sy - 12, sx + 22, sy + 2);
+      ctx.quadraticCurveTo(sx + 8, sy + 7, sx - 20, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c9885c';
+      ctx.beginPath();
+      ctx.moveTo(sx - 14, sy);
+      ctx.quadraticCurveTo(sx - 6, sy - 9, sx + 4, sy - 7);
+      ctx.quadraticCurveTo(sx + 1, sy - 1, sx - 3, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      // 찢어진 자락 + 주름.
+      ctx.strokeStyle = 'rgba(90,60,40,0.5)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(sx - 10, sy + 1);
+      ctx.quadraticCurveTo(sx - 2, sy - 4, sx + 8, sy - 3);
+      ctx.moveTo(sx + 4, sy + 3);
+      ctx.quadraticCurveTo(sx + 12, sy - 1, sx + 18, sy);
+      ctx.stroke();
+      // 부러진 폴대 (엇갈려 튀어나옴).
+      ctx.strokeStyle = '#6e5340';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx - 4, sy - 8);
+      ctx.lineTo(sx - 12, sy - 24);
+      ctx.moveTo(sx - 12, sy - 24);
+      ctx.lineTo(sx - 16, sy - 20);
+      ctx.stroke();
+      // 흘러내린 밧줄.
+      ctx.strokeStyle = 'rgba(201,177,140,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx + 18, sy - 2);
+      ctx.quadraticCurveTo(sx + 26, sy + 2, sx + 27, sy + 6);
+      ctx.stroke();
+      return;
+    }
+    case 'campfire-cold': {
+      // 꺼진 모닥불 — 돌 링 + 까맣게 탄 장작 + 재.
+      shadow(ctx, sx, sy + 1, 12);
+      ctx.fillStyle = '#8c8377';
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        ellipse(ctx, sx + Math.cos(a) * 11, sy + Math.sin(a) * 5.2, 3, 2.2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#b9b2a6';
+      ellipse(ctx, sx, sy - 1, 6.5, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#3b332c';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx - 6, sy);
+      ctx.lineTo(sx + 6, sy - 4);
+      ctx.moveTo(sx - 6, sy - 4);
+      ctx.lineTo(sx + 6, sy);
+      ctx.stroke();
+      return;
+    }
     case 'rock': {
       const scale = 0.8 + p.v * 0.5;
       shadow(ctx, sx, sy + 1, 11 * scale);

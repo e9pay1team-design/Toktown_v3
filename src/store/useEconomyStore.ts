@@ -17,6 +17,7 @@ export type TokkenReason =
   | 'quest'
   | 'questBonus'
   | 'expansion'
+  | 'salvage'
   | 'demo';
 
 export const TOKKEN_REASON_LABEL: Record<TokkenReason, string> = {
@@ -31,6 +32,7 @@ export const TOKKEN_REASON_LABEL: Record<TokkenReason, string> = {
   quest: '오늘의 미션',
   questBonus: '미션 올클리어',
   expansion: '마을 확장',
+  salvage: '난파선 인양',
   demo: '데모 지급',
 };
 
@@ -46,6 +48,7 @@ export const TOKKEN_REASON_LABEL_EN: Record<TokkenReason, string> = {
   quest: 'Daily mission',
   questBonus: 'All missions clear',
   expansion: 'Island expansion',
+  salvage: 'Shipwreck salvage',
   demo: 'Demo grant',
 };
 
@@ -61,6 +64,7 @@ export const TOKKEN_REASON_EMOJI: Record<TokkenReason, string> = {
   quest: '📜',
   questBonus: '🏅',
   expansion: '🏝️',
+  salvage: '⚓',
   demo: '🧪',
 };
 

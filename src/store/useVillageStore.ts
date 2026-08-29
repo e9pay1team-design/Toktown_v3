@@ -42,6 +42,14 @@ interface VillageState {
   decorOwned: Record<string, number>;
   /** 소유한 섬 구역 — base 는 항상 포함 (R5 섬 확장) */
   zonesOwned: VillageZoneId[];
+  /** 별보기 언덕 난파선 복구 여부 (R6 — 복구하면 5시간마다 표류물) */
+  wreckRestored: boolean;
+  /** 마지막 표류물 수거 시각 (가상 ms) */
+  wreckLastClaimAt: number | null;
+  /** 뒷숲 캠프촌 복구 여부 (R6 — 복구하면 5시간마다 보급품) */
+  campRestored: boolean;
+  /** 마지막 캠프 보급품 수거 시각 (가상 ms) */
+  campLastClaimAt: number | null;
 
   place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se', variant?: number) => void;
   move: (placementId: number, bx: number, by: number, facing?: 'sw' | 'se') => void;
@@ -51,6 +59,14 @@ interface VillageState {
   buyDecor: (decorId: string) => void;
   /** 섬 구역 확장 — 비용 차감은 호출부(useEconomyStore.spendTokken)에서 */
   expandZone: (zone: VillageZoneId) => void;
+  /** 난파선 복구 — 비용 차감은 호출부에서 */
+  restoreWreck: () => void;
+  /** 표류물 수거 — 쿨다운(5시간) 중이거나 미복구면 false */
+  claimWreck: (now: number, cooldownMs: number) => boolean;
+  /** 캠프촌 복구 — 비용 차감은 호출부에서 */
+  restoreCamp: () => void;
+  /** 캠프 보급품 수거 — 쿨다운 중이거나 미복구면 false */
+  claimCamp: (now: number, cooldownMs: number) => boolean;
 }
 
 let placementSeq = Date.now() % 1_000_000;
@@ -72,10 +88,14 @@ function defaultDecorOwned(): Record<string, number> {
 
 export const useVillageStore = create<VillageState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       placements: defaultVillagePlacements(),
       decorOwned: defaultDecorOwned(),
       zonesOwned: ['base'],
+      wreckRestored: false,
+      wreckLastClaimAt: null,
+      campRestored: false,
+      campLastClaimAt: null,
 
       place: (kind, refId, bx, by, facing, variant) => {
         const { w, h } = footprintOf(kind);
@@ -108,6 +128,26 @@ export const useVillageStore = create<VillageState>()(
         set((s) => ({
           zonesOwned: s.zonesOwned.includes(zone) ? s.zonesOwned : [...s.zonesOwned, zone],
         })),
+
+      restoreWreck: () => set({ wreckRestored: true }),
+
+      claimWreck: (now, cooldownMs) => {
+        const { wreckRestored, wreckLastClaimAt } = get();
+        if (!wreckRestored) return false;
+        if (wreckLastClaimAt !== null && now - wreckLastClaimAt < cooldownMs) return false;
+        set({ wreckLastClaimAt: now });
+        return true;
+      },
+
+      restoreCamp: () => set({ campRestored: true }),
+
+      claimCamp: (now, cooldownMs) => {
+        const { campRestored, campLastClaimAt } = get();
+        if (!campRestored) return false;
+        if (campLastClaimAt !== null && now - campLastClaimAt < cooldownMs) return false;
+        set({ campLastClaimAt: now });
+        return true;
+      },
     }),
     {
       name: 'toktown:village',

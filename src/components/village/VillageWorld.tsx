@@ -6,10 +6,20 @@
 import { useEffect, useMemo, useRef } from 'react';
 import {
   buildVillageWorld,
+  CAMP_FIRE_THING_ID,
+  CAMP_FIRE_TILE,
+  CAMP_SWING_THING_ID,
+  CAMP_SWING_TILE,
+  CAMP_TENT_TILE,
+  CAMP_THING_ID,
+  FALLS_THING_ID,
+  FALLS_VIEW_TILE,
   nextExpansionCost,
   pickCloverTile,
   vidx,
   vinBounds,
+  WRECK_THING_ID,
+  WRECK_TILE,
   zoneAvailable,
   type VillageZoneId,
 } from '../../lib/villageWorld';
@@ -171,6 +181,81 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
   return things;
 }
 
+/** 구역 테마 합성 배치물 (R6) — 스토어에 없는 고정 상호작용물.
+    음수 id 라 편집 모드에서 선택·이동·회수되지 않는다. */
+function zoneSyntheticThings(
+  zones: readonly VillageZoneId[],
+  wreckRestored: boolean,
+  campRestored: boolean,
+): PlacedThing[] {
+  const things: PlacedThing[] = [];
+  if (zones.includes('west')) {
+    // 캠프촌 — 무너진 상태로 시작, 복구하면 텐트·모닥불이 살아나고 그네가 선다.
+    things.push({
+      id: CAMP_THING_ID,
+      kind: 'decor',
+      bx: CAMP_TENT_TILE.bx,
+      by: CAMP_TENT_TILE.by,
+      w: 1,
+      h: 1,
+      label: campRestored ? tr('캠프촌', 'Campsite') : tr('무너진 캠프촌', 'Ruined Campsite'),
+      decorType: campRestored ? 'tent' : 'tent-ruined',
+      blocking: true,
+    });
+    things.push({
+      id: CAMP_FIRE_THING_ID,
+      kind: 'decor',
+      bx: CAMP_FIRE_TILE.bx,
+      by: CAMP_FIRE_TILE.by,
+      w: 1,
+      h: 1,
+      label: campRestored ? tr('캠프촌', 'Campsite') : tr('무너진 캠프촌', 'Ruined Campsite'),
+      decorType: campRestored ? 'campfire' : 'campfire-cold',
+      blocking: true,
+    });
+    if (campRestored) {
+      things.push({
+        id: CAMP_SWING_THING_ID,
+        kind: 'decor',
+        bx: CAMP_SWING_TILE.bx,
+        by: CAMP_SWING_TILE.by,
+        w: 1,
+        h: 1,
+        label: tr('캠프촌', 'Campsite'),
+        decorType: 'woodswing',
+        blocking: true,
+      });
+    }
+  }
+  if (zones.includes('north')) {
+    things.push({
+      id: WRECK_THING_ID,
+      kind: 'decor',
+      bx: WRECK_TILE.bx,
+      by: WRECK_TILE.by,
+      w: WRECK_TILE.w,
+      h: WRECK_TILE.h,
+      label: wreckRestored ? tr('복구된 범선', 'Restored Ship') : tr('난파선', 'Shipwreck'),
+      decorType: wreckRestored ? 'shipwreck-fixed' : 'shipwreck',
+      blocking: true,
+    });
+  }
+  if (zones.includes('peak')) {
+    things.push({
+      id: FALLS_THING_ID,
+      kind: 'decor',
+      bx: FALLS_VIEW_TILE.bx,
+      by: FALLS_VIEW_TILE.by,
+      w: 1,
+      h: 1,
+      label: tr('무지개 폭포', 'Rainbow Falls'),
+      decorType: 'falls-view',
+      blocking: false,
+    });
+  }
+  return things;
+}
+
 function villagersFromState(
   placements: Placement[],
   dexCount: number,
@@ -259,6 +344,8 @@ export function VillageWorldCanvas({
 
   const placements = useVillageStore((s) => s.placements);
   const zonesOwned = useVillageStore((s) => s.zonesOwned);
+  const wreckRestored = useVillageStore((s) => s.wreckRestored);
+  const campRestored = useVillageStore((s) => s.campRestored);
   const dex = useCollectionStore((s) => s.dex);
   const landmarks = useCollectionStore((s) => s.landmarks);
   const profile = useProfileStore((s) => s.profile);
@@ -310,8 +397,11 @@ export function VillageWorldCanvas({
   }, [world]);
 
   // 데이터 동기화 — 언어 변경 시 캔버스 라벨·말풍선도 갱신.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const things = useMemo(() => thingsFromPlacements(placements), [placements, lang]);
+  const things = useMemo(
+    () => [...thingsFromPlacements(placements), ...zoneSyntheticThings(zonesOwned, wreckRestored, campRestored)],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [placements, zonesOwned, wreckRestored, campRestored, lang],
+  );
   const villagers = useMemo(
     () => villagersFromState(placements, dex.length, landmarks.length, zonesOwned, world.plaza),
     // eslint-disable-next-line react-hooks/exhaustive-deps

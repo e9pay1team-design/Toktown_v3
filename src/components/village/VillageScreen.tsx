@@ -13,7 +13,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, regionalNpcById, storeById } from '../../data/seed';
-import { useVirtualClock, virtualDayIndex, virtualToday } from '../../mock/clock';
+import { useVirtualClock, virtualDayIndex, virtualNow, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useVisitStore } from '../../store/useVisitStore';
@@ -26,7 +26,20 @@ import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
 import { GROUND_DECOR, type VillageGame, type VInteractTarget } from '../../lib/villageGame';
 import { residentNpcs, villageRichness, VILLAGE_NPCS, ZONE_NPCS, zoneInfo, zoneNpcs } from '../../data/villageNpcs';
-import { nextExpansionCost, zoneAvailable, type VillageZoneId } from '../../lib/villageWorld';
+import {
+  CAMP_FIRE_THING_ID,
+  CAMP_RESTORE_COST,
+  CAMP_SWING_THING_ID,
+  CAMP_THING_ID,
+  FACILITY_COOLDOWN_MS,
+  FACILITY_SALVAGE,
+  FALLS_THING_ID,
+  nextExpansionCost,
+  WRECK_RESTORE_COST,
+  WRECK_THING_ID,
+  zoneAvailable,
+  type VillageZoneId,
+} from '../../lib/villageWorld';
 import { TokkenCoin } from '../../assets/misc';
 import { ShopModal } from './ShopModal';
 import { DexModal } from './DexModal';
@@ -146,6 +159,14 @@ export function VillageScreen() {
   const expandZone = useVillageStore((s) => s.expandZone);
   const tokken = useEconomyStore((s) => s.tokken);
   const grantTokken = useEconomyStore((s) => s.grantTokken);
+  const wreckRestored = useVillageStore((s) => s.wreckRestored);
+  const wreckLastClaimAt = useVillageStore((s) => s.wreckLastClaimAt);
+  const restoreWreck = useVillageStore((s) => s.restoreWreck);
+  const claimWreck = useVillageStore((s) => s.claimWreck);
+  const campRestored = useVillageStore((s) => s.campRestored);
+  const campLastClaimAt = useVillageStore((s) => s.campLastClaimAt);
+  const restoreCamp = useVillageStore((s) => s.restoreCamp);
+  const claimCamp = useVillageStore((s) => s.claimCamp);
   const questProgress = useQuestStore((s) => s.progress);
   const questDay = useQuestStore((s) => s.day);
   const advanceQuest = useQuestStore((s) => s.advance);
@@ -156,6 +177,14 @@ export function VillageScreen() {
   const [expandTarget, setExpandTarget] = useState<VillageZoneId | null>(null);
   /** 📜 오늘의 미션 패널 */
   const [questOpen, setQuestOpen] = useState(false);
+  /** 🚢 난파선 시트 (별보기 언덕 테마 콘텐츠) */
+  const [wreckOpen, setWreckOpen] = useState(false);
+  /** 🏕️ 캠프촌 시트 (뒷숲 캠프 테마 콘텐츠) */
+  const [campOpen, setCampOpen] = useState(false);
+  /** 🎁 통합 보상 팝업 (복구 시설이 하나라도 있으면 좌상단 버튼) */
+  const [rewardsOpen, setRewardsOpen] = useState(false);
+  /** 🎬 폭포 전망 컷신 진행 중 — UI 잠시 숨김 */
+  const [cutsceneOn, setCutsceneOn] = useState(false);
   /** 📸 마을 전경 공유 사진 (프레임 합성 완료본) */
   const [villagePhoto, setVillagePhoto] = useState<string | null>(null);
   const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
@@ -310,6 +339,90 @@ export function VillageScreen() {
   /* 🍀 네잎클로버 수집 (엔진에서 근접 자동 수집) */
   const handleClover = () => {
     advanceQuest('clover', day);
+  };
+
+  /* 복구형 시설 공통 — 5시간 쿨다운 남은 시간 계산 */
+  const nowVirtual = virtualNow(dayOffset);
+  const msLeftOf = (lastAt: number | null) =>
+    lastAt === null ? 0 : Math.max(0, FACILITY_COOLDOWN_MS - (nowVirtual - lastAt));
+  const leftLabelOf = (ms: number) => {
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.ceil((ms % 3_600_000) / 60_000);
+    return h > 0 ? tr(`${h}시간 ${m}분`, `${h}h ${m}m`) : tr(`${m}분`, `${m}m`);
+  };
+
+  /* 🚢 난파선 — 복구(300 톡큰) → 5시간마다 표류물 수거 */
+  const wreckMsLeft = msLeftOf(wreckLastClaimAt);
+  const wreckClaimable = wreckRestored && wreckMsLeft <= 0;
+  const wreckLeftLabel = leftLabelOf(wreckMsLeft);
+  const doRestoreWreck = () => {
+    if (tokken < WRECK_RESTORE_COST) {
+      toast(
+        tr(
+          `톡큰이 부족해요 (보유 ${tokken} / 필요 ${WRECK_RESTORE_COST})`,
+          `Not enough Tokken (${tokken}/${WRECK_RESTORE_COST})`,
+        ),
+        'error',
+      );
+      return;
+    }
+    grantTokken(-WRECK_RESTORE_COST, 'salvage', tr('난파선 복구', 'Ship restoration'));
+    restoreWreck();
+    toast(tr('⛵ 범선을 복구했어요! 5시간마다 표류물이 도착해요', '⛵ Ship restored! Salvage arrives every 5h'), 'success');
+  };
+  const doClaimWreck = () => {
+    if (claimWreck(nowVirtual, FACILITY_COOLDOWN_MS)) {
+      grantTokken(FACILITY_SALVAGE, 'salvage', tr('표류물 수거', 'Salvage haul'));
+      toast(tr(`⚓ 표류물 수거! 톡큰 +${FACILITY_SALVAGE}`, `⚓ Salvage collected! +${FACILITY_SALVAGE} Tokken`), 'tokken');
+    } else {
+      toast(tr(`다음 표류물까지 ${wreckLeftLabel} 남았어요 🌊`, `Next salvage in ${wreckLeftLabel} 🌊`), 'info');
+    }
+  };
+
+  /* 🏕️ 캠프촌 — 복구(300 톡큰) → 5시간마다 보급품 수거 */
+  const campMsLeft = msLeftOf(campLastClaimAt);
+  const campClaimable = campRestored && campMsLeft <= 0;
+  const campLeftLabel = leftLabelOf(campMsLeft);
+  const doRestoreCamp = () => {
+    if (tokken < CAMP_RESTORE_COST) {
+      toast(
+        tr(
+          `톡큰이 부족해요 (보유 ${tokken} / 필요 ${CAMP_RESTORE_COST})`,
+          `Not enough Tokken (${tokken}/${CAMP_RESTORE_COST})`,
+        ),
+        'error',
+      );
+      return;
+    }
+    grantTokken(-CAMP_RESTORE_COST, 'salvage', tr('캠프촌 복구', 'Campsite restoration'));
+    restoreCamp();
+    toast(tr('⛺ 캠프촌을 복구했어요! 5시간마다 보급품이 모여요', '⛺ Campsite restored! Supplies gather every 5h'), 'success');
+  };
+  const doClaimCamp = () => {
+    if (claimCamp(nowVirtual, FACILITY_COOLDOWN_MS)) {
+      grantTokken(FACILITY_SALVAGE, 'salvage', tr('캠프 보급품', 'Camp supplies'));
+      toast(tr(`🎒 보급품 수거! 톡큰 +${FACILITY_SALVAGE}`, `🎒 Supplies collected! +${FACILITY_SALVAGE} Tokken`), 'tokken');
+    } else {
+      toast(tr(`다음 보급품까지 ${campLeftLabel} 남았어요 🌲`, `Next supplies in ${campLeftLabel} 🌲`), 'info');
+    }
+  };
+
+  /* 🎁 통합 보상 — 복구 시설이 하나라도 있으면 좌상단 버튼으로 원격 수거 */
+  const anyFacilityRestored = wreckRestored || campRestored;
+  const anyClaimable = wreckClaimable || campClaimable;
+
+  /* 🎬 무지개 폭포 — 마을 곳곳을 비추고 전경으로 빠지는 컷신 */
+  const startFallsCutscene = () => {
+    const g = gameRef.current;
+    if (!g) return;
+    const stops: { x: number; y: number }[] = [{ x: 35.5, y: 35.5 }];
+    for (const p of placements.filter((q) => q.kind === 'landmark' || q.kind === 'store').slice(0, 3)) {
+      stops.push({ x: p.bx + p.w / 2, y: p.by + p.h / 2 });
+    }
+    if (zonesOwned.includes('west')) stops.push({ x: 3, y: 41 });
+    if (zonesOwned.includes('north')) stops.push({ x: 46.5, y: 3.5 });
+    setInteract(null);
+    g.startCutscene(stops, tr('탭하여 건너뛰기', 'Tap to skip'));
   };
 
   /* 배치 모드 진입/종료 */
@@ -572,12 +685,16 @@ export function VillageScreen() {
           onClover={handleClover}
           onGame={(g) => {
             gameRef.current = g;
-            if (g) g.onSitChange = setSitting;
+            if (g) {
+              g.onSitChange = setSitting;
+              g.onCutsceneChange = setCutsceneOn;
+            }
           }}
         />
       </div>
 
       {/* 줌 컨트롤 — 걷기/배치 공통 (휠·핀치로도 가능) */}
+      {!cutsceneOn && (
       <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5">
         <button
           onClick={() => gameRef.current?.zoomBy(1.25)}
@@ -594,8 +711,10 @@ export function VillageScreen() {
           －
         </button>
       </div>
+      )}
 
-      {/* 헤더 */}
+      {/* 헤더 (컷신 중엔 숨김) */}
+      {!cutsceneOn && (
       <header className="pointer-events-none relative z-10 flex items-center justify-between px-4 pt-12">
         {editMode ? (
           <button
@@ -604,6 +723,17 @@ export function VillageScreen() {
             aria-label={T('모든 오브젝트 보관함으로 회수', 'Recall all objects to storage')}
           >
             {T('🎒 전체 회수', '🎒 Recall all')}
+          </button>
+        ) : anyFacilityRestored ? (
+          <button
+            onClick={() => setRewardsOpen(true)}
+            className="pointer-events-auto relative flex h-9 w-[74px] items-center justify-center gap-1 rounded-xl border border-town-line bg-town-paper/95 text-[12px] font-extrabold shadow-sm transition active:scale-95"
+            aria-label={T('시설 보상 모아 받기', 'Collect facility rewards')}
+          >
+            🎁 {T('보상', 'Rewards')}
+            {anyClaimable && (
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-town-paper bg-town-coral" />
+            )}
           </button>
         ) : (
           // 지도 이동은 하단 탭이 담당 — 타이틀 중앙 유지용 스페이서.
@@ -646,9 +776,10 @@ export function VillageScreen() {
           </button>
         )}
       </header>
+      )}
 
       {/* 기능 버튼 (걷기 모드) — 5개가 한 줄에 들어가도록 촘촘하게, 줄바꿈 금지 */}
-      {!editMode && (
+      {!editMode && !cutsceneOn && (
         <div className="pointer-events-none relative z-10 flex justify-center gap-1.5 px-2 py-2">
           {(
             [
@@ -701,7 +832,7 @@ export function VillageScreen() {
           </p>
         </div>
       ) : (
-        !dialogue && (
+        !dialogue && !cutsceneOn && (
           <>
             <div className="pointer-events-none relative z-10 flex justify-center px-6">
               <p className="rounded-full bg-town-ink/55 px-3 py-1 text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
@@ -728,7 +859,7 @@ export function VillageScreen() {
       )}
 
       {/* 상호작용 버튼 (걷기 모드) — 좌석(벤치·소파)은 앉기 버튼 동반 */}
-      {!editMode && interact && !dialogue && !thingSheet && (
+      {!editMode && !cutsceneOn && interact && !dialogue && !thingSheet && (
         <div className="absolute inset-x-0 bottom-40 z-20 flex flex-col items-center gap-2">
           {interact.kind === 'thing' && interact.sit && (
             <button
@@ -742,6 +873,14 @@ export function VillageScreen() {
             <button
               onClick={() => {
                 if (interact.kind === 'npc') openDialogueFor(interact);
+                else if (interact.id === WRECK_THING_ID) setWreckOpen(true);
+                else if (
+                  interact.id === CAMP_THING_ID ||
+                  interact.id === CAMP_FIRE_THING_ID ||
+                  interact.id === CAMP_SWING_THING_ID
+                )
+                  setCampOpen(true);
+                else if (interact.id === FALLS_THING_ID) startFallsCutscene();
                 else setThingSheetId(interact.id);
               }}
               className="pop-in flex items-center gap-2 rounded-full border-2 border-town-ink/10 bg-town-paper px-4 py-2.5 text-[13px] font-extrabold shadow-card transition active:scale-95"
@@ -823,8 +962,19 @@ export function VillageScreen() {
         </div>
       )}
 
+      {/* 💰 보유 톡큰 HUD (걷기 모드, 좌측 하단) */}
+      {!editMode && !cutsceneOn && (
+        <div
+          className="absolute bottom-24 left-4 z-20 flex items-center gap-1.5 rounded-full border-2 border-town-line bg-town-paper/95 px-3 py-2 shadow-card"
+          aria-label={T('보유 톡큰', 'Tokken balance')}
+        >
+          <TokkenCoin size={18} />
+          <span className="text-[13px] font-extrabold leading-none">{tokken.toLocaleString()}</span>
+        </div>
+      )}
+
       {/* 배치 모드 진입 FAB (걷기 모드) */}
-      {!editMode && (
+      {!editMode && !cutsceneOn && (
         <button
           onClick={enterEdit}
           className="absolute bottom-24 right-4 z-20 flex h-14 w-14 flex-col items-center justify-center rounded-full border-2 border-town-line bg-town-paper text-[20px] shadow-card transition active:scale-95"
@@ -1007,6 +1157,214 @@ export function VillageScreen() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* 🏕️ 캠프촌 시트 — 복구(300 톡큰) / 5시간마다 보급품 수거 */}
+      {!editMode && campOpen && (
+        <div className="absolute inset-0 z-[860] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 text-center shadow-sheet">
+            <p className="text-[34px]">{campRestored ? '⛺' : '🏕️'}</p>
+            <h3 className="mt-1 text-[18px] font-extrabold">
+              {campRestored ? T('캠프촌', 'Campsite') : T('무너진 캠프촌', 'Ruined Campsite')}
+            </h3>
+            {campRestored ? (
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                {campClaimable
+                  ? T('모닥불 곁에 보급품이 모여 있어요!', 'Supplies are waiting by the campfire!')
+                  : T(`다음 보급품까지 ${campLeftLabel} — 5시간마다 모여요.`, `Next supplies in ${campLeftLabel} — every 5h.`)}
+              </p>
+            ) : (
+              <>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                  {T(
+                    '비바람에 주저앉은 캠프예요. 복구하면 숲을 오가는 캠퍼들이',
+                    'A storm flattened this camp. Restore it and passing campers will',
+                  )}
+                  <br />
+                  {T(`5시간마다 보급품 톡큰 +${FACILITY_SALVAGE}씩 남겨줘요.`, `leave +${FACILITY_SALVAGE} Tokken of supplies every 5h.`)}
+                </p>
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-town-cream px-3 py-2.5">
+                  <TokkenCoin size={20} />
+                  <span className="text-[15px] font-extrabold">{CAMP_RESTORE_COST}</span>
+                  <span className="text-[11px] font-bold text-town-inkSoft">{T(`· 보유 ${tokken}`, `· you have ${tokken}`)}</span>
+                </div>
+              </>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setCampOpen(false)}
+                className="w-1/3 rounded-xl border border-town-line bg-town-paper py-3 text-[13px] font-extrabold text-town-inkSoft"
+              >
+                {T('닫기', 'Close')}
+              </button>
+              {campRestored ? (
+                <button
+                  onClick={doClaimCamp}
+                  className={`flex-1 rounded-xl py-3 text-[13.5px] font-extrabold shadow-pop transition active:translate-y-[2px] active:shadow-none ${
+                    campClaimable ? 'bg-town-leafDark text-white' : 'bg-town-cream text-town-inkSoft'
+                  }`}
+                >
+                  {campClaimable
+                    ? T(`🎒 보급품 수거 (+${FACILITY_SALVAGE} 톡큰)`, `🎒 Collect supplies (+${FACILITY_SALVAGE})`)
+                    : T(`🌲 ${campLeftLabel} 후 도착`, `🌲 Arrives in ${campLeftLabel}`)}
+                </button>
+              ) : (
+                <button
+                  onClick={doRestoreCamp}
+                  className="flex-1 rounded-xl bg-town-leafDark py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+                >
+                  {T(`🛠️ ${CAMP_RESTORE_COST} 톡큰으로 복구하기`, `🛠️ Restore for ${CAMP_RESTORE_COST} Tokken`)}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎁 통합 보상 팝업 — 캠프촌·난파선 보상을 한 화면에서 */}
+      {!editMode && rewardsOpen && (
+        <div className="absolute inset-0 z-[860] flex items-center justify-center bg-town-ink/45 px-7 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 shadow-sheet">
+            <h3 className="text-[17px] font-extrabold">🎁 {T('시설 보상', 'Facility Rewards')}</h3>
+            <p className="mt-1 text-[11px] font-bold text-town-inkSoft">
+              {T('복구한 시설의 보상을 여기서 모아 받아요 — 5시간마다 충전!', 'Collect from restored facilities here — refills every 5h!')}
+            </p>
+            <ul className="mt-3 flex flex-col gap-2">
+              <li
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                  campClaimable ? 'border-town-leaf/60 bg-town-leaf/10' : 'border-town-line bg-town-cream/60'
+                }`}
+              >
+                <span className="text-[20px]">{campRestored ? '⛺' : '🏕️'}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-extrabold">{T('캠프촌', 'Campsite')}</span>
+                  <span className="text-[10px] font-bold text-town-inkSoft">
+                    {!campRestored
+                      ? T('미복구 — 현장에서 복구할 수 있어요', 'Not restored yet — visit to restore')
+                      : campClaimable
+                        ? T('보급품 도착!', 'Supplies arrived!')
+                        : T(`${campLeftLabel} 후 도착`, `in ${campLeftLabel}`)}
+                  </span>
+                </span>
+                {campRestored ? (
+                  <button
+                    onClick={doClaimCamp}
+                    disabled={!campClaimable}
+                    className={`shrink-0 rounded-lg px-2.5 py-2 text-[11.5px] font-extrabold ${
+                      campClaimable ? 'bg-town-leafDark text-white shadow-pop' : 'bg-town-cream text-town-inkSoft/60'
+                    }`}
+                  >
+                    +{FACILITY_SALVAGE} {T('받기', 'Get')}
+                  </button>
+                ) : (
+                  <span className="shrink-0 rounded-full bg-town-cream px-2 py-0.5 text-[10px] font-extrabold text-town-inkSoft/70">
+                    🔒
+                  </span>
+                )}
+              </li>
+              <li
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                  wreckClaimable ? 'border-town-sky/70 bg-town-sky/10' : 'border-town-line bg-town-cream/60'
+                }`}
+              >
+                <span className="text-[20px]">{wreckRestored ? '⛵' : '🚢'}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-extrabold">{T('난파선', 'Shipwreck')}</span>
+                  <span className="text-[10px] font-bold text-town-inkSoft">
+                    {!wreckRestored
+                      ? T('미복구 — 현장에서 복구할 수 있어요', 'Not restored yet — visit to restore')
+                      : wreckClaimable
+                        ? T('표류물 도착!', 'Salvage arrived!')
+                        : T(`${wreckLeftLabel} 후 도착`, `in ${wreckLeftLabel}`)}
+                  </span>
+                </span>
+                {wreckRestored ? (
+                  <button
+                    onClick={doClaimWreck}
+                    disabled={!wreckClaimable}
+                    className={`shrink-0 rounded-lg px-2.5 py-2 text-[11.5px] font-extrabold ${
+                      wreckClaimable ? 'bg-town-skyDeep text-white shadow-pop' : 'bg-town-cream text-town-inkSoft/60'
+                    }`}
+                  >
+                    +{FACILITY_SALVAGE} {T('받기', 'Get')}
+                  </button>
+                ) : (
+                  <span className="shrink-0 rounded-full bg-town-cream px-2 py-0.5 text-[10px] font-extrabold text-town-inkSoft/70">
+                    🔒
+                  </span>
+                )}
+              </li>
+            </ul>
+            <button
+              onClick={() => setRewardsOpen(false)}
+              className="mt-3 w-full rounded-xl bg-town-leafDark py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+            >
+              {T('닫기', 'Close')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🚢 난파선 시트 — 복구(300 톡큰) / 매일 표류물 수거 */}
+      {!editMode && wreckOpen && (
+        <div className="absolute inset-0 z-[860] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 text-center shadow-sheet">
+            <p className="text-[34px]">{wreckRestored ? '⛵' : '🚢'}</p>
+            <h3 className="mt-1 text-[18px] font-extrabold">
+              {wreckRestored ? T('복구된 범선', 'Restored Ship') : T('난파선', 'Shipwreck')}
+            </h3>
+            {wreckRestored ? (
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                {wreckClaimable
+                  ? T('표류물이 도착해 있어요!', 'Salvage has arrived!')
+                  : T(`다음 표류물까지 ${wreckLeftLabel} — 5시간마다 밀려와요.`, `Next salvage in ${wreckLeftLabel} — arrives every 5h.`)}
+              </p>
+            ) : (
+              <>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                  {T(
+                    '폭풍에 떠밀려온 배예요. 복구하면 바다가 실어오는 표류물을',
+                    'A storm washed this ship ashore. Restore it and the sea will',
+                  )}
+                  <br />
+                  {T(`5시간마다 톡큰 +${FACILITY_SALVAGE}씩 가져다줘요.`, `bring +${FACILITY_SALVAGE} Tokken every 5 hours.`)}
+                </p>
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-town-cream px-3 py-2.5">
+                  <TokkenCoin size={20} />
+                  <span className="text-[15px] font-extrabold">{WRECK_RESTORE_COST}</span>
+                  <span className="text-[11px] font-bold text-town-inkSoft">{T(`· 보유 ${tokken}`, `· you have ${tokken}`)}</span>
+                </div>
+              </>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setWreckOpen(false)}
+                className="w-1/3 rounded-xl border border-town-line bg-town-paper py-3 text-[13px] font-extrabold text-town-inkSoft"
+              >
+                {T('닫기', 'Close')}
+              </button>
+              {wreckRestored ? (
+                <button
+                  onClick={doClaimWreck}
+                  className={`flex-1 rounded-xl py-3 text-[13.5px] font-extrabold shadow-pop transition active:translate-y-[2px] active:shadow-none ${
+                    wreckClaimable ? 'bg-town-skyDeep text-white' : 'bg-town-cream text-town-inkSoft'
+                  }`}
+                >
+                  {wreckClaimable
+                    ? T(`⚓ 표류물 수거 (+${FACILITY_SALVAGE} 톡큰)`, `⚓ Collect salvage (+${FACILITY_SALVAGE})`)
+                    : T(`🌊 ${wreckLeftLabel} 후 도착`, `🌊 Arrives in ${wreckLeftLabel}`)}
+                </button>
+              ) : (
+                <button
+                  onClick={doRestoreWreck}
+                  className="flex-1 rounded-xl bg-town-leafDark py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+                >
+                  {T(`🛠️ ${WRECK_RESTORE_COST} 톡큰으로 복구하기`, `🛠️ Restore for ${WRECK_RESTORE_COST} Tokken`)}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

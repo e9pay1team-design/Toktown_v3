@@ -211,6 +211,8 @@ export class VillageGame {
 
   private things: PlacedThing[] = [];
   private dynBlocked = new Set<number>();
+  /** 배치물 풋프린트가 덮은 타일 — 그 위의 야생 꽃은 잠시 숨긴다 (회수하면 복귀) */
+  private propCovered = new Set<number>();
   private lastTarget: VInteractTarget | null = null;
   /** 앉는 중인 좌석(벤치·소파) — 일어나면 이전 위치로 복귀 */
   private sitting: { thingId: number; prevX: number; prevY: number } | null = null;
@@ -229,6 +231,20 @@ export class VillageGame {
   private lockedZones: LockedZoneSign[] = [];
   /** 오늘의 네잎클로버 타일 (null = 없음/수집됨) */
   private clover: { tx: number; ty: number } | null = null;
+  /** 폭포 전망 컷신 — 카메라 투어 세그먼트 큐 */
+  private cut: {
+    segs: { x: number; y: number; z: number; dur: number; hold: number }[];
+    idx: number;
+    t: number;
+    fromX: number;
+    fromY: number;
+    fromZ: number;
+    ramp: number;
+    hint: string;
+    returning: boolean;
+  } | null = null;
+  /** 컷신 시작/종료 알림 (React UI 숨김용) */
+  onCutsceneChange: ((on: boolean) => void) | null = null;
   private editMode = false;
   private edit: EditObject | null = null;
   private editDragging = false;
@@ -356,12 +372,109 @@ export class VillageGame {
     this.setZoom(this.zoomUser * factor);
   }
 
+  // ------------------------------------------------------------ 폭포 컷신
+
+  /** 폭포 전망 컷신 시작 — 마을 곳곳을 비춘 뒤 전경으로 빠진다.
+      stops: 월드 좌표 웨이포인트(광장→배치물→구역들), 피날레는 엔진이
+      소유 경계에서 계산. 탭하면 건너뛴다. */
+  startCutscene(stops: { x: number; y: number }[], hint: string): void {
+    if (this.cut || this.editMode) return;
+    this.standUp();
+    const base = ZOOM * this.zoomUser;
+    const segs = stops.map((p2) => {
+      const sp = toScreen(p2.x, p2.y);
+      return { x: sp.sx, y: sp.sy, z: Math.max(base, 0.92), dur: 1.35, hold: 0.6 };
+    });
+    // 피날레 — 섬 전체가 담기는 줌아웃.
+    const b = this.world.bounds;
+    const corners = [toScreen(b.x0, b.y0), toScreen(b.x1, b.y0), toScreen(b.x1, b.y1), toScreen(b.x0, b.y1)];
+    const xs = corners.map((c) => c.sx);
+    const ys = corners.map((c) => c.sy);
+    const spanX = Math.max(...xs) - Math.min(...xs) + 150;
+    const spanY = Math.max(...ys) - Math.min(...ys) + 320;
+    segs.push({
+      x: (Math.min(...xs) + Math.max(...xs)) / 2,
+      y: (Math.min(...ys) + Math.max(...ys)) / 2 - 40,
+      z: Math.min(this.vw / spanX, this.vh / spanY),
+      dur: 2.6,
+      hold: 2.0,
+    });
+    this.cut = {
+      segs,
+      idx: 0,
+      t: 0,
+      fromX: this.cam.sx,
+      fromY: this.cam.sy,
+      fromZ: this.zoom,
+      ramp: 0,
+      hint,
+      returning: false,
+    };
+    this.move.x = 0;
+    this.move.y = 0;
+    this.stick = null;
+    this.stickView = null;
+    if (this.lastTarget) {
+      this.lastTarget = null;
+      this.hooks.onInteractChange(null);
+    }
+    this.onCutsceneChange?.(true);
+  }
+
+  /** 컷신 건너뛰기/종료 수순 — 플레이어에게 복귀하는 마지막 세그먼트로 점프 */
+  private cutsceneReturn(): void {
+    if (!this.cut || this.cut.returning) return;
+    const p = toScreen(this.player.x, this.player.y);
+    this.cut.segs = [{ x: p.sx, y: p.sy, z: ZOOM * this.zoomUser, dur: 1.1, hold: 0.05 }];
+    this.cut.idx = 0;
+    this.cut.t = 0;
+    this.cut.fromX = this.cam.sx;
+    this.cut.fromY = this.cam.sy;
+    this.cut.fromZ = this.zoom;
+    this.cut.returning = true;
+  }
+
+  isCutscene(): boolean {
+    return this.cut !== null;
+  }
+
+  private updateCutscene(dt: number): void {
+    const c = this.cut;
+    if (!c) return;
+    c.ramp = Math.min(1, c.ramp + dt * 2.6) * (c.returning ? Math.max(0.25, 1 - c.t / 1.1) : 1);
+    const seg = c.segs[c.idx];
+    c.t += dt;
+    const k = Math.min(1, c.t / seg.dur);
+    const e = k * k * (3 - 2 * k); // smoothstep
+    this.cam.sx = c.fromX + (seg.x - c.fromX) * e;
+    this.cam.sy = c.fromY + (seg.y - c.fromY) * e;
+    this.zoom = c.fromZ + (seg.z - c.fromZ) * e;
+    if (c.t >= seg.dur + seg.hold) {
+      c.idx += 1;
+      c.t = 0;
+      c.fromX = this.cam.sx;
+      c.fromY = this.cam.sy;
+      c.fromZ = this.zoom;
+      if (c.idx >= c.segs.length) {
+        if (c.returning) {
+          this.cut = null;
+          this.zoom = ZOOM * this.zoomUser;
+          this.clampCam();
+          this.onCutsceneChange?.(false);
+        } else {
+          this.cutsceneReturn();
+        }
+      }
+    }
+  }
+
   /** e2e/디버그 — 줌·구역 팻말·클로버·주민의 캔버스 CSS 좌표 */
   getVillageDebug(): {
     zoom: number;
     zoneSigns: { zone: VillageZoneId; available: boolean; x: number; y: number }[];
     clover: { tx: number; ty: number; x: number; y: number } | null;
     villagerIds: string[];
+    cutscene: { idx: number; returning: boolean } | null;
   } {
     const toCss = (sx: number, sy: number) => ({
       x: (sx - this.cam.sx) * this.zoom + this.anchorX,
@@ -382,6 +495,7 @@ export class VillageGame {
           })()
         : null,
       villagerIds: this.villagers.map((v) => v.def.id),
+      cutscene: this.cut ? { idx: this.cut.idx, returning: this.cut.returning } : null,
     };
   }
 
@@ -419,7 +533,17 @@ export class VillageGame {
     if (this.sitting && !things.some((t) => t.id === this.sitting!.thingId)) this.standUp();
     this.things = things;
     this.dynBlocked = new Set();
+    this.propCovered = new Set();
     for (const t of things) {
+      // NPC 배치는 바닥을 덮지 않는다(주민이 배회) — 그 외 풋프린트는
+      // 아래 깔린 야생 꽃을 숨긴다. 회수하면 세트가 다시 계산돼 복귀.
+      if (t.kind !== 'npc') {
+        for (let ty = t.by; ty < t.by + t.h; ty++) {
+          for (let tx = t.bx; tx < t.bx + t.w; tx++) {
+            if (vinBounds(tx, ty)) this.propCovered.add(vidx(tx, ty));
+          }
+        }
+      }
       if (!t.blocking) continue;
       for (let ty = t.by; ty < t.by + t.h; ty++) {
         for (let tx = t.bx; tx < t.bx + t.w; tx++) {
@@ -797,6 +921,10 @@ export class VillageGame {
   }
 
   private onDown = (e: PointerEvent) => {
+    if (this.cut) {
+      this.cutsceneReturn();
+      return;
+    }
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.tryStartPinch()) return;
     if (this.editMode) {
@@ -933,8 +1061,9 @@ export class VillageGame {
     }
 
     // 3) 배치돼 있는 다른 오브젝트를 잡으면 그것을 편집 대상으로.
+    //    (음수 id = 구역 테마 합성물(난파선 등) — 이동·회수 불가)
     const hit = this.hitTestThing(tx, ty);
-    if (hit) {
+    if (hit && hit.id >= 0) {
       // 이전 편집 대상은 조용히 원위치.
       this.edit = {
         placementId: hit.id,
@@ -1099,6 +1228,16 @@ export class VillageGame {
   private update(dt: number): void {
     if (this.editMode) {
       // 배치 모드: 세계는 멈추지 않지만(파도·시간) 배우들은 무대 뒤에서 대기.
+      return;
+    }
+
+    // 폭포 컷신 — 입력·상호작용은 잠그고 주민·나비는 계속 살아 움직인다.
+    if (this.cut) {
+      this.player.moving = false;
+      this.player.phase = 0;
+      this.updateCutscene(dt);
+      this.updateVillagers(dt);
+      this.updateAmbient(dt);
       return;
     }
 
@@ -1336,8 +1475,9 @@ export class VillageGame {
       }
     } else {
       // 소품은 이름 말풍선 없이 오브젝트만 그린다.
-      const cx = t.bx + 0.5;
-      const cy = t.by + 0.5;
+      if (t.decorType === 'falls-view') return; // 폭포 전망 지점 — 보이지 않는 상호작용 마커
+      const cx = t.bx + t.w / 2;
+      const cy = t.by + t.h / 2;
       const seed = 'id' in t && t.id !== undefined ? t.id : 7;
       const v = t.variant ?? (Number(seed) % 97) / 97;
       drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v }, this.time);
@@ -1458,6 +1598,8 @@ export class VillageGame {
     }
 
     for (const p of this.world.props) {
+      // 배치물이 덮은 칸의 야생 꽃은 잠시 숨긴다 (블로킹 소품은 애초에 못 덮는다).
+      if (p.type === 'flower' && this.propCovered.has(vidx(Math.floor(p.x), Math.floor(p.y)))) continue;
       const { sx, sy } = toScreen(p.x, p.y);
       if (!visible(sx, sy, 160)) continue;
       items.push({ d: this.entityDepth(p.x, p.y), draw: () => drawVProp(ctx, p, this.time) });
@@ -1550,6 +1692,35 @@ export class VillageGame {
 
     items.sort((a, b) => a.d - b.d);
     for (const it of items) it.draw();
+
+    // 구름마루(꼭대기) 개방 시 — 산마루 위를 떠다니는 구름.
+    if (this.world.zones.includes('peak')) {
+      const CLOUDS: Array<[number, number, number, number, number]> = [
+        [10, 8, 44, 0.5, 0],
+        [18, 4, 58, 0.4, 2.2],
+        [4, 16, 36, 0.45, 4.1],
+        [14, 13, 30, 0.34, 5.6],
+      ];
+      const puff = (px: number, py: number, rx: number, ry: number) => {
+        ctx.beginPath();
+        ctx.ellipse(px, py, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      for (const [cx2, cy2, r, alpha, ph] of CLOUDS) {
+        const base = toScreen(cx2, cy2);
+        const dx = Math.sin(this.time * 0.11 + ph) * 70 + Math.sin(this.time * 0.043 + ph * 2) * 30;
+        const dy = Math.sin(this.time * 0.07 + ph * 1.4) * 10;
+        const bx2 = base.sx + dx;
+        const by2 = base.sy - 150 + dy;
+        if (!visible(bx2, by2, 220)) continue;
+        ctx.fillStyle = `rgba(255,253,247,${alpha})`;
+        puff(bx2, by2, r, r * 0.36);
+        puff(bx2 - r * 0.45, by2 + r * 0.1, r * 0.55, r * 0.24);
+        puff(bx2 + r * 0.5, by2 + r * 0.12, r * 0.5, r * 0.22);
+        ctx.fillStyle = `rgba(211,222,232,${alpha * 0.55})`;
+        puff(bx2 + r * 0.1, by2 + r * 0.24, r * 0.7, r * 0.18);
+      }
+    }
 
     // 건물/랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 항상 최상단에.
     for (const t of this.things) {
@@ -1657,9 +1828,15 @@ export class VillageGame {
       ctx.globalCompositeOperation = 'lighter';
       const R = 92;
       const lampLike: { x: number; y: number; purple?: boolean }[] = [
-        ...this.world.props.filter((p) => p.type === 'lamp').map((p) => ({ x: p.x, y: p.y })),
+        ...this.world.props
+          .filter((p) => p.type === 'lamp' || p.type === 'campfire')
+          .map((p) => ({ x: p.x, y: p.y })),
         ...this.things
-          .filter((t) => t.kind === 'decor' && (t.decorType === 'lamp' || t.decorType === 'concert-lightstick'))
+          .filter(
+            (t) =>
+              t.kind === 'decor' &&
+              (t.decorType === 'lamp' || t.decorType === 'concert-lightstick' || t.decorType === 'campfire'),
+          )
           .map((t) => ({ x: t.bx + 0.5, y: t.by + 0.5, purple: t.decorType === 'concert-lightstick' })),
       ];
       for (const p of lampLike) {
@@ -1697,6 +1874,22 @@ export class VillageGame {
       vg.addColorStop(1, 'rgba(20,30,20,0.28)');
       ctx.fillStyle = vg;
       ctx.fillRect(0, 0, this.vw, this.vh);
+    }
+
+    // 폭포 컷신 — 시네마 레터박스 + 건너뛰기 힌트.
+    if (this.cut) {
+      const bar = this.vh * 0.115 * this.cut.ramp;
+      ctx.fillStyle = '#10131c';
+      ctx.fillRect(0, 0, this.vw, bar);
+      ctx.fillRect(0, this.vh - bar, this.vw, bar);
+      if (this.cut.ramp > 0.55 && !this.cut.returning) {
+        ctx.fillStyle = 'rgba(255,253,247,0.75)';
+        ctx.font = "700 12.5px system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.cut.hint, this.vw - 16, this.vh - bar / 2);
+        ctx.textAlign = 'left';
+      }
     }
 
     // 플로팅 조이스틱 (걷기 모드 전용).
@@ -1796,7 +1989,9 @@ function facingFromWorldDelta(dx: number, dy: number): VFacing {
 
 function targetKey(t: VInteractTarget | null): string {
   if (!t) return '';
-  return `${t.kind}:${t.kind === 'thing' ? t.id : t.id}`;
+  // 라벨 포함 — 같은 대상이라도 상태 변화로 이름이 바뀌면(난파선→복구된
+  // 범선, 언어 전환) 버튼 문구가 따라 갱신되게 한다.
+  return `${t.kind}:${t.id}:${t.label}`;
 }
 
 /** 확장 구역 팻말 중심 — 사분면 중앙보다 기본 섬 쪽에 붙여 잘 보이게 */
