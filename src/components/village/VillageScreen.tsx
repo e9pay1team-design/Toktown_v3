@@ -646,12 +646,12 @@ export function VillageScreen() {
         )}
       </header>
 
-      {/* 기능 버튼 (걷기 모드) */}
+      {/* 기능 버튼 (걷기 모드) — 5개가 한 줄에 들어가도록 촘촘하게, 줄바꿈 금지 */}
       {!editMode && (
-        <div className="pointer-events-none relative z-10 flex justify-center gap-2 px-4 py-2">
+        <div className="pointer-events-none relative z-10 flex justify-center gap-1.5 px-2 py-2">
           {(
             [
-              ['card', '🪪', T('주민증', 'ID Card')],
+              ['card', '🪪', T('주민증', 'ID')],
               ['dex', '📖', T('도감', 'Dex')],
               ['shop', '🏪', T('상점', 'Shop')],
               ['dressing', '🎨', T('꾸미기', 'Style')],
@@ -660,17 +660,17 @@ export function VillageScreen() {
             <button
               key={id}
               onClick={() => setModal(id)}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-town-line bg-town-paper/95 px-3 py-1.5 text-[12px] font-extrabold shadow-sm transition active:scale-95"
+              className="pointer-events-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-town-line bg-town-paper/95 px-2.5 py-1.5 text-[11.5px] font-extrabold shadow-sm transition active:scale-95"
             >
-              <span>{emoji}</span> {label}
+              <span className="text-[13px]">{emoji}</span> {label}
             </button>
           ))}
           <button
             onClick={() => setQuestOpen(true)}
-            className="pointer-events-auto relative flex items-center gap-1 rounded-full border border-town-line bg-town-paper/95 px-3 py-1.5 text-[12px] font-extrabold shadow-sm transition active:scale-95"
+            className="pointer-events-auto relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-town-line bg-town-paper/95 px-2.5 py-1.5 text-[11.5px] font-extrabold shadow-sm transition active:scale-95"
             aria-label={T('오늘의 미션', 'Daily missions')}
           >
-            <span>📜</span> {T('미션', 'Quests')}
+            <span className="text-[13px]">📜</span> {T('미션', 'Quest')}
             {questRemaining > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-town-coral px-1 text-[9px] font-extrabold text-white">
                 {questRemaining}
