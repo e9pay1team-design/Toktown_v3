@@ -30,17 +30,25 @@ export interface RouteCandidate {
   polyline: LatLng[];
 }
 
-/** 명동 도보권 가상 역/정류장 (경유점 목업) — 수단별 분리 */
+/** 개방 지역 가상 역/정류장 (경유점 목업) — 수단별 분리, 가까운 것이 선택된다 */
 const SUBWAY_STATIONS = [
-  { name: '명동역', nameEn: 'Myeongdong Stn.', lat: 37.5609, lng: 126.9862 },
-  { name: '회현역', nameEn: 'Hoehyeon Stn.', lat: 37.5586, lng: 126.9784 },
-  { name: '을지로입구역', nameEn: 'Euljiro 1-ga Stn.', lat: 37.566, lng: 126.9827 },
+  // 명동 도보권
+  { name: '명동역', nameEn: 'Myeongdong Stn.', line: '4호선', lineEn: 'Line 4', lat: 37.5609, lng: 126.9862 },
+  { name: '회현역', nameEn: 'Hoehyeon Stn.', line: '4호선', lineEn: 'Line 4', lat: 37.5586, lng: 126.9784 },
+  { name: '을지로입구역', nameEn: 'Euljiro 1-ga Stn.', line: '2호선', lineEn: 'Line 2', lat: 37.566, lng: 126.9827 },
+  // 홍대 도보권
+  { name: '홍대입구역', nameEn: 'Hongik Univ. Stn.', line: '2호선', lineEn: 'Line 2', lat: 37.557, lng: 126.9238 },
+  { name: '상수역', nameEn: 'Sangsu Stn.', line: '6호선', lineEn: 'Line 6', lat: 37.5478, lng: 126.9227 },
 ];
 
 const BUS_STOPS = [
+  // 명동 도보권
   { name: '명동성당 정류장', nameEn: 'Myeongdong Cathedral stop', lat: 37.5633, lng: 126.9873 },
   { name: '롯데백화점 정류장', nameEn: 'Lotte Dept. Store stop', lat: 37.5648, lng: 126.9817 },
   { name: '남대문시장 정류장', nameEn: 'Namdaemun Market stop', lat: 37.5594, lng: 126.9772 },
+  // 홍대 도보권
+  { name: '홍대입구역 정류장', nameEn: 'Hongik Univ. Stn. stop', lat: 37.5561, lng: 126.9227 },
+  { name: '홍익대 정문 정류장', nameEn: 'Hongik Univ. Gate stop', lat: 37.552, lng: 126.9247 },
 ];
 
 const nearestOf = <T extends LatLng>(list: T[], p: LatLng): T =>
@@ -78,18 +86,19 @@ const walkMinutes = (m: number) => Math.max(2, Math.round(m / 67));
 
 export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
   const dist = distanceM(from, to);
-  // 지하철: 승/하차역이 같으면 명동역→회현역 코스로 대체 (데모 연출)
-  let boardSt = nearestOf(SUBWAY_STATIONS, from);
+  // 승/하차 지점이 같으면 출발지에서 두 번째로 가까운 지점으로 하차를
+  // 대체 (데모 연출) — 어느 지역에서도 그 지역 안에서 코스가 만들어진다.
+  const secondNearest = <T extends LatLng & { name: string }>(list: T[], p: LatLng, not: T): T =>
+    [...list].filter((x) => x.name !== not.name).sort((a, b) => distanceM(p, a) - distanceM(p, b))[0];
+  const boardSt = nearestOf(SUBWAY_STATIONS, from);
   let alightSt = nearestOf(SUBWAY_STATIONS, to);
   if (boardSt.name === alightSt.name) {
-    boardSt = SUBWAY_STATIONS[0];
-    alightSt = SUBWAY_STATIONS[1];
+    alightSt = secondNearest(SUBWAY_STATIONS, from, boardSt);
   }
-  let boardBus = nearestOf(BUS_STOPS, from);
+  const boardBus = nearestOf(BUS_STOPS, from);
   let alightBus = nearestOf(BUS_STOPS, to);
   if (boardBus.name === alightBus.name) {
-    boardBus = BUS_STOPS[0];
-    alightBus = BUS_STOPS[1];
+    alightBus = secondNearest(BUS_STOPS, from, boardBus);
   }
 
   const walk: RouteCandidate = {
@@ -119,7 +128,7 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
     mode: 'transit',
     vehicle: 'subway',
     label: tr('지하철', 'Subway'),
-    line: tr('4호선', 'Line 4'),
+    line: tr(boardSt.line, boardSt.lineEn),
     minutes: Math.max(6, walkMinutes(dist) - 2),
     fare: 1500,
     transfers: 0,
@@ -129,7 +138,7 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
       { icon: '🚶', text: tr(`${boardSt.name}까지 도보 2분`, `Walk 2 min to ${boardSt.nameEn}`) },
       {
         icon: '🚇',
-        text: tr(`4호선 승차 → ${alightSt.name} 하차`, `Board Line 4 → alight at ${alightSt.nameEn}`),
+        text: tr(`${boardSt.line} 승차 → ${alightSt.name} 하차`, `Board ${boardSt.lineEn} → alight at ${alightSt.nameEn}`),
       },
       { icon: '🚶', text: tr('출구에서 도착지까지 도보 2분', 'Walk 2 min from the exit') },
       { icon: '🏁', text: tr('목적지 도착', 'Arrive at destination') },

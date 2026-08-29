@@ -75,6 +75,9 @@ export interface RegionalNpc {
   /** 조우 시 대사 */
   lines: string[];
   linesEn?: string[];
+  /** 도감 미조우 힌트 (어디서 만나는지) */
+  dexHint?: string;
+  dexHintEn?: string;
   /** 출몰 지점 목록 — 하루 2지점 랜덤 활성 */
   spots: NpcSpot[];
 }
@@ -87,6 +90,8 @@ export interface NpcSpot {
   lng: number;
   /** 이벤트 한정 NPC 변형 (까아미 등) */
   variant?: 'drummer';
+  /** 이 지점에 출몰하는 NPC — 지도 마커 조합 시 채워진다 */
+  npcId?: string;
 }
 
 /** 기본 NPC (전국 공통, 기능 담당) */

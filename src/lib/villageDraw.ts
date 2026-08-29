@@ -853,6 +853,141 @@ export function drawVLandmark(
       ellipse(ctx, top.sx + ox + swy, top.sy + oy - 14, 2, 4);
       ctx.fill();
     }
+  } else if (id === 'gyeongui-line') {
+    // 경의선숲길 — 잔디 둔덕 + 옛 철길 + 가로수 (낮은 랜드마크).
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fbf6d';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 3);
+    ctx.fillStyle = '#a5d588';
+    ctx.fill();
+    // 옛 철길 — 침목 먼저, 레일 위에.
+    ctx.strokeStyle = '#b8a98f';
+    ctx.lineWidth = 3;
+    for (let u = 0.35; u <= 1.7; u += 0.34) {
+      const t0 = toScreen(bx + u, by + 0.62);
+      const t1 = toScreen(bx + u, by + 1.18);
+      ctx.beginPath();
+      ctx.moveTo(t0.sx, t0.sy - 3);
+      ctx.lineTo(t1.sx, t1.sy - 3);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#9c8d7b';
+    ctx.lineWidth = 2.2;
+    for (const v of [0.74, 1.06]) {
+      const r0 = toScreen(bx + 0.18, by + v);
+      const r1 = toScreen(bx + 1.82, by + v);
+      ctx.beginPath();
+      ctx.moveTo(r0.sx, r0.sy - 3);
+      ctx.lineTo(r1.sx, r1.sy - 3);
+      ctx.stroke();
+    }
+    // 가로수 2그루 — 바람에 살짝 흔들린다.
+    for (const [tx, ty, r] of [
+      [0.42, 0.4, 11],
+      [1.58, 1.55, 9],
+    ] as const) {
+      const p = toScreen(bx + tx, by + ty);
+      const sw = Math.sin(opts.time * 1.4 + tx * 7) * 1.2;
+      ctx.fillStyle = 'rgba(40,50,35,0.16)';
+      ellipse(ctx, p.sx, p.sy - 1, r * 0.9, r * 0.32);
+      ctx.fill();
+      ctx.fillStyle = '#8a6b52';
+      ctx.fillRect(p.sx - 2, p.sy - 16, 4, 14);
+      ctx.fillStyle = '#79ae60';
+      ellipse(ctx, p.sx + sw, p.sy - 22, r, r * 0.92);
+      ctx.fill();
+      ctx.fillStyle = '#8cc073';
+      ellipse(ctx, p.sx + sw - r * 0.3, p.sy - 25, r * 0.55, r * 0.5);
+      ctx.fill();
+    }
+    // 산책 가로등 + 들꽃.
+    ctx.strokeStyle = '#5b4a3f';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(top.sx + 16, top.sy + 2);
+    ctx.lineTo(top.sx + 16, top.sy - 20);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd66b';
+    ellipse(ctx, top.sx + 16, top.sy - 23, 3.4, 3.4);
+    ctx.fill();
+    for (const [fx, fy, c] of [
+      [-22, 6, '#f2a7c3'],
+      [-10, 10, '#fffdf7'],
+      [22, 10, '#ffd66b'],
+    ] as const) {
+      ctx.fillStyle = c;
+      ellipse(ctx, top.sx + fx, top.sy + fy, 2.2, 2.2);
+      ctx.fill();
+    }
+  } else if (id === 'busking-stage') {
+    // 홍대 버스킹 무대 — 나무 데크 + 앰프 + 마이크 + 알전구 (낮은 랜드마크).
+    faceQuad(ctx, D, C, 0, 1, 0, 10);
+    ctx.fillStyle = '#a06a44';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0, 1, 0, 10);
+    ctx.fillStyle = '#8f5c3a';
+    ctx.fill();
+    vFootprintPath(ctx, x0, y0, x1, y1, 10);
+    ctx.fillStyle = '#c9885a';
+    ctx.fill();
+    // 데크 플랭크 라인.
+    ctx.strokeStyle = '#b37845';
+    ctx.lineWidth = 1.2;
+    for (const v of [0.55, 0.95, 1.35]) {
+      const p0 = toScreen(bx + 0.15, by + v);
+      const p1 = toScreen(bx + 1.85, by + v);
+      ctx.beginPath();
+      ctx.moveTo(p0.sx, p0.sy - 10);
+      ctx.lineTo(p1.sx, p1.sy - 10);
+      ctx.stroke();
+    }
+    // 앰프 (좌측) — 스피커 콘.
+    const amp = toScreen(bx + 0.55, by + 0.72);
+    ctx.fillStyle = '#3b4252';
+    ctx.fillRect(amp.sx - 8, amp.sy - 30, 16, 19);
+    ctx.strokeStyle = '#5b6377';
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(amp.sx - 8, amp.sy - 30, 16, 19);
+    ctx.fillStyle = '#2b2f3e';
+    ellipse(ctx, amp.sx, amp.sy - 18, 4.6, 4.6);
+    ctx.fill();
+    // 마이크 스탠드 (중앙).
+    const mic = toScreen(bx + 1.15, by + 1.0);
+    ctx.strokeStyle = '#2b2b33';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(mic.sx, mic.sy - 10);
+    ctx.lineTo(mic.sx, mic.sy - 32);
+    ctx.lineTo(mic.sx + 6, mic.sy - 37);
+    ctx.stroke();
+    ctx.fillStyle = '#5b5566';
+    ellipse(ctx, mic.sx + 7.5, mic.sy - 38, 3.4, 4);
+    ctx.fill();
+    // 알전구 스트링 — 폴대 2개 + 늘어진 전구줄 (밤에 반짝임).
+    ctx.strokeStyle = '#5b4a3f';
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.moveTo(D.sx + 6, D.sy - 2);
+    ctx.lineTo(D.sx + 6, D.sy - 46);
+    ctx.moveTo(B.sx - 6, B.sy - 2);
+    ctx.lineTo(B.sx - 6, B.sy - 46);
+    ctx.stroke();
+    ctx.strokeStyle = '#8c7b6e';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(D.sx + 6, D.sy - 44);
+    ctx.quadraticCurveTo(top.sx, top.sy - 26, B.sx - 6, B.sy - 44);
+    ctx.stroke();
+    for (let i = 0; i <= 5; i++) {
+      const t = i / 5;
+      const gx = (1 - t) * (1 - t) * (D.sx + 6) + 2 * (1 - t) * t * top.sx + t * t * (B.sx - 6);
+      const gy = (1 - t) * (1 - t) * (D.sy - 44) + 2 * (1 - t) * t * (top.sy - 26) + t * t * (B.sy - 44);
+      const tw = 0.75 + Math.sin(opts.time * 3 + i * 1.7) * 0.25;
+      ctx.fillStyle = i % 2 ? `rgba(255,214,107,${tw})` : `rgba(242,167,195,${tw})`;
+      ellipse(ctx, gx, gy + 2, 2.4, 2.4);
+      ctx.fill();
+    }
   } else {
     // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
     faceQuad(ctx, D, C, 0, 1, 0, 24);
@@ -907,6 +1042,8 @@ export const LANDMARK_ACCENTS: Record<string, string> = {
   namsan: '#5f9037',
   cheonggyecheon: '#4489bb',
   gwanghwamun: '#8d4f3f',
+  'gyeongui-line': '#5f9037',
+  'busking-stage': '#8a5cf6',
 };
 
 /** 랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */

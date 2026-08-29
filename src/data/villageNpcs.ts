@@ -175,3 +175,19 @@ export function magpieSkin(drummer: boolean): VCharSkin {
     ear: 'bird',
   };
 }
+
+/** 지역 마스코트 캔버스 스킨 — npcId 통일 조회 (마을 배치·배회용) */
+export function regionalNpcSkin(npcId: string): VCharSkin {
+  if (npcId === 'hongdae-cat') {
+    // 홍대 기냥 — 회보라 털 + 남색 비니 톤 상의
+    return {
+      body: '#3B4252',
+      bodyDark: '#2B2F3E',
+      fur: '#6B6377',
+      furDark: '#524B5E',
+      hair: '#2B2F3E',
+      ear: 'cat',
+    };
+  }
+  return magpieSkin(npcId === 'magpie-kkaami');
+}

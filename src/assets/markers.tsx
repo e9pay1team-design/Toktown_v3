@@ -48,27 +48,45 @@ export function StorePin({
   );
 }
 
-/** NPC 조우 마커 — 흰 원형 버블 속 NPC 얼굴 + 반짝임 (drummer: 이벤트 한정) */
-export function NpcBubble({ drummer = false }: { drummer?: boolean }) {
+/** NPC 조우 마커 — 흰 원형 버블 속 NPC 얼굴 + 반짝임 (npcId 별 얼굴) */
+export function NpcBubble({ npcId, drummer = false }: { npcId?: string; drummer?: boolean }) {
+  const cat = npcId === 'hongdae-cat';
   return (
     <svg width={52} height={60} viewBox="0 0 52 60" style={{ display: 'block', overflow: 'visible' }}>
       <ellipse cx={26} cy={57} rx={10} ry={2.8} fill="rgba(74,59,50,0.25)" />
       <path d="M19 44 L26 56 L33 44 Z" fill="#FFFDF7" />
       <circle cx={26} cy={24} r={22} fill="#FFFDF7" stroke={drummer ? '#8B79C9' : '#FFD66B'} strokeWidth={3} />
-      {/* 까치 얼굴 (미니) */}
-      <g>
-        <ellipse cx={26} cy={26} rx={15} ry={14} fill="#3B4252" />
-        <ellipse cx={20} cy={23} rx={5.5} ry={4.8} fill="#FFFDF7" />
-        <ellipse cx={32} cy={23} rx={5.5} ry={4.8} fill="#FFFDF7" />
-        <circle cx={20} cy={22.5} r={1.8} fill="#2B2B33" />
-        <circle cx={32} cy={22.5} r={1.8} fill="#2B2B33" />
-        <path d="M23.5 26 L28.5 26 L26 30 Z" fill="#F5B942" />
-        <circle cx={16.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
-        <circle cx={35.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
-        {drummer && (
-          <path d="M12 17 q14 -7 28 0 l-0.8 3.6 q-13 -6 -26.4 0 Z" fill="#8A5CF6" />
-        )}
-      </g>
+      {cat ? (
+        /* 인디 고양이 기냥 얼굴 (미니) — 비니 + ω 입 */
+        <g>
+          <path d="M15 18 L11 7 L21 13 Z" fill="#5B5566" />
+          <path d="M37 18 L41 7 L31 13 Z" fill="#5B5566" />
+          <ellipse cx={26} cy={26} rx={15} ry={14} fill="#6B6377" />
+          <path d="M13.5 20 a13 9 0 0 1 25 0 Z" fill="#3B4252" />
+          <rect x={12.5} y={18.2} width={27} height={4.2} rx={2.1} fill="#2B2F3E" />
+          <circle cx={20} cy={27} r={1.9} fill="#2B2B33" />
+          <circle cx={32} cy={27} r={1.9} fill="#2B2B33" />
+          <path d="M24.6 29.5 h2.8 l-1.4 2 Z" fill="#E8899B" />
+          <path d="M23 33 q1.6 1.8 3 0 q1.6 1.8 3 0" stroke="#2B2B33" strokeWidth={1.5} fill="none" strokeLinecap="round" />
+          <circle cx={15.5} cy={31} r={2.2} fill="#FF9D9D" opacity={0.6} />
+          <circle cx={36.5} cy={31} r={2.2} fill="#FF9D9D" opacity={0.6} />
+        </g>
+      ) : (
+        /* 까치 얼굴 (미니) */
+        <g>
+          <ellipse cx={26} cy={26} rx={15} ry={14} fill="#3B4252" />
+          <ellipse cx={20} cy={23} rx={5.5} ry={4.8} fill="#FFFDF7" />
+          <ellipse cx={32} cy={23} rx={5.5} ry={4.8} fill="#FFFDF7" />
+          <circle cx={20} cy={22.5} r={1.8} fill="#2B2B33" />
+          <circle cx={32} cy={22.5} r={1.8} fill="#2B2B33" />
+          <path d="M23.5 26 L28.5 26 L26 30 Z" fill="#F5B942" />
+          <circle cx={16.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
+          <circle cx={35.5} cy={28} r={2.2} fill="#FF9D9D" opacity={0.6} />
+          {drummer && (
+            <path d="M12 17 q14 -7 28 0 l-0.8 3.6 q-13 -6 -26.4 0 Z" fill="#8A5CF6" />
+          )}
+        </g>
+      )}
       {/* 반짝임 */}
       {drummer ? (
         <path d="M44 5 l1.5 3.6 l3.6 1.5 l-3.6 1.5 l-1.5 3.6 l-1.5 -3.6 l-3.6 -1.5 l3.6 -1.5 Z" fill="#B48CFF" />

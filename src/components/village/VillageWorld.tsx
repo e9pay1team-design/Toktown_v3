@@ -14,8 +14,8 @@ import {
   type VInteractTarget,
 } from '../../lib/villageGame';
 import { CATEGORY_SKINS, CATEGORY_EMOJI, type VCharSkin } from '../../lib/villageDraw';
-import { magpieSkin, residentNpcs, villageRichness } from '../../data/villageNpcs';
-import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
+import { regionalNpcSkin, residentNpcs, villageRichness } from '../../data/villageNpcs';
+import { DECOR_ITEMS, LANDMARKS, regionalNpcById, storeById } from '../../data/seed';
 import { SKIN_TONES, HAIR_COLORS, OUTFIT_COLORS, shade } from '../../assets/characterParts';
 import { wardrobeById } from '../../data/wardrobe';
 import { useVillageStore, footprintOf, type Placement, type PlacementKind } from '../../store/useVillageStore';
@@ -77,7 +77,7 @@ export function trayMetaFor(kind: PlacementKind, refId: string, label: string): 
   }
   if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId, facing: 'sw' };
   if (kind === 'npc')
-    return { kind, refId, w, h, label, npcSkin: magpieSkin(refId === DRUMMER_MAGPIE.id) };
+    return { kind, refId, w, h, label, npcSkin: regionalNpcSkin(refId) };
   return { kind, refId, w, h, label, decorType: refId === 'tree' ? 'maple' : refId };
 }
 
@@ -131,8 +131,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         blocking: false,
       });
     } else if (p.kind === 'npc') {
-      const drummer = p.refId === DRUMMER_MAGPIE.id;
-      const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+      const src = regionalNpcById(p.refId);
       // 걷기 모드에선 배회 주민으로 그려지고, 배치 모드에서만 정적 표시.
       things.push({
         id: p.id,
@@ -142,7 +141,7 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         w: p.w,
         h: p.h,
         label: tr(src.name, src.nameEn ?? src.name),
-        npcSkin: magpieSkin(drummer),
+        npcSkin: regionalNpcSkin(p.refId),
         blocking: false,
       });
     }
@@ -168,15 +167,14 @@ function villagersFromState(placements: Placement[], dexCount: number, lmCount: 
     radius: 3.2,
     chatter: tr(n.chatter, n.chatterEn),
   }));
-  // 배치된 특수 NPC(까미 계열) — 배치 지점 주변을 배회.
+  // 배치된 특수 NPC(까미·기냥 등) — 배치 지점 주변을 배회.
   for (const p of placements) {
     if (p.kind !== 'npc') continue;
-    const drummer = p.refId === DRUMMER_MAGPIE.id;
-    const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+    const src = regionalNpcById(p.refId);
     defs.push({
       id: `placed-${p.id}`,
       name: tr(src.name, src.nameEn ?? src.name),
-      skin: magpieSkin(drummer),
+      skin: regionalNpcSkin(p.refId),
       anchor: { x: p.bx + 0.5, y: p.by + 0.5 },
       radius: 2.6,
       chatter: tr(src.lines, src.linesEn ?? src.lines),
