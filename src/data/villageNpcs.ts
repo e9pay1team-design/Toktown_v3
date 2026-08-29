@@ -189,5 +189,27 @@ export function regionalNpcSkin(npcId: string): VCharSkin {
       ear: 'cat',
     };
   }
+  if (npcId === 'bukchon-tiger') {
+    // 북촌 호야 — 주황 털 + 색동 배자 톤 상의
+    return {
+      body: '#F2705E',
+      bodyDark: '#D95A4A',
+      fur: '#F0A055',
+      furDark: '#E8944B',
+      hair: '#4A3B32',
+      ear: 'cat',
+    };
+  }
+  if (npcId === 'seongsu-deer') {
+    // 성수 라떼 — 갈색 털 + 민트(아아 컵) 톤 상의
+    return {
+      body: '#4FB9A8',
+      bodyDark: '#3E9486',
+      fur: '#C89B66',
+      furDark: '#8A6B52',
+      hair: '#8A6B52',
+      ear: 'cat',
+    };
+  }
   return magpieSkin(npcId === 'magpie-kkaami');
 }

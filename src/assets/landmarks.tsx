@@ -147,6 +147,129 @@ export function LandmarkSvg({ id, size = 90 }: LandmarkProps) {
           </g>
         </svg>
       );
+    case 'geunjeongjeon':
+      return (
+        <svg width={size * 1.05} height={size} viewBox="0 0 126 120" style={{ display: 'block' }} aria-label="경복궁 근정전">
+          <ellipse cx={63} cy={114} rx={52} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 2단 월대 (돌 기단) + 계단 */}
+          <rect x={12} y={98} width={102} height={14} rx={3} fill="#E7E3DA" />
+          <rect x={22} y={86} width={82} height={14} rx={3} fill="#EFEBE2" />
+          <path d="M12 105 h102 M22 93 h82" stroke="#CBC4B4" strokeWidth={1.8} />
+          <rect x={54} y={86} width={18} height={26} fill="#D9D2C2" />
+          <path d="M54 92 h18 M54 98 h18 M54 105 h18" stroke="#B8AE99" strokeWidth={1.6} />
+          {/* 본전 — 붉은 기둥 + 창호 */}
+          <rect x={28} y={58} width={70} height={28} rx={2.5} fill="#B95D50" />
+          <path d="M38 58 v28 M52 58 v28 M63 58 v28 M74 58 v28 M88 58 v28" stroke="#8B4A40" strokeWidth={2.2} />
+          <rect x={55} y={66} width={16} height={20} rx={1.5} fill="#5B4A3F" />
+          <path d="M42 66 h8 v12 h-8 Z M76 66 h8 v12 h-8 Z" fill="#F5EFDC" stroke="#8B4A40" strokeWidth={1.2} />
+          {/* 팔작지붕 2단 + 취두 */}
+          <path d="M14 60 Q34 46 63 46 Q92 46 112 60 Q86 52 63 52 Q40 52 14 60 Z" fill="#4E5A66" />
+          <path d="M24 46 Q40 32 63 32 Q86 32 102 46 Q82 38 63 38 Q44 38 24 46 Z" fill="#4E5A66" />
+          <path d="M14 60 q-4 -2 -6 -6 M112 60 q4 -2 6 -6 M24 46 q-4 -2 -5 -5 M102 46 q4 -2 5 -5" stroke="#37424D" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+          <path d="M24 46 Q40 32 63 32 Q86 32 102 46" stroke="#5D6B78" strokeWidth={2.4} fill="none" />
+          <rect x={30} y={29} width={5} height={6} rx={1.5} fill="#37424D" />
+          <rect x={91} y={29} width={5} height={6} rx={1.5} fill="#37424D" />
+        </svg>
+      );
+    case 'bukchon-hanok':
+      return (
+        <svg width={size * 1.16} height={size * 0.86} viewBox="0 0 128 94" style={{ display: 'block' }} aria-label="북촌 한옥마을">
+          <ellipse cx={64} cy={88} rx={52} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 뒷집 한옥 */}
+          <rect x={64} y={44} width={50} height={38} rx={2.5} fill="#F5EFDC" />
+          <path d="M74 54 h10 v14 h-10 Z M96 54 h10 v14 h-10 Z" fill="#C8A87E" stroke="#8A6B52" strokeWidth={1.4} />
+          <path d="M58 48 Q89 32 120 48 L120 55 Q89 41 58 55 Z" fill="#5E6470" />
+          <path d="M58 48 Q89 32 120 48" stroke="#7A8290" strokeWidth={2.4} fill="none" />
+          {/* 앞집 한옥 — 대문 + 창호 */}
+          <rect x={10} y={54} width={58} height={30} rx={2.5} fill="#FBF6E8" />
+          <path d="M18 62 h11 v14 h-11 Z" fill="#C8A87E" stroke="#8A6B52" strokeWidth={1.4} />
+          <path d="M23.5 62 v14 M18 69 h11" stroke="#8A6B52" strokeWidth={1.1} />
+          <rect x={40} y={60} width={16} height={24} rx={1.5} fill="#7A5C42" />
+          <path d="M48 60 v24 M43 66 h10 M43 74 h10" stroke="#5B4433" strokeWidth={1.4} />
+          <circle cx={45.5} cy={71} r={1.3} fill="#D9B45F" />
+          <circle cx={50.5} cy={71} r={1.3} fill="#D9B45F" />
+          {/* 앞집 기와지붕 (곡선 처마 + 수막새) */}
+          <path d="M2 58 Q39 40 76 58 L76 66 Q39 50 2 66 Z" fill="#6B7280" />
+          <path d="M2 58 Q39 40 76 58" stroke="#858D9B" strokeWidth={2.6} fill="none" />
+          <path d="M16 59.5 q4 -3 8 -0.5 M34 55.5 q4 -3 8 -0.5 M52 56.5 q4 -3 8 -0.5" stroke="#4A515E" strokeWidth={1.8} fill="none" />
+          <g fill="#4A515E">
+            <circle cx={9} cy={63.5} r={2.4} />
+            <circle cx={25} cy={60.5} r={2.4} />
+            <circle cx={41} cy={59.5} r={2.4} />
+            <circle cx={57} cy={60.5} r={2.4} />
+            <circle cx={72} cy={63.5} r={2.4} />
+          </g>
+          {/* 돌담 */}
+          <rect x={78} y={72} width={46} height={12} rx={2} fill="#D9D2C2" />
+          <path d="M86 72 v12 M96 72 v12 M106 72 v12 M116 72 v12 M78 78 h46" stroke="#B8AE99" strokeWidth={1.4} />
+        </svg>
+      );
+    case 'seoul-forest':
+      return (
+        <svg width={size * 1.12} height={size * 0.84} viewBox="0 0 126 94" style={{ display: 'block' }} aria-label="서울숲">
+          <ellipse cx={63} cy={88} rx={52} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 잔디 둔덕 */}
+          <path d="M6 84 Q12 62 40 60 L92 60 Q116 62 120 84 Z" fill="#CDE3AE" />
+          <path d="M6 84 Q12 62 40 60 L92 60 Q116 62 120 84 Z" fill="none" stroke="#B7D398" strokeWidth={2.5} />
+          {/* 큰 나무 군락 */}
+          <rect x={28} y={42} width={6} height={20} rx={3} fill="#8A6B52" />
+          <circle cx={31} cy={32} r={16} fill="#79AE60" />
+          <circle cx={24} cy={26} r={9} fill="#8CC073" />
+          <rect x={58} y={34} width={7} height={28} rx={3.5} fill="#8A6B52" />
+          <circle cx={61.5} cy={22} r={19} fill="#6BA254" />
+          <circle cx={54} cy={15} r={10} fill="#82BB68" />
+          <rect x={92} y={46} width={5.5} height={16} rx={2.7} fill="#8A6B52" />
+          <circle cx={94.7} cy={38} r={13} fill="#79AE60" />
+          <circle cx={89} cy={33} r={7.5} fill="#8CC073" />
+          {/* 꽃사슴 실루엣 */}
+          <g fill="#A9855C">
+            <ellipse cx={80} cy={72} rx={10} ry={6.5} />
+            <rect x={72.5} y={74} width={2.8} height={8} rx={1.4} />
+            <rect x={84} y={74} width={2.8} height={8} rx={1.4} />
+            <ellipse cx={90.5} cy={65} rx={4.5} ry={4} />
+            <path d="M89 62 q-1.5 -4 -4.5 -5 M92.5 61.5 q1.5 -4 4.5 -4.5" stroke="#8A6B52" strokeWidth={1.7} fill="none" strokeLinecap="round" />
+          </g>
+          <circle cx={78} cy={69} r={1.1} fill="#FFF3DC" />
+          <circle cx={83} cy={71} r={1} fill="#FFF3DC" />
+          {/* 들꽃 */}
+          <circle cx={22} cy={74} r={2.4} fill="#F2A7C3" />
+          <circle cx={44} cy={78} r={2.2} fill="#FFD66B" />
+          <circle cx={104} cy={76} r={2.4} fill="#FFFDF7" />
+        </svg>
+      );
+    case 'red-brick':
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="붉은벽돌 카페거리">
+          <ellipse cx={60} cy={114} rx={46} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 굴뚝 */}
+          <rect x={86} y={22} width={13} height={50} rx={2} fill="#A34F42" />
+          <rect x={84} y={18} width={17} height={7} rx={2} fill="#8B4038" />
+          <path d="M86 32 h13 M86 44 h13 M86 56 h13" stroke="#8B4038" strokeWidth={1.6} />
+          <circle cx={93} cy={10} r={4} fill="#E4DCD0" opacity={0.8} />
+          <circle cx={98} cy={4} r={2.8} fill="#E4DCD0" opacity={0.55} />
+          {/* 공장 본채 — 붉은 벽돌 + 톱니 지붕 */}
+          <rect x={16} y={52} width={88} height={58} rx={3} fill="#B95D50" />
+          <path d="M16 52 L34 38 L34 52 L52 38 L52 52 L70 38 L70 52 L88 38 L88 52 Z" fill="#A34F42" />
+          <path d="M34 38 v14 M52 38 v14 M70 38 v14 M88 38 v14" stroke="#8B4038" strokeWidth={1.6} />
+          {/* 벽돌 결 */}
+          <path d="M16 64 h88 M16 76 h88 M16 88 h88 M16 100 h88" stroke="#A34F42" strokeWidth={1.5} />
+          <path d="M30 52 v12 M58 52 v12 M86 52 v12 M44 64 v12 M72 64 v12 M30 76 v12 M58 76 v12 M86 76 v12 M44 88 v12 M72 88 v12" stroke="#A34F42" strokeWidth={1.5} />
+          {/* 아치창 + 카페 문 */}
+          <path d="M26 74 v-8 a6 6 0 0 1 12 0 v8 Z" fill="#FFF3DC" stroke="#8B4038" strokeWidth={1.6} />
+          <path d="M66 74 v-8 a6 6 0 0 1 12 0 v8 Z" fill="#FFF3DC" stroke="#8B4038" strokeWidth={1.6} />
+          <rect x={44} y={82} width={22} height={28} rx={2.5} fill="#3F4550" />
+          <rect x={47} y={85} width={16} height={14} rx={1.5} fill="#FFEFC9" />
+          {/* 커피잔 간판 */}
+          <circle cx={55} cy={70} r={9.5} fill="#FFFDF7" stroke="#8B4038" strokeWidth={2} />
+          <path d="M51 67 h6.5 v6 a3.2 3.2 0 0 1 -6.5 0 Z" fill="#9C6B43" />
+          <path d="M57.5 68 q3 0 3 2.4 q0 2.4 -3 2.4" stroke="#9C6B43" strokeWidth={1.5} fill="none" />
+          <path d="M53 64.5 q1 -1.5 0 -3 M55.8 64.5 q1 -1.5 0 -3" stroke="#9C6B43" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+          {/* 담쟁이 */}
+          <path d="M16 96 q8 -4 7 -14 q6 6 12 2" stroke="#6BA254" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+          <circle cx={22} cy={84} r={2.6} fill="#79AE60" />
+          <circle cx={31} cy={86} r={2.2} fill="#8CC073" />
+        </svg>
+      );
     default:
       return null;
   }

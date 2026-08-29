@@ -65,6 +65,69 @@ body {
   display: none;
 }
 
+/* ─── 줌 밴드별 마커 점진 생략 ─────────────────────────────────────
+   near(≥14): 전체 표시, 지역 배지만 숨김
+   mid(12~13): 랜드마크 아이콘만 (라벨·매장·NPC·부스 숨김)
+   far(≤11): 전국 뷰 — 지역 배지 + 내 위치만 */
+[data-zoomband='near'] .mk-zone {
+  display: none;
+}
+[data-zoomband='mid'] .mk-store,
+[data-zoomband='mid'] .mk-npc,
+[data-zoomband='mid'] .mk-booth,
+[data-zoomband='mid'] .landmark-label,
+[data-zoomband='mid'] .mk-zone-sido {
+  display: none;
+}
+[data-zoomband='far'] .mk-store,
+[data-zoomband='far'] .mk-npc,
+[data-zoomband='far'] .mk-booth,
+[data-zoomband='far'] .mk-landmark,
+[data-zoomband='far'] .landmark-label,
+[data-zoomband='far'] .mk-zone-local {
+  display: none;
+}
+/* 전국 뷰에선 내 캐릭터도 작게 (발 위치 고정 스케일) */
+[data-zoomband='far'] .mk-me > div {
+  transform: scale(0.55);
+  transform-origin: 32px 72px;
+}
+/* 중간 줌 랜드마크 아이콘 축소 — 픽셀 고정 크기라 광역 뷰에선 줄여 보여준다 */
+[data-zoomband='mid'] .mk-landmark > svg {
+  transform: scale(0.6);
+  transform-origin: bottom center;
+}
+
+/* 전국 뷰 지역 배지 칩 */
+.zone-wrap {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.zone-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #fffdf7;
+  border: 2px solid #7bc47f;
+  color: #4a3b32;
+  font-weight: 800;
+  font-size: 11.5px;
+  white-space: nowrap;
+  box-shadow: 0 3px 9px rgba(74, 59, 50, 0.24);
+  transition: transform 0.15s;
+}
+.zone-chip:hover {
+  transform: scale(1.06);
+}
+.zone-chip.zone-locked {
+  background: #f5f1e8;
+  border-color: #d8cfc0;
+  color: #8c7b6e;
+}
+
 /* ─── 애니메이션 ───────────────────────────────────────────────── */
 @keyframes npc-bounce {
   0%,

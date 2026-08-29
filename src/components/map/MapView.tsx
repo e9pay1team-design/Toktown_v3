@@ -10,7 +10,8 @@ import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { EventBooth, Landmark, LatLng, NpcSpot, Store } from '../../types';
 import { regionalNpcById } from '../../data/seed';
-import type { Region } from '../../data/regions';
+import { REGIONS, UPCOMING_REGIONS, type Region } from '../../data/regions';
+import { KOREA_BOUNDS, KOREA_LAND } from '../../data/koreaOutline';
 import {
   PARKS,
   PARK_TREES,
@@ -30,8 +31,17 @@ import type { CharacterConfig } from '../../types';
 import { lmName, sName, tr, useLang } from '../../i18n';
 
 interface MapViewProps {
-  /** 활성 지역 — 초기 카메라와 이동 한계를 결정 */
+  /** 활성 지역 — 초기 카메라 중심/줌 (이동 한계는 전국 공통) */
   region: Region;
+  /** 지역 배지 탭 — 시·도 배지는 확대, 존 배지는 지역 이동, 잠금은 예고 */
+  onZonePick: (pick: {
+    kind: 'sido' | 'zone';
+    regionId?: string;
+    name: string;
+    nameEn: string;
+    locked: boolean;
+    center: LatLng;
+  }) => void;
   stores: Store[];
   savedIds: number[];
   selectedStoreId: number | null;
@@ -60,7 +70,7 @@ function storeIcon(store: Store, saved: boolean, selected: boolean): L.DivIcon {
   const w = selected ? 52 : 40;
   const h = (w * 54) / 44;
   return L.divIcon({
-    className: 'toktown-marker',
+    className: 'toktown-marker mk-store',
     html: renderToStaticMarkup(
       <StorePin category={store.category} saved={saved} selected={selected} />,
     ),
@@ -71,7 +81,7 @@ function storeIcon(store: Store, saved: boolean, selected: boolean): L.DivIcon {
 
 const npcIcon = (npcId: string | undefined, drummer: boolean) =>
   L.divIcon({
-    className: 'toktown-marker',
+    className: 'toktown-marker mk-npc',
     html: `<div class="npc-bounce">${renderToStaticMarkup(<NpcBubble npcId={npcId} drummer={drummer} />)}</div>`,
     iconSize: [52, 60],
     iconAnchor: [26, 57],
@@ -85,12 +95,16 @@ const LANDMARK_SIZE: Record<string, [number, number]> = {
   gwanghwamun: [61, 58],
   'gyeongui-line': [64, 44],
   'busking-stage': [60, 50],
+  geunjeongjeon: [61, 58],
+  'bukchon-hanok': [67, 50],
+  'seoul-forest': [65, 49],
+  'red-brick': [58, 58],
 };
 
 function landmarkIcon(lm: Landmark): L.DivIcon {
   const [w, h] = LANDMARK_SIZE[lm.id] ?? [56, 56];
   return L.divIcon({
-    className: 'toktown-marker',
+    className: 'toktown-marker mk-landmark',
     html: renderToStaticMarkup(<LandmarkSvg id={lm.id} size={lm.id === 'namsan' ? 64 : 58} />),
     iconSize: [w, h],
     iconAnchor: [w / 2, h - 3],
@@ -147,18 +161,20 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
     s = (Math.imul(s, 1664525) + 1013904223) | 0;
     return ((s >>> 8) & 0xffff) / 0x10000;
   };
-  for (let i = 0; i < 6; i++) {
-    const r = 26 + rnd() * 52;
-    const cx = r + rnd() * Math.max(1, w - r * 2);
-    const cy = r + rnd() * Math.max(1, h - r * 2);
-    g.fillStyle = i % 2 ? 'rgba(214,226,190,0.35)' : 'rgba(233,239,216,0.5)';
-    g.beginPath();
-    g.ellipse(cx, cy, r, r * (0.55 + rnd() * 0.45), rnd() * Math.PI, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.fillStyle = 'rgba(148,170,120,0.13)';
-  for (let i = 0; i < 36; i++) {
-    g.fillRect(4 + rnd() * (w - 8), 4 + rnd() * (h - 8), 2, 2);
+  if (coords.z >= 12) {
+    for (let i = 0; i < 6; i++) {
+      const r = 26 + rnd() * 52;
+      const cx = r + rnd() * Math.max(1, w - r * 2);
+      const cy = r + rnd() * Math.max(1, h - r * 2);
+      g.fillStyle = i % 2 ? 'rgba(214,226,190,0.35)' : 'rgba(233,239,216,0.5)';
+      g.beginPath();
+      g.ellipse(cx, cy, r, r * (0.55 + rnd() * 0.45), rnd() * Math.PI, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = 'rgba(148,170,120,0.13)';
+    for (let i = 0; i < 36; i++) {
+      g.fillRect(4 + rnd() * (w - 8), 4 + rnd() * (h - 8), 2, 2);
+    }
   }
 
   // 2) 벡터 지리 — 타일마다 전체 지오메트리를 그린다(캔버스가 알아서 클립;
@@ -182,6 +198,32 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
   };
   g.lineJoin = 'round';
   g.lineCap = 'round';
+
+  // 0) 전국 뷰 (z≤11) — 바다 + 국토 실루엣만. 상세 지리·질감은 점진 생략.
+  if (z <= 11) {
+    g.fillStyle = '#CFE2EA';
+    g.fillRect(0, 0, w, h);
+    for (const poly of KOREA_LAND) {
+      tracePath(poly, true);
+      g.fillStyle = '#F0F2E1';
+      g.fill();
+      g.strokeStyle = '#A3C6D4';
+      g.lineWidth = Math.max(1.8, px(500, 1.8));
+      g.stroke();
+    }
+    // 국토에 옅은 녹지 결 — 백두대간 느낌의 능선 두 줄.
+    g.strokeStyle = 'rgba(148,170,120,0.35)';
+    g.lineWidth = Math.max(2.5, px(2200, 2.5));
+    tracePath([
+      [38.3, 128.3], [37.6, 128.75], [36.9, 128.9], [36.2, 128.6], [35.6, 128.2],
+    ]);
+    g.stroke();
+    tracePath([
+      [35.5, 127.6], [34.95, 127.35], [34.7, 126.9],
+    ]);
+    g.stroke();
+    return;
+  }
 
   // 도심 블록(건물 밀집 지역) — 옅은 채움 + 확대 시 건물 점 텍스처.
   for (const poly of URBAN) {
@@ -313,16 +355,24 @@ const IllustratedTileLayer = L.GridLayer.extend({
 /** 이벤트 부스·게이트 마커 — 보라 링 칩 */
 const boothIcon = (emoji: string) =>
   L.divIcon({
-    className: 'toktown-marker',
+    className: 'toktown-marker mk-booth',
     html: `<div style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#FFFDF7;border:2.5px solid #8B79C9;box-shadow:0 2px 6px rgba(74,59,50,.28);font-size:15px">${emoji}</div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });
 
+/** 지역 배지 — 시·도(전국 뷰)/존(중간 줌) 2단계, 개방(초록)/잠금(회색) */
+const zoneIcon = (label: string, locked: boolean, tier: 'sido' | 'zone') =>
+  L.divIcon({
+    className: `toktown-marker mk-zone mk-zone-${tier === 'sido' ? 'sido' : 'local'}`,
+    html: `<div class="zone-wrap"><div class="zone-chip${locked ? ' zone-locked' : ''}">${locked ? '🔒' : tier === 'sido' ? '📍' : '🗺️'} ${label}</div></div>`,
+    iconSize: [0, 0],
+  });
+
 function myIcon(character: CharacterConfig): L.DivIcon {
   const char = renderToStaticMarkup(<CharacterSvg config={character} size={58} shadow={false} />);
   return L.divIcon({
-    className: 'toktown-marker',
+    className: 'toktown-marker mk-me',
     html:
       `<div style="position:relative;width:64px;height:78px">` +
       `<div class="ring-pulse" style="position:absolute;left:9px;bottom:0;width:46px;height:19px;border-radius:50%;background:rgba(94,179,204,.30);border:2.5px solid #5EB3CC"></div>` +
@@ -357,11 +407,20 @@ export function MapView(props: MapViewProps) {
       center: [region.center.lat, region.center.lng],
       zoom: region.zoom,
       zoomControl: false,
-      minZoom: 13,
+      // 최저 줌 6 = 대한민국 전체가 한 화면 — 한계는 전국 공통 고정.
+      minZoom: 6,
       maxZoom: 19,
-      maxBounds: L.latLngBounds(region.bounds),
-      maxBoundsViscosity: 0.8,
+      maxBounds: L.latLngBounds(KOREA_BOUNDS),
+      // 1.0 = 경계에서 탄성 없이 딱 멈춤 (되튕김 없음)
+      maxBoundsViscosity: 1.0,
     });
+
+    // 줌 밴드 → CSS 마커 점진 생략 (near ≥14 전체 · mid 12~13 랜드마크만 · far ≤11 지역 배지만)
+    const applyBand = () => {
+      el.dataset.zoomband = map.getZoom() >= 14 ? 'near' : map.getZoom() >= 12 ? 'mid' : 'far';
+    };
+    map.on('zoomend', applyBand);
+    applyBand();
 
     // 일러스트 벡터 지도 — 외부 타일 서버 없이 항상 그려진다.
     new IllustratedTileLayer({ zIndex: 1 }).addTo(map);
@@ -380,13 +439,63 @@ export function MapView(props: MapViewProps) {
     };
   }, []);
 
-  /* 지역 전환 — 카메라 이동 한계를 새 지역으로 교체 (플라이는 호출부 담당) */
+  /* 전국 뷰 지역 배지 — 개방 지역 + 잠금 예고 (탭 시 이동/안내) */
+  const zoneLayerRef = useRef<L.LayerGroup | null>(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setMaxBounds(L.latLngBounds(props.region.bounds));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.region.id]);
+    zoneLayerRef.current?.remove();
+    const layer = L.layerGroup();
+    // 시·도 배지 (전국 뷰) — 개방 지역은 시·도별 1개(중심 평균), 잠금은 예고.
+    const sidoGroups = new Map<string, { sidoEn: string; lats: number[]; lngs: number[] }>();
+    for (const r of REGIONS) {
+      const g = sidoGroups.get(r.sido) ?? { sidoEn: r.sidoEn, lats: [], lngs: [] };
+      g.lats.push(r.center.lat);
+      g.lngs.push(r.center.lng);
+      sidoGroups.set(r.sido, g);
+    }
+    for (const [sido, g] of sidoGroups) {
+      const center = {
+        lat: g.lats.reduce((a, b) => a + b, 0) / g.lats.length,
+        lng: g.lngs.reduce((a, b) => a + b, 0) / g.lngs.length,
+      };
+      const m = L.marker([center.lat, center.lng], { icon: zoneIcon(tr(sido, g.sidoEn), false, 'sido'), zIndexOffset: 5200 });
+      m.on('click', () =>
+        cbRef.current.onZonePick({ kind: 'sido', name: sido, nameEn: g.sidoEn, locked: false, center }),
+      );
+      layer.addLayer(m);
+    }
+    for (const u of UPCOMING_REGIONS) {
+      const m = L.marker([u.center.lat, u.center.lng], { icon: zoneIcon(tr(u.sido, u.sidoEn), true, 'sido'), zIndexOffset: 5100 });
+      m.on('click', () =>
+        cbRef.current.onZonePick({ kind: 'sido', name: u.sido, nameEn: u.sidoEn, locked: true, center: u.center }),
+      );
+      layer.addLayer(m);
+    }
+    // 존 배지 (중간 줌) — 개방 존 이동 + 잠금 존 예고.
+    for (const r of REGIONS) {
+      const m = L.marker([r.center.lat, r.center.lng], {
+        icon: zoneIcon(tr(r.name, r.nameEn), false, 'zone'),
+        zIndexOffset: 5000,
+      });
+      m.on('click', () =>
+        cbRef.current.onZonePick({ kind: 'zone', regionId: r.id, name: r.name, nameEn: r.nameEn, locked: false, center: r.center }),
+      );
+      layer.addLayer(m);
+    }
+    for (const u of UPCOMING_REGIONS) {
+      const m = L.marker([u.center.lat, u.center.lng], {
+        icon: zoneIcon(tr(u.name, u.nameEn), true, 'zone'),
+        zIndexOffset: 4900,
+      });
+      m.on('click', () =>
+        cbRef.current.onZonePick({ kind: 'zone', name: u.name, nameEn: u.nameEn, locked: true, center: u.center }),
+      );
+      layer.addLayer(m);
+    }
+    layer.addTo(map);
+    zoneLayerRef.current = layer;
+  }, [lang]);
 
   /* 매장 마커 */
   useEffect(() => {

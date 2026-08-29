@@ -9,8 +9,6 @@ import { useT } from '../../i18n';
 
 /** 전국 확대 티저 (기획 §4 지역 마스코트 예시) — 디자인은 실루엣으로만 노출 */
 const UPCOMING = [
-  { id: 'seongsu-deer', region: '성수/서울숲', regionEn: 'Seongsu', hint: '커피 든 꽃사슴', hintEn: 'A sika deer holding coffee' },
-  { id: 'bukchon-tiger', region: '경복궁/북촌', regionEn: 'Gyeongbokgung', hint: '한옥 지붕 위 아기호랑이', hintEn: 'A tiger cub on a hanok roof' },
   { id: 'busan-gull', region: '부산', regionEn: 'Busan', hint: '서퍼 갈매기', hintEn: 'A surfer seagull' },
   { id: 'jeju-pony', region: '제주', regionEn: 'Jeju', hint: '감귤 문 조랑말', hintEn: 'A pony with a tangerine' },
 ];

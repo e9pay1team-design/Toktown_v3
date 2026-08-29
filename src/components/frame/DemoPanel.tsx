@@ -256,6 +256,9 @@ export function DemoPanel() {
             onClick={() => {
               const nowOn = toggleEvent(concertEvent.id);
               if (nowOn) {
+                // 행사장이 다른 지역이면 카메라 지역을 먼저 전환 (GPS 는 그대로)
+                const venueRegion = regionOfPoint(concertEvent.venue);
+                if (venueRegion.id !== regionId) setRegionId(venueRegion.id);
                 setTab('map');
                 requestFlyTo({ lat: concertEvent.venue.lat, lng: concertEvent.venue.lng, zoom: 15 });
                 toast(`🎪 ${concertEvent.title} 활성화! 광장 반경 한정 혜택 + 한정 NPC 출몰 — 배너를 눌러 상세 안내`, 'success');

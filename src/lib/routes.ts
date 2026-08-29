@@ -39,6 +39,12 @@ const SUBWAY_STATIONS = [
   // 홍대 도보권
   { name: '홍대입구역', nameEn: 'Hongik Univ. Stn.', line: '2호선', lineEn: 'Line 2', lat: 37.557, lng: 126.9238 },
   { name: '상수역', nameEn: 'Sangsu Stn.', line: '6호선', lineEn: 'Line 6', lat: 37.5478, lng: 126.9227 },
+  // 북촌·경복궁 도보권
+  { name: '안국역', nameEn: 'Anguk Stn.', line: '3호선', lineEn: 'Line 3', lat: 37.5764, lng: 126.9849 },
+  { name: '경복궁역', nameEn: 'Gyeongbokgung Stn.', line: '3호선', lineEn: 'Line 3', lat: 37.5757, lng: 126.9737 },
+  // 성수·서울숲 도보권
+  { name: '성수역', nameEn: 'Seongsu Stn.', line: '2호선', lineEn: 'Line 2', lat: 37.5446, lng: 127.0559 },
+  { name: '서울숲역', nameEn: 'Seoul Forest Stn.', line: '수인분당선', lineEn: 'Suin-Bundang Line', lat: 37.5435, lng: 127.0447 },
 ];
 
 const BUS_STOPS = [
@@ -49,6 +55,12 @@ const BUS_STOPS = [
   // 홍대 도보권
   { name: '홍대입구역 정류장', nameEn: 'Hongik Univ. Stn. stop', lat: 37.5561, lng: 126.9227 },
   { name: '홍익대 정문 정류장', nameEn: 'Hongik Univ. Gate stop', lat: 37.552, lng: 126.9247 },
+  // 북촌·경복궁 도보권
+  { name: '북촌한옥마을 정류장', nameEn: 'Bukchon Hanok Village stop', lat: 37.581, lng: 126.9848 },
+  { name: '경복궁 정류장', nameEn: 'Gyeongbokgung stop', lat: 37.576, lng: 126.9752 },
+  // 성수·서울숲 도보권
+  { name: '연무장길 정류장', nameEn: 'Yeonmujang-gil stop', lat: 37.543, lng: 127.0524 },
+  { name: '서울숲 정류장', nameEn: 'Seoul Forest stop', lat: 37.544, lng: 127.0392 },
 ];
 
 const nearestOf = <T extends LatLng>(list: T[], p: LatLng): T =>
