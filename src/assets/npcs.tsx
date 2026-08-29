@@ -458,7 +458,7 @@ export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number })
       );
     case 'busan-gull': // 서퍼 갈매기 — 이마 선글라스 + 서프보드
       return (
-        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="부산 서퍼 갈매기 실루엣">
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="부산 서퍼 갈매기 파랑">
           <ellipse cx={62} cy={113} rx={34} ry={5} fill="rgba(74,59,50,0.14)" />
           {/* 파도 */}
           <path d="M14 98 q6 -5 12 0" stroke="#5EB3CC" strokeWidth={3} fill="none" strokeLinecap="round" />

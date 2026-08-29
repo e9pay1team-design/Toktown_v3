@@ -270,6 +270,58 @@ export function LandmarkSvg({ id, size = 90 }: LandmarkProps) {
           <circle cx={31} cy={86} r={2.2} fill="#8CC073" />
         </svg>
       );
+    case 'gwangan-bridge':
+      return (
+        <svg width={size * 1.24} height={size * 0.72} viewBox="0 0 136 80" style={{ display: 'block' }} aria-label="광안대교">
+          <ellipse cx={68} cy={75} rx={56} ry={4.5} fill="rgba(74,59,50,0.13)" />
+          {/* 바다 */}
+          <path d="M6 62 Q68 54 130 62 L130 72 Q68 66 6 72 Z" fill="#A8D4E4" />
+          <path d="M20 66 q5 -3 10 0 M58 64 q5 -3 10 0 M100 66 q5 -3 10 0" stroke="#FFFDF7" strokeWidth={1.8} fill="none" strokeLinecap="round" opacity={0.8} />
+          {/* 주탑 2기 */}
+          <path d="M38 10 L34 56 M38 10 L42 56" stroke="#D95A73" strokeWidth={4} strokeLinecap="round" />
+          <path d="M98 10 L94 56 M98 10 L102 56" stroke="#D95A73" strokeWidth={4} strokeLinecap="round" />
+          <path d="M35.5 30 h5 M35 42 h6 M95.5 30 h5 M95 42 h6" stroke="#B8455C" strokeWidth={2.4} />
+          {/* 케이블 */}
+          <path d="M6 46 Q38 12 68 40 Q98 12 130 46" stroke="#8C7B6E" strokeWidth={2} fill="none" />
+          <path d="M22 47 v-16 M30 45 v-22 M46 44 v-22 M54 45 v-13 M82 45 v-13 M90 44 v-22 M106 45 v-22 M114 47 v-16" stroke="#A99B8A" strokeWidth={1.4} />
+          {/* 상판 2층 */}
+          <rect x={4} y={46} width={128} height={6} rx={3} fill="#5E6470" />
+          <rect x={4} y={53} width={128} height={4.5} rx={2.2} fill="#7A8290" />
+          {/* 야경 조명 점 */}
+          {[14, 32, 50, 68, 86, 104, 122].map((x, i) => (
+            <circle key={x} cx={x} cy={49} r={1.9} fill={i % 2 ? '#FFD66B' : '#B48CFF'} />
+          ))}
+        </svg>
+      );
+    case 'nurimaru':
+      return (
+        <svg width={size} height={size * 0.94} viewBox="0 0 120 112" style={{ display: 'block' }} aria-label="동백섬 누리마루">
+          <ellipse cx={60} cy={106} rx={46} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 동백섬 잔디 둔덕 */}
+          <path d="M10 102 Q16 84 40 82 L82 82 Q106 84 110 102 Z" fill="#CDE3AE" />
+          <path d="M10 102 Q16 84 40 82 L82 82 Q106 84 110 102 Z" fill="none" stroke="#B7D398" strokeWidth={2.4} />
+          {/* 누리마루 — 기둥 + 유리 원형 홀 + 지붕 디스크 */}
+          <rect x={40} y={68} width={6} height={16} rx={3} fill="#C9C2B4" />
+          <rect x={57} y={68} width={6} height={16} rx={3} fill="#C9C2B4" />
+          <rect x={74} y={68} width={6} height={16} rx={3} fill="#C9C2B4" />
+          <ellipse cx={60} cy={58} rx={34} ry={14} fill="#DCE8EC" stroke="#A5BCC6" strokeWidth={2} />
+          <path d="M34 54 h52 M30 60 h60 M44 46.5 v23 M60 44 v28 M76 46.5 v23" stroke="#A5BCC6" strokeWidth={1.4} />
+          <ellipse cx={60} cy={42} rx={40} ry={12} fill="#8FA6B2" />
+          <ellipse cx={60} cy={39} rx={40} ry={11} fill="#AEC3CD" />
+          <ellipse cx={60} cy={33} rx={14} ry={4.5} fill="#8FA6B2" />
+          {/* 동백꽃 덤불 */}
+          <circle cx={22} cy={92} r={9} fill="#5E8C61" />
+          <circle cx={98} cy={92} r={9} fill="#5E8C61" />
+          <circle cx={19} cy={88} r={2.6} fill="#D9485E" />
+          <circle cx={26} cy={92} r={2.3} fill="#D9485E" />
+          <circle cx={95} cy={89} r={2.6} fill="#D9485E" />
+          <circle cx={101} cy={93} r={2.3} fill="#D9485E" />
+          <circle cx={19.5} cy={88.5} r={0.9} fill="#FFD66B" />
+          <circle cx={95.5} cy={89.5} r={0.9} fill="#FFD66B" />
+          {/* 갈매기 */}
+          <path d="M78 18 q3 -3 6 0 q3 -3 6 0 M30 24 q2.5 -2.5 5 0 q2.5 -2.5 5 0" stroke="#8C7B6E" strokeWidth={1.7} fill="none" strokeLinecap="round" />
+        </svg>
+      );
     default:
       return null;
   }

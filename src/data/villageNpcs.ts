@@ -211,5 +211,16 @@ export function regionalNpcSkin(npcId: string): VCharSkin {
       ear: 'cat',
     };
   }
+  if (npcId === 'busan-gull') {
+    // 부산 파랑 — 흰 깃털 + 서핑수트 블루 상의
+    return {
+      body: '#5EB3CC',
+      bodyDark: '#4489BB',
+      fur: '#F2F4F8',
+      furDark: '#C3CBD6',
+      hair: '#2B2B33',
+      ear: 'bird',
+    };
+  }
   return magpieSkin(npcId === 'magpie-kkaami');
 }

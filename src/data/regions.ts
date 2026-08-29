@@ -67,11 +67,21 @@ export const REGIONS: Region[] = [
     spawn: { lat: 37.5444, lng: 127.056, label: '성수역 2번 출구', labelEn: 'Seongsu Stn. Exit 2' },
     mascotId: 'seongsu-deer',
   },
+  {
+    id: 'busan',
+    name: '해운대·광안리',
+    nameEn: 'Haeundae',
+    sido: '부산',
+    sidoEn: 'Busan',
+    center: { lat: 35.157, lng: 129.138 },
+    zoom: 15,
+    spawn: { lat: 35.1628, lng: 129.1583, label: '해운대역 3번 출구', labelEn: 'Haeundae Stn. Exit 3' },
+    mascotId: 'busan-gull',
+  },
 ];
 
 /** 다음 라운드 예고 — 지역 선택 UI '준비 중' + 전국 뷰 잠금 배지 */
 export const UPCOMING_REGIONS: { name: string; nameEn: string; sido: string; sidoEn: string; center: LatLng }[] = [
-  { name: '해운대·광안리', nameEn: 'Haeundae', sido: '부산', sidoEn: 'Busan', center: { lat: 35.163, lng: 129.163 } },
   { name: '제주', nameEn: 'Jeju', sido: '제주', sidoEn: 'Jeju', center: { lat: 33.4, lng: 126.55 } },
 ];
 

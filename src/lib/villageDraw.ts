@@ -1208,6 +1208,123 @@ export function drawVLandmark(
     ctx.lineTo(sign.x - 2.4, sign.y + 3.2);
     ctx.closePath();
     ctx.fill();
+  } else if (id === 'gwangan-bridge') {
+    // 광안대교 — 바다 수면 + 사장교 (밤이면 조명 반짝, 낮은 랜드마크).
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fc0d6';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.15, y0 + 0.15, x1 - 0.15, y1 - 0.15, 3);
+    ctx.fillStyle = '#a8d4e4';
+    ctx.fill();
+    // 물결.
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 3; i++) {
+      const ph = opts.time * 1.8 + i * 2.2;
+      const wx = Math.sin(ph) * 4;
+      ctx.beginPath();
+      ctx.moveTo(top.sx - 18 + wx + i * 10, top.sy + 2 + i * 3);
+      ctx.quadraticCurveTo(top.sx - 12 + wx + i * 10, top.sy - 1 + i * 3, top.sx - 6 + wx + i * 10, top.sy + 2 + i * 3);
+      ctx.stroke();
+    }
+    // 상판 — 다이아 풋프린트를 가로지르는 2층 데크.
+    const d0 = toScreen(bx + 0.08, by + 1.0);
+    const d1 = toScreen(bx + 1.92, by + 1.0);
+    ctx.strokeStyle = '#5e6470';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(d0.sx, d0.sy - 15);
+    ctx.lineTo(d1.sx, d1.sy - 15);
+    ctx.stroke();
+    ctx.strokeStyle = '#7a8290';
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(d0.sx, d0.sy - 18);
+    ctx.lineTo(d1.sx, d1.sy - 18);
+    ctx.stroke();
+    // 주탑 2기 + 케이블.
+    for (const u of [0.55, 1.45]) {
+      const t = toScreen(bx + u, by + 1.0);
+      ctx.strokeStyle = '#d95a73';
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(t.sx - 3.5, t.sy - 13);
+      ctx.lineTo(t.sx, t.sy - 46);
+      ctx.lineTo(t.sx + 3.5, t.sy - 13);
+      ctx.stroke();
+      ctx.strokeStyle = '#a99b8a';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(t.sx, t.sy - 44);
+      ctx.quadraticCurveTo((t.sx + d0.sx) / 2, t.sy - 20, d0.sx + 4, d0.sy - 17);
+      ctx.moveTo(t.sx, t.sy - 44);
+      ctx.quadraticCurveTo((t.sx + d1.sx) / 2, t.sy - 20, d1.sx - 4, d1.sy - 17);
+      ctx.stroke();
+    }
+    // 조명 — 금색/보라 교차 반짝임.
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const lx = d0.sx + (d1.sx - d0.sx) * t;
+      const ly = d0.sy - 15 + (d1.sy - d0.sy) * t;
+      const tw = 0.7 + Math.sin(opts.time * 3.2 + i * 1.4) * 0.3;
+      ctx.fillStyle = i % 2 ? `rgba(255,214,107,${tw})` : `rgba(180,140,255,${tw})`;
+      ellipse(ctx, lx, ly - 6, 2, 2);
+      ctx.fill();
+    }
+  } else if (id === 'nurimaru') {
+    // 동백섬 누리마루 — 잔디 섬 + 원형 유리 홀 + 동백 덤불 (낮은 랜드마크).
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fbf6d';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 3);
+    ctx.fillStyle = '#a5d588';
+    ctx.fill();
+    // 기둥 3개 + 유리 원형 홀 + 지붕 디스크.
+    ctx.fillStyle = '#c9c2b4';
+    for (const ox of [-13, 0, 13]) {
+      ctx.fillRect(top.sx + ox - 2, top.sy - 20, 4, 12);
+    }
+    ctx.fillStyle = '#dce8ec';
+    ellipse(ctx, top.sx, top.sy - 26, 22, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#a5bcc6';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.ellipse(top.sx, top.sy - 26, 22, 10, 0, 0, Math.PI * 2);
+    ctx.moveTo(top.sx - 22, top.sy - 26);
+    ctx.lineTo(top.sx + 22, top.sy - 26);
+    ctx.moveTo(top.sx - 11, top.sy - 34);
+    ctx.lineTo(top.sx - 11, top.sy - 18);
+    ctx.moveTo(top.sx + 11, top.sy - 34);
+    ctx.lineTo(top.sx + 11, top.sy - 18);
+    ctx.stroke();
+    ctx.fillStyle = '#8fa6b2';
+    ellipse(ctx, top.sx, top.sy - 37, 26, 8.5);
+    ctx.fill();
+    ctx.fillStyle = '#aec3cd';
+    ellipse(ctx, top.sx, top.sy - 39.5, 26, 8);
+    ctx.fill();
+    ctx.fillStyle = '#8fa6b2';
+    ellipse(ctx, top.sx, top.sy - 44, 9, 3.2);
+    ctx.fill();
+    // 동백 덤불 2 + 붉은 꽃.
+    for (const [ux, uy] of [
+      [0.4, 1.55],
+      [1.6, 0.5],
+    ] as const) {
+      const p = toScreen(bx + ux, by + uy);
+      ctx.fillStyle = '#5e8c61';
+      ellipse(ctx, p.sx, p.sy - 7, 9, 7.5);
+      ctx.fill();
+      ctx.fillStyle = '#d9485e';
+      ellipse(ctx, p.sx - 3.5, p.sy - 10, 2.3, 2.3);
+      ctx.fill();
+      ellipse(ctx, p.sx + 3.5, p.sy - 6.5, 2, 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd66b';
+      ellipse(ctx, p.sx - 3.5, p.sy - 10, 0.9, 0.9);
+      ctx.fill();
+    }
   } else {
     // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
     faceQuad(ctx, D, C, 0, 1, 0, 24);
@@ -1268,6 +1385,8 @@ export const LANDMARK_ACCENTS: Record<string, string> = {
   'bukchon-hanok': '#6b7280',
   'seoul-forest': '#5f9037',
   'red-brick': '#a34f42',
+  'gwangan-bridge': '#d95a73',
+  nurimaru: '#8fa6b2',
 };
 
 /** 랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */

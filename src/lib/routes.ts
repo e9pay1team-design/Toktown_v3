@@ -45,6 +45,9 @@ const SUBWAY_STATIONS = [
   // 성수·서울숲 도보권
   { name: '성수역', nameEn: 'Seongsu Stn.', line: '2호선', lineEn: 'Line 2', lat: 37.5446, lng: 127.0559 },
   { name: '서울숲역', nameEn: 'Seoul Forest Stn.', line: '수인분당선', lineEn: 'Suin-Bundang Line', lat: 37.5435, lng: 127.0447 },
+  // 부산 해운대·광안리 도보권
+  { name: '해운대역', nameEn: 'Haeundae Stn.', line: '부산 2호선', lineEn: 'Busan Line 2', lat: 35.1631, lng: 129.1586 },
+  { name: '광안역', nameEn: 'Gwangan Stn.', line: '부산 2호선', lineEn: 'Busan Line 2', lat: 35.1553, lng: 129.1114 },
 ];
 
 const BUS_STOPS = [
@@ -61,6 +64,9 @@ const BUS_STOPS = [
   // 성수·서울숲 도보권
   { name: '연무장길 정류장', nameEn: 'Yeonmujang-gil stop', lat: 37.543, lng: 127.0524 },
   { name: '서울숲 정류장', nameEn: 'Seoul Forest stop', lat: 37.544, lng: 127.0392 },
+  // 부산 해운대·광안리 도보권
+  { name: '해운대해수욕장 정류장', nameEn: 'Haeundae Beach stop', lat: 35.1595, lng: 129.159 },
+  { name: '광안리해변 정류장', nameEn: 'Gwangalli Beach stop', lat: 35.1535, lng: 129.119 },
 ];
 
 const nearestOf = <T extends LatLng>(list: T[], p: LatLng): T =>
