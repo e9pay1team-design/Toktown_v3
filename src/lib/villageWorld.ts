@@ -1,17 +1,68 @@
-// ─── 내 마을 월드 모델 (V1 프로토타입 이식) ───────────────────────
-// 26×26 타일의 해안 마을. 뒤쪽(좌상단 x=0 변, 우상단 y=0 변)은 숲으로
-// 막혀 있고, 앞쪽(좌하단 y=H 변, 우하단 x=W 변)은 잔잔한 바다가 감싼다.
-// 지형·고정 소품은 고정 시드로 결정적으로 생성되고, 건물/소품 배치는
-// useVillageStore 의 동적 데이터가 얹힌다.
+// ─── 내 마을 월드 모델 (V1 프로토타입 이식 + R5 섬 확장) ──────────
+// 기본 섬은 26×26 해안 마을. R5: 좌표계를 52×52 로 넓혀 정사각형 4개가
+// 마름모로 붙는 확장형 섬이 됐다 — base(우하단, 시작 구역)에 west(좌상단),
+// north(우상단), peak(꼭대기)를 톡큰으로 사서 잇는다. 소유하지 않은 구역은
+// Void 지형(렌더 생략·통행 불가)이고, 해안선/뒷숲 벽은 소유 구역의 합집합
+// 경계를 따라 다시 감긴다. 지형·고정 소품은 타일 해시로 결정적으로 생성돼
+// 확장 후에도 기존 구역 모습이 그대로 유지된다.
 
 /** 아이소메트릭 2:1 투영 — 타일 화면 폭/높이(px) */
 export const TW = 64;
 export const TH = 32;
 
-export const VW = 26;
-export const VH = 26;
+/** 확장 구역 한 변 (기존 기본 섬 크기) */
+export const VZ = 26;
+/** 전체 좌표계 = 2×2 구역 */
+export const VW = VZ * 2;
+export const VH = VZ * 2;
 
 const SEED = 20260813;
+
+// ─── 확장 구역 ────────────────────────────────────────────────────
+
+/** base = 우하단 시작 구역. west = 화면 좌상단, north = 화면 우상단,
+    peak = 꼭대기(둘 다 산 뒤) — 아이소메트릭에서 -x 가 좌상, -y 가 우상. */
+export type VillageZoneId = 'base' | 'west' | 'north' | 'peak';
+
+export const ZONE_IDS: readonly VillageZoneId[] = ['base', 'west', 'north', 'peak'];
+
+/** 구역 원점(타일 사각형 좌상단) */
+export function zoneOrigin(zone: VillageZoneId): { x0: number; y0: number } {
+  switch (zone) {
+    case 'base':
+      return { x0: VZ, y0: VZ };
+    case 'west':
+      return { x0: 0, y0: VZ };
+    case 'north':
+      return { x0: VZ, y0: 0 };
+    case 'peak':
+      return { x0: 0, y0: 0 };
+  }
+}
+
+export function zoneOfTile(tx: number, ty: number): VillageZoneId {
+  if (tx < VZ && ty < VZ) return 'peak';
+  if (tx < VZ) return 'west';
+  if (ty < VZ) return 'north';
+  return 'base';
+}
+
+/** 확장 비용 — 순서 기준(방향 무관): 첫 200, 둘째 500, 마지막 800 톡큰 */
+export const ZONE_EXPANSION_COSTS = [200, 500, 800] as const;
+
+/** 다음 확장 비용 (ownedCount = base 포함 현재 소유 구역 수) */
+export function nextExpansionCost(ownedCount: number): number {
+  return ZONE_EXPANSION_COSTS[Math.min(ownedCount - 1, ZONE_EXPANSION_COSTS.length - 1)];
+}
+
+/** 구역 구매 가능 여부 — 양옆(west·north)은 언제든, 꼭대기는 양옆을 이은 뒤 */
+export function zoneAvailable(zone: VillageZoneId, owned: readonly VillageZoneId[]): boolean {
+  if (zone === 'base' || owned.includes(zone)) return false;
+  if (zone === 'peak') return owned.includes('west') && owned.includes('north');
+  return true;
+}
+
+// ─── 투영/지형 기본 ───────────────────────────────────────────────
 
 export function toScreen(x: number, y: number): { sx: number; sy: number } {
   return { sx: (x - y) * (TW / 2), sy: (x + y) * (TH / 2) };
@@ -29,6 +80,8 @@ export const VT = {
   Grass: 2,
   GrassDark: 3,
   Path: 4,
+  /** 미소유 구역 — 렌더 생략, 통행 불가 */
+  Void: 5,
 } as const;
 export type VTerrainId = (typeof VT)[keyof typeof VT];
 
@@ -46,7 +99,7 @@ export interface VProp {
 
 export interface VillageWorld {
   terrain: Uint8Array;
-  /** 정적 충돌: 물·숲·고정 소품 */
+  /** 정적 충돌: 물·숲·고정 소품 + 미소유 구역 */
   blocked: Uint8Array;
   props: VProp[];
   /** 육지와 맞닿은 물 타일 — 파도 거품 애니메이션 대상 */
@@ -54,6 +107,10 @@ export interface VillageWorld {
   spawn: { x: number; y: number };
   /** 광장 중심 타일 */
   plaza: { tx: number; ty: number };
+  /** 이 월드를 만든 소유 구역 집합 */
+  zones: VillageZoneId[];
+  /** 소유 구역을 감싸는 타일 사각형 — 카메라 클램프·스냅샷 프레이밍용 */
+  bounds: { x0: number; y0: number; x1: number; y1: number };
 }
 
 export function vidx(tx: number, ty: number): number {
@@ -90,13 +147,18 @@ function forestDepthAt(along: number): number {
   return 2.2 + 0.8 * Math.sin(along * 0.47 + 0.6) + 0.5 * Math.sin(along * 1.07 + 2.9);
 }
 
-const PLAZA = { tx: 9, ty: 9, r: 2.35 };
+const PLAZA = { tx: VZ + 9, ty: VZ + 9, r: 2.35 };
 
 export function isVillagePlaza(tx: number, ty: number): boolean {
   return Math.hypot(tx + 0.5 - (PLAZA.tx + 0.5), ty + 0.5 - (PLAZA.ty + 0.5)) < PLAZA.r;
 }
 
-export function buildVillageWorld(): VillageWorld {
+export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']): VillageWorld {
+  const zones = ZONE_IDS.filter((z) => z === 'base' || zonesIn.includes(z));
+  const ownedZone = new Set(zones);
+  const owned = (tx: number, ty: number): boolean =>
+    vinBounds(tx, ty) && ownedZone.has(zoneOfTile(tx, ty));
+
   const terrain = new Uint8Array(VW * VH);
   const blocked = new Uint8Array(VW * VH);
   const rng = mulberry32(SEED);
@@ -110,11 +172,25 @@ export function buildVillageWorld(): VillageWorld {
     if (blocking && vinBounds(tx, ty)) blocked[vidx(tx, ty)] = 1;
   };
 
-  // 1. 지형: 앞쪽(x=W·y=H 변) 바다 + 모래사장, 나머지 잔디.
+  // 소유 합집합 경계까지의 거리 — 구역이 사분면 정렬이라 해석적으로 구한다.
+  // front(+x/+y) 쪽 경계에 바다가, back(-x/-y) 쪽 경계에 숲이 감긴다.
+  const frontXEnd = (tx: number, ty: number) => (tx < VZ && !owned(VZ, ty) ? VZ - 1 : VW - 1);
+  const frontYEnd = (tx: number, ty: number) => (ty < VZ && !owned(tx, VZ) ? VZ - 1 : VH - 1);
+  const backXStart = (tx: number, ty: number) => (tx >= VZ && !owned(VZ - 1, ty) ? VZ : 0);
+  const backYStart = (tx: number, ty: number) => (ty >= VZ && !owned(tx, VZ - 1) ? VZ : 0);
+
+  // 1. 지형: 소유 구역의 앞쪽 경계에 바다 + 모래사장, 나머지 잔디.
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
-      const frontDist = Math.min(VW - 1 - tx, VH - 1 - ty);
-      const along = frontDist === VW - 1 - tx ? ty : tx;
+      if (!owned(tx, ty)) {
+        terrain[vidx(tx, ty)] = VT.Void;
+        blocked[vidx(tx, ty)] = 1;
+        continue;
+      }
+      const fx = frontXEnd(tx, ty) - tx;
+      const fy = frontYEnd(tx, ty) - ty;
+      const frontDist = Math.min(fx, fy);
+      const along = frontDist === fx ? ty : tx;
       const sea = seaDepthAt(along);
       let t: VTerrainId;
       if (frontDist < sea) t = VT.Water;
@@ -133,14 +209,16 @@ export function buildVillageWorld(): VillageWorld {
     if (terrain[i] === VT.Water) blocked[i] = 1;
   }
 
-  // 2. 뒤쪽 숲 벽: 좌상단(x=0 변)·우상단(y=0 변)을 나무로 막는다.
+  // 2. 뒤쪽 숲 벽: 소유 합집합의 뒤쪽(-x/-y) 경계를 나무로 막는다.
   //    벽 안쪽으로 갈수록 드문드문 — 숲 가장자리의 자연스러운 밀도 감쇠.
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
       const i = vidx(tx, ty);
-      if (terrain[i] === VT.Water) continue;
-      const backDist = Math.min(tx, ty);
-      const along = backDist === tx ? ty : tx;
+      if (terrain[i] === VT.Water || terrain[i] === VT.Void) continue;
+      const bxd = tx - backXStart(tx, ty);
+      const byd = ty - backYStart(tx, ty);
+      const backDist = Math.min(bxd, byd);
+      const along = backDist === bxd ? ty : tx;
       const depth = forestDepthAt(along);
       const cx = tx + 0.35 + vtileHash(tx, ty) * 0.3;
       const cy = ty + 0.35 + vtileHash(ty, tx) * 0.3;
@@ -155,34 +233,34 @@ export function buildVillageWorld(): VillageWorld {
     }
   }
 
-  // 3. 잔여 지면에 수풀·꽃·바위 산포. 광장 원판은 돌바닥 타일이 깔릴
-  //    자리라 비워 둔다.
+  // 3. 잔여 지면에 수풀·꽃·바위 산포 — 타일 해시 기반이라 확장으로 월드를
+  //    다시 지어도 기존 구역 배치가 흔들리지 않는다. 광장 원판은 비워 둔다.
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
       const i = vidx(tx, ty);
       const t = terrain[i];
-      if (blocked[i] || t === VT.Water) continue;
+      if (blocked[i] || t === VT.Water || t === VT.Void) continue;
       if (isVillagePlaza(tx, ty)) continue;
-      const roll = rng();
+      const roll = vtileHash(tx + 17, ty + 29);
       const cx = tx + 0.5;
       const cy = ty + 0.5;
       if (t === VT.Sand) {
-        if (roll < 0.05) addProp('rock', cx, cy, true);
-        else if (roll < 0.08) addProp('pine', cx, cy, true);
+        if (roll < 0.05) addProp('rock', cx, cy, true, vtileHash(tx + 5, ty + 1));
+        else if (roll < 0.08) addProp('pine', cx, cy, true, vtileHash(tx + 9, ty + 2));
         continue;
       }
       // 잔디(초록 타일) 위에는 이동을 막는 돌·수풀을 두지 않는다 —
       // 노는 공간과 배치 공간을 넓게, 장식은 비충돌 꽃만.
       const centerDist = Math.hypot(tx - PLAZA.tx, ty - PLAZA.ty);
       if (centerDist < 4) {
-        if (roll < 0.1) addProp('flower', cx, cy, false);
+        if (roll < 0.1) addProp('flower', cx, cy, false, vtileHash(tx + 13, ty + 7));
         continue;
       }
-      if (roll < 0.135) addProp('flower', cx, cy, false);
+      if (roll < 0.135) addProp('flower', cx, cy, false, vtileHash(tx + 13, ty + 7));
     }
   }
 
-  // 4. 파도 거품 대상 해안 타일.
+  // 4. 파도 거품 대상 해안 타일 (Void 는 육지가 아니다).
   const shore: number[] = [];
   for (let ty = 0; ty < VH; ty++) {
     for (let tx = 0; tx < VW; tx++) {
@@ -199,11 +277,21 @@ export function buildVillageWorld(): VillageWorld {
       ].some(([dx, dy]) => {
         const nx = tx + dx;
         const ny = ty + dy;
-        return vinBounds(nx, ny) && terrain[vidx(nx, ny)] !== VT.Water;
+        if (!vinBounds(nx, ny)) return false;
+        const nt = terrain[vidx(nx, ny)];
+        return nt !== VT.Water && nt !== VT.Void;
       });
       if (touchesLand) shore.push(vidx(tx, ty));
     }
   }
+
+  // 소유 구역 타일 사각형.
+  const bounds = {
+    x0: ownedZone.has('west') || ownedZone.has('peak') ? 0 : VZ,
+    y0: ownedZone.has('north') || ownedZone.has('peak') ? 0 : VZ,
+    x1: VW,
+    y1: VH,
+  };
 
   return {
     terrain,
@@ -212,6 +300,8 @@ export function buildVillageWorld(): VillageWorld {
     shore: Int32Array.from(shore),
     spawn: { x: PLAZA.tx + 0.5, y: PLAZA.ty + 3.5 },
     plaza: { tx: PLAZA.tx, ty: PLAZA.ty },
+    zones,
+    bounds,
   };
 }
 
@@ -233,6 +323,28 @@ export const DEFAULT_LAMP_TILES: ReadonlyArray<{ bx: number; by: number }> = [
   { bx: PLAZA.tx, by: PLAZA.ty + 2 },
   { bx: PLAZA.tx + 2, by: PLAZA.ty + 2 },
 ];
+
+/** 오늘의 네잎클로버 타일 — 소유 구역의 걷을 수 있는 잔디 중 하루 고정 랜덤.
+    occupied(동적 배치 풋프린트)를 빼서 건물 밑에 숨지 않게 한다. */
+export function pickCloverTile(
+  world: VillageWorld,
+  day: number,
+  occupied?: ReadonlySet<number>,
+): { tx: number; ty: number } | null {
+  const candidates: number[] = [];
+  for (let i = 0; i < world.terrain.length; i++) {
+    const t = world.terrain[i];
+    if ((t === VT.Grass || t === VT.GrassDark) && !world.blocked[i] && !occupied?.has(i)) {
+      candidates.push(i);
+    }
+  }
+  if (candidates.length === 0) return null;
+  let h = (day * 2654435761) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  const idx = ((h ^ (h >>> 16)) >>> 0) % candidates.length;
+  const i = candidates[idx];
+  return { tx: i % VW, ty: Math.floor(i / VW) };
+}
 
 export interface PlaceOpts {
   /** 건물 방향 — 문 앞 보행 칸 판정에 사용 (기본 sw = 좌측 하단) */

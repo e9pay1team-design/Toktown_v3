@@ -13,17 +13,21 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, regionalNpcById, storeById } from '../../data/seed';
-import { useVirtualClock, virtualToday } from '../../mock/clock';
+import { useVirtualClock, virtualDayIndex, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useVisitStore } from '../../store/useVisitStore';
 import { useProfileStore } from '../../store/useProfileStore';
 import { useUiStore } from '../../store/useUiStore';
 import { useToastStore } from '../../store/useToastStore';
+import { useEconomyStore } from '../../store/useEconomyStore';
+import { DAILY_QUESTS, QUEST_ALL_CLEAR_BONUS, useQuestStore } from '../../store/useQuestStore';
 import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
 import { GROUND_DECOR, type VillageGame, type VInteractTarget } from '../../lib/villageGame';
-import { residentNpcs, villageRichness, VILLAGE_NPCS } from '../../data/villageNpcs';
+import { residentNpcs, villageRichness, VILLAGE_NPCS, ZONE_NPCS, zoneInfo, zoneNpcs } from '../../data/villageNpcs';
+import { nextExpansionCost, zoneAvailable, type VillageZoneId } from '../../lib/villageWorld';
+import { TokkenCoin } from '../../assets/misc';
 import { ShopModal } from './ShopModal';
 import { DexModal } from './DexModal';
 import { ResidentCardModal } from './ResidentCardModal';
@@ -138,8 +142,20 @@ export function VillageScreen() {
   const toast = useToastStore((s) => s.show);
 
   const dayOffset = useVirtualClock((s) => s.dayOffset);
+  const zonesOwned = useVillageStore((s) => s.zonesOwned);
+  const expandZone = useVillageStore((s) => s.expandZone);
+  const tokken = useEconomyStore((s) => s.tokken);
+  const grantTokken = useEconomyStore((s) => s.grantTokken);
+  const questProgress = useQuestStore((s) => s.progress);
+  const questDay = useQuestStore((s) => s.day);
+  const advanceQuest = useQuestStore((s) => s.advance);
+  const syncQuestDay = useQuestStore((s) => s.syncDay);
   const [editMode, setEditMode] = useState(false);
   const [confirmingRecall, setConfirmingRecall] = useState(false);
+  /** 🏝️ 확장 확인 대상 구역 */
+  const [expandTarget, setExpandTarget] = useState<VillageZoneId | null>(null);
+  /** 📜 오늘의 미션 패널 */
+  const [questOpen, setQuestOpen] = useState(false);
   /** 📸 마을 전경 공유 사진 (프레임 합성 완료본) */
   const [villagePhoto, setVillagePhoto] = useState<string | null>(null);
   const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
@@ -229,8 +245,72 @@ export function VillageScreen() {
   }, [residents.length, residents, toast]);
 
   const placedNpcCount = placements.filter((p) => p.kind === 'npc').length;
-  const populationCount = 1 + residents.length + placedNpcCount;
+  const zoneResidentCount = zoneNpcs(zonesOwned).length;
+  const populationCount = 1 + residents.length + zoneResidentCount + placedNpcCount;
   const nextResident = VILLAGE_NPCS.find((n) => n.unlockAt > richness);
+
+  /* 오늘의 미션 — 가상 '오늘' 동기화 + 남은 개수 배지 */
+  const day = virtualDayIndex(dayOffset);
+  useEffect(() => {
+    syncQuestDay(day);
+  }, [day, syncQuestDay]);
+  const questFresh = questDay === day;
+  const questDoneCount = DAILY_QUESTS.filter((q) => questFresh && (questProgress[q.id] ?? 0) >= q.target).length;
+  const questRemaining = DAILY_QUESTS.length - questDoneCount;
+
+  /* 🏝️ 섬 확장 — 팻말 탭 → 확인 모달 → 톡큰 차감 + 구역 개방 + NPC 입주 */
+  const expansionCost = nextExpansionCost(zonesOwned.length);
+  const handleZoneTap = (zone: VillageZoneId) => {
+    if (editMode || zonesOwned.includes(zone)) return;
+    if (!zoneAvailable(zone, zonesOwned)) {
+      toast(
+        tr('⛰️ 구름마루는 양옆 구역을 이은 뒤에 열려요', '⛰️ Cloud Ridge opens after linking both side zones'),
+        'info',
+      );
+      return;
+    }
+    setExpandTarget(zone);
+  };
+
+  const confirmExpand = () => {
+    if (!expandTarget) return;
+    const info = zoneInfo(expandTarget);
+    const npc = expandTarget !== 'base' ? ZONE_NPCS[expandTarget as Exclude<VillageZoneId, 'base'>] : undefined;
+    if (!info || !npc) return;
+    if (tokken < expansionCost) {
+      toast(
+        tr(
+          `톡큰이 부족해요 (보유 ${tokken} / 필요 ${expansionCost}) — 체크인·미션으로 모아보세요!`,
+          `Not enough Tokken (${tokken}/${expansionCost}) — earn more with check-ins and missions!`,
+        ),
+        'error',
+      );
+      return;
+    }
+    grantTokken(-expansionCost, 'expansion', tr(info.name, info.nameEn));
+    expandZone(expandTarget);
+    setExpandTarget(null);
+    toast(
+      tr(`${info.emoji} ${info.name} 개방! 섬이 넓어졌어요`, `${info.emoji} ${info.nameEn} unlocked! Your island grew`),
+      'success',
+    );
+    setTimeout(
+      () =>
+        toast(
+          tr(
+            `🎉 ${npc.title} ${npc.species} ${npc.name}이(가) 입주했어요!`,
+            `🎉 ${npc.nameEn} the ${npc.speciesEn} ${npc.titleEn} moved in!`,
+          ),
+          'success',
+        ),
+      900,
+    );
+  };
+
+  /* 🍀 네잎클로버 수집 (엔진에서 근접 자동 수집) */
+  const handleClover = () => {
+    advanceQuest('clover', day);
+  };
 
   /* 배치 모드 진입/종료 */
   const enterEdit = () => {
@@ -255,6 +335,7 @@ export function VillageScreen() {
     by: number;
     facing?: 'sw' | 'se';
   }) => {
+    advanceQuest('decorate', day);
     if (e.placementId === null) {
       place(e.kind as PlacementKind, e.refId, e.bx, e.by, e.facing);
       toast(tr('마을에 배치했어요!', 'Placed in your town!'), 'success');
@@ -417,6 +498,19 @@ export function VillageScreen() {
 
   const openDialogueFor = (target: VInteractTarget) => {
     if (target.kind !== 'npc') return;
+    advanceQuest('greet', day);
+    // 확장 구역 전문가 주민 (덕구·초롱·바위).
+    if (target.id.startsWith('zone-')) {
+      const def = Object.values(ZONE_NPCS).find((n) => n.id === target.id);
+      if (!def) return;
+      setDialogue({
+        name: tr(def.name, def.nameEn),
+        title: tr(def.title, def.titleEn),
+        accent: def.skin.body,
+        lines: tr(def.dialogue, def.dialogueEn),
+      });
+      return;
+    }
     if (target.id.startsWith('placed-')) {
       const pid = Number(target.id.slice('placed-'.length));
       const p = placements.find((x) => x.id === pid);
@@ -473,11 +567,31 @@ export function VillageScreen() {
           onEditCommit={handleEditCommit}
           onEditReturn={handleEditReturn}
           onEditSelection={setEditSel}
+          onZoneTap={handleZoneTap}
+          onClover={handleClover}
           onGame={(g) => {
             gameRef.current = g;
             if (g) g.onSitChange = setSitting;
           }}
         />
+      </div>
+
+      {/* 줌 컨트롤 — 걷기/배치 공통 (휠·핀치로도 가능) */}
+      <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5">
+        <button
+          onClick={() => gameRef.current?.zoomBy(1.25)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-town-line bg-town-paper/95 text-[18px] font-extrabold shadow-sm transition active:scale-95"
+          aria-label={T('줌인', 'Zoom in')}
+        >
+          ＋
+        </button>
+        <button
+          onClick={() => gameRef.current?.zoomBy(0.8)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-town-line bg-town-paper/95 text-[18px] font-extrabold shadow-sm transition active:scale-95"
+          aria-label={T('줌아웃', 'Zoom out')}
+        >
+          －
+        </button>
       </div>
 
       {/* 헤더 */}
@@ -551,6 +665,18 @@ export function VillageScreen() {
               <span>{emoji}</span> {label}
             </button>
           ))}
+          <button
+            onClick={() => setQuestOpen(true)}
+            className="pointer-events-auto relative flex items-center gap-1 rounded-full border border-town-line bg-town-paper/95 px-3 py-1.5 text-[12px] font-extrabold shadow-sm transition active:scale-95"
+            aria-label={T('오늘의 미션', 'Daily missions')}
+          >
+            <span>📜</span> {T('미션', 'Quests')}
+            {questRemaining > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-town-coral px-1 text-[9px] font-extrabold text-white">
+                {questRemaining}
+              </span>
+            )}
+          </button>
         </div>
       )}
 
@@ -831,6 +957,117 @@ export function VillageScreen() {
                 📤 {T('공유하기', 'Share')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🏝️ 섬 확장 확인 모달 */}
+      {!editMode && expandTarget && expandTarget !== 'base' && (
+        <div className="absolute inset-0 z-[860] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 text-center shadow-sheet">
+            {(() => {
+              const info = zoneInfo(expandTarget)!;
+              const npc = ZONE_NPCS[expandTarget as Exclude<VillageZoneId, 'base'>];
+              return (
+                <>
+                  <p className="text-[34px]">{info.emoji}</p>
+                  <h3 className="mt-1 text-[18px] font-extrabold">
+                    {T(`${info.name} 확장`, `Expand ${info.nameEn}`)}
+                  </h3>
+                  <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                    {T('섬이 지금 넓이만큼 한 칸 더 커져요.', 'Your island grows by one full zone.')}
+                    <br />
+                    {T(
+                      `${npc.title} ${npc.species} '${npc.name}'이(가) 새 구역에 입주해요!`,
+                      `${npc.nameEn} the ${npc.speciesEn} (${npc.titleEn}) moves into the new zone!`,
+                    )}
+                  </p>
+                  <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-town-cream px-3 py-2.5">
+                    <TokkenCoin size={20} />
+                    <span className="text-[15px] font-extrabold">{expansionCost}</span>
+                    <span className="text-[11px] font-bold text-town-inkSoft">
+                      {T(`· 보유 ${tokken}`, `· you have ${tokken}`)}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setExpandTarget(null)}
+                      className="w-1/3 rounded-xl border border-town-line bg-town-paper py-3 text-[13px] font-extrabold text-town-inkSoft"
+                    >
+                      {T('취소', 'Cancel')}
+                    </button>
+                    <button
+                      onClick={confirmExpand}
+                      className="flex-1 rounded-xl bg-town-leafDark py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+                    >
+                      {T(`🏝️ ${expansionCost} 톡큰으로 확장하기`, `🏝️ Expand for ${expansionCost} Tokken`)}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* 📜 오늘의 미션 패널 */}
+      {!editMode && questOpen && (
+        <div className="absolute inset-0 z-[860] flex items-center justify-center bg-town-ink/45 px-7 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 shadow-sheet">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[17px] font-extrabold">📜 {T('오늘의 미션', 'Daily Missions')}</h3>
+              <span className="rounded-full bg-town-cream px-2 py-0.5 text-[10px] font-bold text-town-inkSoft">
+                {virtualToday(dayOffset)}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] font-bold text-town-inkSoft">
+              {T('매일 자정에 새로 열려요 — 완료 즉시 톡큰 지급!', 'Refreshes daily — Tokken paid instantly!')}
+            </p>
+            <ul className="mt-3 flex flex-col gap-2">
+              {DAILY_QUESTS.map((q) => {
+                const prog = questFresh ? questProgress[q.id] ?? 0 : 0;
+                const done = prog >= q.target;
+                return (
+                  <li
+                    key={q.id}
+                    className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                      done ? 'border-town-leaf/60 bg-town-leaf/10' : 'border-town-line bg-town-cream/60'
+                    }`}
+                  >
+                    <span className="text-[18px]">{q.emoji}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-[12.5px] font-extrabold ${done ? 'line-through opacity-60' : ''}`}>
+                        {T(q.label, q.labelEn)}
+                      </span>
+                      <span className="text-[10px] font-bold text-town-inkSoft">
+                        {done ? T('완료!', 'Done!') : `${prog}/${q.target}`}
+                        {q.id === 'clover' && !done && (
+                          <> · {T('마을 어딘가에 반짝여요', 'sparkling somewhere in town')}</>
+                        )}
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                        done ? 'bg-town-leafDark text-white' : 'bg-town-sun text-town-ink'
+                      }`}
+                    >
+                      {done ? '✓' : `+${q.reward}`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2.5 rounded-xl bg-town-cream px-3 py-2 text-center text-[11px] font-extrabold text-town-inkSoft">
+              {questRemaining === 0
+                ? T('🏅 오늘 미션 올클리어! 내일 또 만나요', '🏅 All clear today! See you tomorrow')
+                : T(`3개 모두 완료하면 보너스 +${QUEST_ALL_CLEAR_BONUS} 톡큰!`, `Clear all 3 for +${QUEST_ALL_CLEAR_BONUS} bonus Tokken!`)}
+            </p>
+            <button
+              onClick={() => setQuestOpen(false)}
+              className="mt-3 w-full rounded-xl bg-town-leafDark py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+            >
+              {T('닫기', 'Close')}
+            </button>
           </div>
         </div>
       )}

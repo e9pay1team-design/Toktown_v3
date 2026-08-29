@@ -11,6 +11,7 @@ import { useRegionStore } from '../../store/useRegionStore';
 import { useVirtualLocation } from '../../mock/location';
 import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useToastStore } from '../../store/useToastStore';
+import { useEconomyStore } from '../../store/useEconomyStore';
 import { useDemoStore } from '../../store/useDemoStore';
 import { useUiStore } from '../../store/useUiStore';
 import { useEventStore } from '../../store/useEventStore';
@@ -232,11 +233,20 @@ export function DemoPanel() {
           <button
             onClick={() => {
               addDay();
-              toast('📅 가상 날짜 +1 — 출석·NPC 로테이션·랭킹 감쇠가 갱신돼요', 'info');
+              toast('📅 가상 날짜 +1 — 출석·오늘의 미션·NPC 로테이션·랭킹 감쇠가 갱신돼요', 'info');
             }}
             className={`${btn} bg-town-lilac text-town-ink`}
           >
             📅 날짜 +1
+          </button>
+          <button
+            onClick={() => {
+              useEconomyStore.getState().grantTokken(500, 'demo', '시연용 지급');
+              toast('🧪 톡큰 +500 — 섬 확장(200/500/800)을 바로 시연할 수 있어요', 'tokken');
+            }}
+            className={`${btn} bg-town-leaf text-town-ink`}
+          >
+            🪙 톡큰 +500 (확장 시연)
           </button>
           <button
             onClick={() => {

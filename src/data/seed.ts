@@ -2848,7 +2848,7 @@ export const TOKKEN_ECONOMY: TokkenEconomy = {
   certifiedReview: 30,
   review: 0,
   checkin: 10,
-  attendance: 5,
+  attendance: 10,
   npcEncounter: 20,
   rideTag: 5,
 };

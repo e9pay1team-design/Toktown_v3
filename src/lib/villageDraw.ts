@@ -3582,6 +3582,58 @@ export function drawVButterfly(
   ctx.restore();
 }
 
+/** 오늘의 네잎클로버 — 반짝임 링과 함께 살랑이는 수집 대상 (일일 미션) */
+export function drawVClover(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  time: number,
+): void {
+  const { sx, sy } = toScreen(x, y);
+  const bob = Math.sin(time * 2.4) * 1.6;
+  const cy = sy - 10 + bob;
+  ctx.save();
+  // 발밑 그림자 + 반짝임 링.
+  ctx.fillStyle = 'rgba(40,50,35,0.16)';
+  ellipse(ctx, sx, sy - 1, 7, 2.6);
+  ctx.fill();
+  const pulse = 0.5 + Math.sin(time * 3.1) * 0.3;
+  ctx.strokeStyle = `rgba(255,253,247,${pulse * 0.75})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy - 1, 10 + pulse * 3, 4 + pulse * 1.2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // 줄기.
+  ctx.strokeStyle = '#3d7a46';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy - 2);
+  ctx.quadraticCurveTo(sx + 1.5, cy + 5, sx, cy + 2);
+  ctx.stroke();
+  // 잎 4장 — 하트형 잎을 십자로.
+  const sway = Math.sin(time * 2.4 + 1) * 0.08;
+  for (let i = 0; i < 4; i++) {
+    const a = (Math.PI / 2) * i + Math.PI / 4 + sway;
+    const lx = sx + Math.cos(a) * 4.6;
+    const ly = cy + Math.sin(a) * 4.6 * 0.78;
+    ctx.fillStyle = i % 2 ? '#4E9B58' : '#5fae69';
+    ellipse(ctx, lx, ly, 3.6, 3);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#8cc073';
+  ellipse(ctx, sx, cy, 1.6, 1.4);
+  ctx.fill();
+  // 반짝이 별 2.
+  const tw = Math.abs(Math.sin(time * 3.6));
+  ctx.fillStyle = `rgba(255,214,107,${0.4 + tw * 0.6})`;
+  ellipse(ctx, sx + 8, cy - 6, 1.4 + tw, 1.4 + tw);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,253,247,${0.9 - tw * 0.5})`;
+  ellipse(ctx, sx - 8, cy - 2, 1.2, 1.2);
+  ctx.fill();
+  ctx.restore();
+}
+
 /** 갈매기 — 바다 위를 도는 흰 새 */
 export function drawVGull(
   ctx: CanvasRenderingContext2D,
