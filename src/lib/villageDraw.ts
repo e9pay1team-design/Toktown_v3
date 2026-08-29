@@ -988,6 +988,226 @@ export function drawVLandmark(
       ellipse(ctx, gx, gy + 2, 2.4, 2.4);
       ctx.fill();
     }
+  } else if (id === 'geunjeongjeon') {
+    // 근정전 — 2단 월대 + 붉은 기둥 본전 + 2단 팔작지붕.
+    faceQuad(ctx, D, C, 0, 1, 0, 14);
+    ctx.fillStyle = '#e8e0d2';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0, 1, 0, 14);
+    ctx.fillStyle = '#d5cbb8';
+    ctx.fill();
+    vFootprintPath(ctx, x0, y0, x1, y1, 14);
+    ctx.fillStyle = '#efebe2';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.14, y0 + 0.14, x1 - 0.14, y1 - 0.14, 24);
+    ctx.fillStyle = '#e7e3da';
+    ctx.fill();
+    // 본전 벽 — 붉은 기둥.
+    faceQuad(ctx, D, C, 0.2, 0.8, 24, 46);
+    ctx.fillStyle = '#b8574a';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0.2, 0.8, 24, 46);
+    ctx.fillStyle = '#9c4438';
+    ctx.fill();
+    for (const u of [0.28, 0.5, 0.72]) {
+      faceQuad(ctx, D, C, u - 0.025, u + 0.025, 24, 46);
+      ctx.fillStyle = '#7d3025';
+      ctx.fill();
+    }
+    // 팔작지붕 2단.
+    vFootprintPath(ctx, x0 - 0.2, y0 - 0.2, x1 + 0.2, y1 + 0.2, 50);
+    ctx.fillStyle = '#4e5a66';
+    ctx.fill();
+    vFootprintPath(ctx, x0 - 0.04, y0 - 0.04, x1 + 0.04, y1 + 0.04, 54);
+    ctx.fillStyle = '#5d6b78';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.3, y0 + 0.3, x1 - 0.3, y1 - 0.3, 66);
+    ctx.fillStyle = '#4e5a66';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 13, top.sy - 67);
+    ctx.lineTo(top.sx + 13, top.sy - 67);
+    ctx.stroke();
+  } else if (id === 'bukchon-hanok') {
+    // 북촌 한옥마을 — 마당 + 한옥 2채(기와지붕) + 돌담.
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#e5decb';
+    ctx.fill();
+    // 본채 벽 (크림 회벽 + 나무 문).
+    faceQuad(ctx, D, C, 0.08, 0.92, 2, 18);
+    ctx.fillStyle = '#f5efdc';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0.08, 0.92, 2, 18);
+    ctx.fillStyle = '#e8e0d0';
+    ctx.fill();
+    const door = facePoint(D, C, 0.5, 0);
+    ctx.fillStyle = '#7a5c42';
+    ctx.fillRect(door.x - 5, door.y - 16, 10, 14);
+    ctx.strokeStyle = '#5b4433';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(door.x, door.y - 16);
+    ctx.lineTo(door.x, door.y - 2);
+    ctx.stroke();
+    // 본채 기와지붕 + 뒤채 지붕.
+    vFootprintPath(ctx, x0 - 0.14, y0 - 0.14, x1 + 0.14, y1 + 0.14, 24);
+    ctx.fillStyle = '#6b7280';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.0, y0 + 0.0, x1 + 0.0, y1 + 0.0, 27);
+    ctx.fillStyle = '#7a8290';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.5, y0 + 0.5, x1 - 0.08, y1 - 0.08, 38);
+    ctx.fillStyle = '#5e6470';
+    ctx.fill();
+    // 처마 수막새 (앞면).
+    ctx.fillStyle = '#4a515e';
+    for (const u of [0.2, 0.4, 0.6, 0.8]) {
+      const p = facePoint(D, C, u, 24);
+      ellipse(ctx, p.x, p.y + 2, 2.2, 2.2);
+      ctx.fill();
+    }
+    // 돌담 (우측 하단 면 앞).
+    faceQuad(ctx, C, B, 0.62, 1.0, 0, 9);
+    ctx.fillStyle = '#d9d2c2';
+    ctx.fill();
+    ctx.strokeStyle = '#b8ae99';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    const w0 = facePoint(C, B, 0.66, 5);
+    const w1 = facePoint(C, B, 0.96, 5);
+    ctx.moveTo(w0.x, w0.y);
+    ctx.lineTo(w1.x, w1.y);
+    ctx.stroke();
+  } else if (id === 'seoul-forest') {
+    // 서울숲 — 잔디 둔덕 + 나무 군락 + 꽃사슴 (낮은 랜드마크).
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fbf6d';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 3);
+    ctx.fillStyle = '#a5d588';
+    ctx.fill();
+    // 나무 3그루 — 가운데가 가장 크다.
+    for (const [tx, ty, r] of [
+      [0.4, 0.42, 11],
+      [1.05, 1.0, 15],
+      [1.62, 0.5, 9],
+    ] as const) {
+      const p = toScreen(bx + tx, by + ty);
+      const sw = Math.sin(opts.time * 1.3 + tx * 6) * 1.3;
+      ctx.fillStyle = 'rgba(40,50,35,0.16)';
+      ellipse(ctx, p.sx, p.sy - 1, r * 0.9, r * 0.3);
+      ctx.fill();
+      ctx.fillStyle = '#8a6b52';
+      ctx.fillRect(p.sx - 2.2, p.sy - 18, 4.4, 16);
+      ctx.fillStyle = '#6ba254';
+      ellipse(ctx, p.sx + sw, p.sy - 24 - r * 0.35, r, r * 0.95);
+      ctx.fill();
+      ctx.fillStyle = '#82bb68';
+      ellipse(ctx, p.sx + sw - r * 0.32, p.sy - 27 - r * 0.35, r * 0.55, r * 0.5);
+      ctx.fill();
+    }
+    // 꽃사슴 — 몸통 + 목 + 뿔 + 점무늬.
+    const deer = toScreen(bx + 1.5, by + 1.5);
+    ctx.fillStyle = '#a9855c';
+    ellipse(ctx, deer.sx, deer.sy - 8, 8, 5.2);
+    ctx.fill();
+    ctx.fillRect(deer.sx - 6, deer.sy - 6, 2.2, 6);
+    ctx.fillRect(deer.sx + 3.8, deer.sy - 6, 2.2, 6);
+    ellipse(ctx, deer.sx + 8.5, deer.sy - 14, 3.6, 3.2);
+    ctx.fill();
+    ctx.strokeStyle = '#8a6b52';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(deer.sx + 7.5, deer.sy - 16.5);
+    ctx.quadraticCurveTo(deer.sx + 5.5, deer.sy - 21, deer.sx + 3, deer.sy - 22);
+    ctx.moveTo(deer.sx + 10, deer.sy - 16.5);
+    ctx.quadraticCurveTo(deer.sx + 12, deer.sy - 21, deer.sx + 14.5, deer.sy - 21.5);
+    ctx.stroke();
+    ctx.fillStyle = '#fff3dc';
+    ellipse(ctx, deer.sx - 2, deer.sy - 10, 1.1, 1.1);
+    ctx.fill();
+    ellipse(ctx, deer.sx + 2.5, deer.sy - 8.5, 1, 1);
+    ctx.fill();
+    // 들꽃.
+    for (const [fx, fy, c] of [
+      [-24, 6, '#f2a7c3'],
+      [10, 11, '#ffd66b'],
+      [24, 5, '#fffdf7'],
+    ] as const) {
+      ctx.fillStyle = c;
+      ellipse(ctx, top.sx + fx, top.sy + fy, 2.2, 2.2);
+      ctx.fill();
+    }
+  } else if (id === 'red-brick') {
+    // 붉은벽돌 카페 — 벽돌 공장 개조 + 굴뚝 + 커피잔 간판.
+    faceQuad(ctx, D, C, 0.04, 0.96, 0, 32);
+    ctx.fillStyle = '#b95d50';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0.04, 0.96, 0, 32);
+    ctx.fillStyle = '#a34f42';
+    ctx.fill();
+    // 벽돌 결 (앞면 가로줄).
+    ctx.strokeStyle = 'rgba(139,64,56,0.75)';
+    ctx.lineWidth = 1.2;
+    for (const h of [10, 20]) {
+      const l0 = facePoint(D, C, 0.06, h);
+      const l1 = facePoint(D, C, 0.94, h);
+      ctx.beginPath();
+      ctx.moveTo(l0.x, l0.y);
+      ctx.lineTo(l1.x, l1.y);
+      ctx.stroke();
+    }
+    // 지붕 (플랫 + 파라펫).
+    vFootprintPath(ctx, x0, y0, x1, y1, 32);
+    ctx.fillStyle = '#8b4038';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.1, y0 + 0.1, x1 - 0.1, y1 - 0.1, 34);
+    ctx.fillStyle = '#9c473d';
+    ctx.fill();
+    // 굴뚝 + 연기.
+    const chim = toScreen(bx + 1.55, by + 0.5);
+    ctx.fillStyle = '#a34f42';
+    ctx.fillRect(chim.sx - 4.5, chim.sy - 62, 9, 30);
+    ctx.fillStyle = '#8b4038';
+    ctx.fillRect(chim.sx - 6, chim.sy - 66, 12, 5);
+    const puff = (opts.time * 8) % 20;
+    ctx.fillStyle = `rgba(228,220,208,${0.7 - puff * 0.03})`;
+    ellipse(ctx, chim.sx + puff * 0.3, chim.sy - 70 - puff, 4 + puff * 0.18, 3.4 + puff * 0.15);
+    ctx.fill();
+    // 아치창 2 + 카페 문 (앞면).
+    ctx.fillStyle = '#fff3dc';
+    for (const u of [0.26, 0.74]) {
+      const wpt = facePoint(D, C, u, 18);
+      ctx.beginPath();
+      ctx.ellipse(wpt.x, wpt.y, 4, 5, 0, Math.PI, 0);
+      ctx.rect(wpt.x - 4, wpt.y, 8, 6);
+      ctx.fill();
+    }
+    const cdoor = facePoint(D, C, 0.5, 0);
+    ctx.fillStyle = '#3f4550';
+    ctx.fillRect(cdoor.x - 5.5, cdoor.y - 15, 11, 13);
+    ctx.fillStyle = '#ffefc9';
+    ctx.fillRect(cdoor.x - 3.5, cdoor.y - 13, 7, 6);
+    // 커피잔 간판 (우측 하단 면).
+    const sign = facePoint(C, B, 0.5, 22);
+    ctx.fillStyle = '#fffdf7';
+    ellipse(ctx, sign.x, sign.y, 6.5, 6.5);
+    ctx.fill();
+    ctx.strokeStyle = '#8b4038';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(sign.x, sign.y, 6.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#9c6b43';
+    ctx.beginPath();
+    ctx.moveTo(sign.x - 3, sign.y - 2);
+    ctx.lineTo(sign.x + 2.6, sign.y - 2);
+    ctx.lineTo(sign.x + 2, sign.y + 3.2);
+    ctx.lineTo(sign.x - 2.4, sign.y + 3.2);
+    ctx.closePath();
+    ctx.fill();
   } else {
     // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
     faceQuad(ctx, D, C, 0, 1, 0, 24);
@@ -1044,6 +1264,10 @@ export const LANDMARK_ACCENTS: Record<string, string> = {
   gwanghwamun: '#8d4f3f',
   'gyeongui-line': '#5f9037',
   'busking-stage': '#8a5cf6',
+  geunjeongjeon: '#8d4f3f',
+  'bukchon-hanok': '#6b7280',
+  'seoul-forest': '#5f9037',
+  'red-brick': '#a34f42',
 };
 
 /** 랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */

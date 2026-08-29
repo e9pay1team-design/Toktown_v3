@@ -51,12 +51,51 @@ export function StorePin({
 /** NPC 조우 마커 — 흰 원형 버블 속 NPC 얼굴 + 반짝임 (npcId 별 얼굴) */
 export function NpcBubble({ npcId, drummer = false }: { npcId?: string; drummer?: boolean }) {
   const cat = npcId === 'hongdae-cat';
+  const tiger = npcId === 'bukchon-tiger';
+  const deer = npcId === 'seongsu-deer';
   return (
     <svg width={52} height={60} viewBox="0 0 52 60" style={{ display: 'block', overflow: 'visible' }}>
       <ellipse cx={26} cy={57} rx={10} ry={2.8} fill="rgba(74,59,50,0.25)" />
       <path d="M19 44 L26 56 L33 44 Z" fill="#FFFDF7" />
       <circle cx={26} cy={24} r={22} fill="#FFFDF7" stroke={drummer ? '#8B79C9' : '#FFD66B'} strokeWidth={3} />
-      {cat ? (
+      {tiger ? (
+        /* 아기호랑이 호야 얼굴 (미니) — 이마 줄무늬 + 코 */
+        <g>
+          <path d="M15 17 L11 8 L21 12 Z" fill="#E8944B" />
+          <path d="M37 17 L41 8 L31 12 Z" fill="#E8944B" />
+          <ellipse cx={26} cy={26} rx={15} ry={14} fill="#F0A055" />
+          <path d="M22 15 q1 3 -0.5 4.5 M30 15 q-1 3 0.5 4.5 M26 14 v4.5" stroke="#4A3B32" strokeWidth={2} fill="none" strokeLinecap="round" />
+          <path d="M13 24 q3.5 1.5 2.6 5 M39 24 q-3.5 1.5 -2.6 5" stroke="#4A3B32" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+          <circle cx={20} cy={26} r={1.9} fill="#2B2B33" />
+          <circle cx={32} cy={26} r={1.9} fill="#2B2B33" />
+          <ellipse cx={26} cy={31} rx={6} ry={4.4} fill="#FFF3DC" />
+          <ellipse cx={26} cy={29.5} rx={2} ry={1.6} fill="#C2503F" />
+          <path d="M26 31 v1.8 M26 32.8 q-2 2 -4 0.5 M26 32.8 q2 2 4 0.5" stroke="#4A3B32" strokeWidth={1.3} fill="none" strokeLinecap="round" />
+          <circle cx={14.5} cy={30} r={2.2} fill="#FF9D9D" opacity={0.6} />
+          <circle cx={37.5} cy={30} r={2.2} fill="#FF9D9D" opacity={0.6} />
+        </g>
+      ) : deer ? (
+        /* 꽃사슴 라떼 얼굴 (미니) — 뿔 + 점무늬 */
+        <g>
+          <path d="M17 12 q-3 -7 -8 -8 M35 12 q3 -7 8 -8" stroke="#8A6B52" strokeWidth={2.6} fill="none" strokeLinecap="round" />
+          <circle cx={8.5} cy={4} r={1.6} fill="#A98467" />
+          <circle cx={43.5} cy={4} r={1.6} fill="#A98467" />
+          <path d="M14 18 L8 12 L19 14 Z" fill="#C89B66" />
+          <path d="M38 18 L44 12 L33 14 Z" fill="#C89B66" />
+          <ellipse cx={26} cy={26} rx={15} ry={14} fill="#C89B66" />
+          <circle cx={16} cy={20} r={1.4} fill="#FFF3DC" />
+          <circle cx={36} cy={20} r={1.4} fill="#FFF3DC" />
+          <circle cx={13.5} cy={25} r={1.2} fill="#FFF3DC" />
+          <circle cx={38.5} cy={25} r={1.2} fill="#FFF3DC" />
+          <circle cx={20} cy={25} r={1.9} fill="#2B2B33" />
+          <circle cx={32} cy={25} r={1.9} fill="#2B2B33" />
+          <ellipse cx={26} cy={31} rx={6} ry={4.6} fill="#EFD3B8" />
+          <ellipse cx={26} cy={29.5} rx={2} ry={1.6} fill="#5B4A3F" />
+          <path d="M26 31 v1.8 M26 32.8 q-2 2 -4 0.5 M26 32.8 q2 2 4 0.5" stroke="#5B4A3F" strokeWidth={1.3} fill="none" strokeLinecap="round" />
+          <circle cx={14.5} cy={30} r={2.2} fill="#FF9D9D" opacity={0.6} />
+          <circle cx={37.5} cy={30} r={2.2} fill="#FF9D9D" opacity={0.6} />
+        </g>
+      ) : cat ? (
         /* 인디 고양이 기냥 얼굴 (미니) — 비니 + ω 입 */
         <g>
           <path d="M15 18 L11 7 L21 13 Z" fill="#5B5566" />

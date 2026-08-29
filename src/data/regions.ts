@@ -55,12 +55,40 @@ export const REGIONS: Region[] = [
     spawn: { lat: 37.5568, lng: 126.9237, label: '홍대입구역 9번 출구', labelEn: 'Hongik Univ. Stn. Exit 9' },
     mascotId: 'hongdae-cat',
   },
+  {
+    id: 'bukchon',
+    name: '북촌·경복궁',
+    nameEn: 'Bukchon',
+    sido: '서울',
+    sidoEn: 'Seoul',
+    center: { lat: 37.579, lng: 126.982 },
+    zoom: 15,
+    bounds: [
+      [37.565, 126.955],
+      [37.595, 127.005],
+    ],
+    spawn: { lat: 37.5762, lng: 126.9852, label: '안국역 1번 출구', labelEn: 'Anguk Stn. Exit 1' },
+    mascotId: 'bukchon-tiger',
+  },
+  {
+    id: 'seongsu',
+    name: '성수·서울숲',
+    nameEn: 'Seongsu',
+    sido: '서울',
+    sidoEn: 'Seoul',
+    center: { lat: 37.5445, lng: 127.048 },
+    zoom: 15,
+    bounds: [
+      [37.531, 127.028],
+      [37.558, 127.072],
+    ],
+    spawn: { lat: 37.5444, lng: 127.056, label: '성수역 2번 출구', labelEn: 'Seongsu Stn. Exit 2' },
+    mascotId: 'seongsu-deer',
+  },
 ];
 
 /** 다음 라운드 예고 — 지역 선택 UI 에 '준비 중'으로 노출 */
 export const UPCOMING_REGIONS: { name: string; nameEn: string; sido: string; sidoEn: string }[] = [
-  { name: '북촌·경복궁', nameEn: 'Bukchon', sido: '서울', sidoEn: 'Seoul' },
-  { name: '성수', nameEn: 'Seongsu', sido: '서울', sidoEn: 'Seoul' },
   { name: '해운대·광안리', nameEn: 'Haeundae', sido: '부산', sidoEn: 'Busan' },
   { name: '제주', nameEn: 'Jeju', sido: '제주', sidoEn: 'Jeju' },
 ];

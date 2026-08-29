@@ -85,6 +85,10 @@ const LANDMARK_SIZE: Record<string, [number, number]> = {
   gwanghwamun: [61, 58],
   'gyeongui-line': [64, 44],
   'busking-stage': [60, 50],
+  geunjeongjeon: [61, 58],
+  'bukchon-hanok': [67, 50],
+  'seoul-forest': [65, 49],
+  'red-brick': [58, 58],
 };
 
 function landmarkIcon(lm: Landmark): L.DivIcon {
