@@ -211,6 +211,8 @@ export class VillageGame {
 
   private things: PlacedThing[] = [];
   private dynBlocked = new Set<number>();
+  /** 배치물 풋프린트가 덮은 타일 — 그 위의 야생 꽃은 잠시 숨긴다 (회수하면 복귀) */
+  private propCovered = new Set<number>();
   private lastTarget: VInteractTarget | null = null;
   /** 앉는 중인 좌석(벤치·소파) — 일어나면 이전 위치로 복귀 */
   private sitting: { thingId: number; prevX: number; prevY: number } | null = null;
@@ -531,7 +533,17 @@ export class VillageGame {
     if (this.sitting && !things.some((t) => t.id === this.sitting!.thingId)) this.standUp();
     this.things = things;
     this.dynBlocked = new Set();
+    this.propCovered = new Set();
     for (const t of things) {
+      // NPC 배치는 바닥을 덮지 않는다(주민이 배회) — 그 외 풋프린트는
+      // 아래 깔린 야생 꽃을 숨긴다. 회수하면 세트가 다시 계산돼 복귀.
+      if (t.kind !== 'npc') {
+        for (let ty = t.by; ty < t.by + t.h; ty++) {
+          for (let tx = t.bx; tx < t.bx + t.w; tx++) {
+            if (vinBounds(tx, ty)) this.propCovered.add(vidx(tx, ty));
+          }
+        }
+      }
       if (!t.blocking) continue;
       for (let ty = t.by; ty < t.by + t.h; ty++) {
         for (let tx = t.bx; tx < t.bx + t.w; tx++) {
@@ -1586,6 +1598,8 @@ export class VillageGame {
     }
 
     for (const p of this.world.props) {
+      // 배치물이 덮은 칸의 야생 꽃은 잠시 숨긴다 (블로킹 소품은 애초에 못 덮는다).
+      if (p.type === 'flower' && this.propCovered.has(vidx(Math.floor(p.x), Math.floor(p.y)))) continue;
       const { sx, sy } = toScreen(p.x, p.y);
       if (!visible(sx, sy, 160)) continue;
       items.push({ d: this.entityDepth(p.x, p.y), draw: () => drawVProp(ctx, p, this.time) });
