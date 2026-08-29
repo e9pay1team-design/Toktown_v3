@@ -256,11 +256,18 @@ export function BasicNpcSvg({ role, size = 96 }: { role: string; size?: number }
 /** 전국 확대 로드맵 NPC — 도감에선 실루엣으로만 노출 (미조우 티저).
     까미와 같은 조형 문법(그림자·홍조·눈 하이라이트·소품을 실제로 든 팔·발)으로
     완성해 두고, 실루엣 상태에서도 외곽(기타 넥·뿔·서프보드 등)이 읽히게 잡는다. */
+/** 지역/이벤트 NPC 초상 — npcId 로 통일 조회 (조우 모달·도감 공용) */
+export function RegionalNpcSvg({ npcId, size = 96 }: { npcId: string; size?: number }) {
+  if (npcId === 'magpie') return <MagpieSvg size={size} />;
+  if (npcId === 'magpie-kkaami') return <MagpieSvg size={size} drummer />;
+  return <UpcomingNpcSvg id={npcId} size={size} />;
+}
+
 export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number }) {
   switch (id) {
     case 'hongdae-cat': // 기타 멘 인디 고양이 — 비니 + 통기타 버스킹
       return (
-        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="홍대 인디 고양이 실루엣">
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="홍대 인디 고양이 기냥">
           <ellipse cx={58} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
           {/* 꼬리 */}
           <path d="M30 92 q-15 -3 -11 -19" stroke="#5B5566" strokeWidth={8.5} fill="none" strokeLinecap="round" />

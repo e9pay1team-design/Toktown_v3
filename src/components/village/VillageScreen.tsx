@@ -12,7 +12,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
-import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, storeById } from '../../data/seed';
+import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, regionalNpcById, storeById } from '../../data/seed';
 import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
@@ -183,7 +183,7 @@ export function VillageScreen() {
     }
     for (const npcId of dex) {
       if (!placedKeys.has(`npc:${npcId}`)) {
-        const src = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+        const src = regionalNpcById(npcId);
         items.push({ kind: 'npc', refId: npcId, label: tr(src.name, src.nameEn ?? src.name), count: 1 });
       }
     }
@@ -421,7 +421,7 @@ export function VillageScreen() {
       const pid = Number(target.id.slice('placed-'.length));
       const p = placements.find((x) => x.id === pid);
       const drummer = p?.refId === DRUMMER_MAGPIE.id;
-      const src = drummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+      const src = regionalNpcById(p?.refId ?? 'magpie');
       setDialogue({
         name: tr(src.name, src.nameEn ?? src.name),
         title: drummer ? tr('한정 이웃', 'Limited neighbor') : tr('이웃', 'Neighbor'),
@@ -452,7 +452,7 @@ export function VillageScreen() {
           })()
         : thingSheet.kind === 'npc'
           ? (() => {
-              const src = thingSheet.refId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+              const src = regionalNpcById(thingSheet.refId);
               return tr(src.name, src.nameEn ?? src.name);
             })()
           : (() => {

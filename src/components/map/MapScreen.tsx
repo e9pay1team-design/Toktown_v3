@@ -14,7 +14,9 @@ import { useEventStore } from '../../store/useEventStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { CHECKIN_RADIUS_M, distanceM, formatDistance, useVirtualLocation } from '../../mock/location';
 import { useVirtualClock } from '../../mock/clock';
-import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../../data/seed';
+import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, regionalNpcById, storeById } from '../../data/seed';
+import { regionById, regionOfPoint } from '../../data/regions';
+import { useRegionStore } from '../../store/useRegionStore';
 import { activeNpcSpots } from '../../lib/game';
 import { checkLandmarkDiscovery } from '../../lib/actions';
 import type { EventBooth } from '../../types';
@@ -70,7 +72,9 @@ export function MapScreen() {
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const T = useT();
 
-  const magpie = REGIONAL_NPCS[0];
+  const regionId = useRegionStore((s) => s.regionId);
+  const setRegion = useRegionStore((s) => s.setRegion);
+  const region = regionById(regionId);
   const activeEvent = TOWN_EVENTS.find((e) => e.id === activeEventId) ?? null;
 
   /* 부스/게이트 길찾기 — 시트를 닫고 지도 이동 + 도보 안내 토스트 */
@@ -88,10 +92,14 @@ export function MapScreen() {
   };
 
   const npcSpots = useMemo(() => {
-    const spots = [...activeNpcSpots(magpie, dayOffset)];
-    if (activeEvent) spots.push({ ...DRUMMER_MAGPIE.spot, variant: 'drummer' as const });
+    // 모든 지역 마스코트의 활성 지점 — 마커는 전 지역에 존재하고,
+    // 카메라(지역 한계)가 현재 지역의 마커만 보여준다.
+    const spots = REGIONAL_NPCS.flatMap((npc) =>
+      activeNpcSpots(npc, dayOffset).map((s) => ({ ...s, npcId: npc.id })),
+    );
+    if (activeEvent) spots.push({ ...DRUMMER_MAGPIE.spot, npcId: DRUMMER_MAGPIE.id, variant: 'drummer' as const });
     return spots;
-  }, [magpie, dayOffset, activeEvent]);
+  }, [dayOffset, activeEvent]);
 
   const filteredStores = useMemo(() => {
     switch (categoryFilter) {
@@ -123,6 +131,9 @@ export function MapScreen() {
   const openStore = (id: number) => {
     const store = storeById(id);
     if (!store) return;
+    // 다른 지역 매장(검색·저장 목록 진입) → 카메라 지역을 먼저 전환
+    const storeRegion = regionOfPoint(store);
+    if (storeRegion.id !== regionId) setRegion(storeRegion.id);
     selectStore(id);
     // 상세 시트가 하단을 덮으므로 마커가 위쪽에 보이도록 남쪽 오프셋
     requestFlyTo({ lat: store.lat - 0.00085, lng: store.lng, zoom: 17 });
@@ -135,6 +146,7 @@ export function MapScreen() {
       {/* 지도 */}
       <div className="absolute inset-0 z-0">
         <MapView
+          region={region}
           stores={filteredStores}
           savedIds={savedIds}
           selectedStoreId={selectedStoreId}
@@ -162,16 +174,17 @@ export function MapScreen() {
           }
           onStoreClick={openStore}
           onNpcClick={(spot) => {
-            const npc = spot.variant === 'drummer' ? DRUMMER_MAGPIE : magpie;
-            const npcId = npc.id;
+            const npcId = spot.npcId ?? (spot.variant === 'drummer' ? DRUMMER_MAGPIE.id : 'magpie');
+            const npc = regionalNpcById(npcId);
             const npcName = tr(npc.name, npc.nameEn ?? npc.name);
             const spotLabel = tr(spot.label, spot.labelEn ?? spot.label);
+            const emoji = npc.species === '고양이' ? '🐈' : '🐦';
             const dist = distanceM(position, spot);
             if (dist > CHECKIN_RADIUS_M) {
               toast(
                 tr(
-                  `🐦 ${npcName}이(가) ${spotLabel}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
-                  `🐦 ${npcName} is at ${spotLabel} — get ${formatDistance(dist)} closer to meet`,
+                  `${emoji} ${npcName}이(가) ${spotLabel}에 있어요 — ${formatDistance(dist)} 더 가까이 가야 만날 수 있어요`,
+                  `${emoji} ${npcName} is at ${spotLabel} — get ${formatDistance(dist)} closer to meet`,
                 ),
                 'info',
               );
@@ -179,7 +192,7 @@ export function MapScreen() {
             }
             if (dex.includes(npcId)) {
               const lines = tr(npc.lines, npc.linesEn ?? npc.lines);
-              toast(`🐦 ${npcName}: "${lines[Math.floor(Math.random() * lines.length)]}"`, 'info');
+              toast(`${emoji} ${npcName}: "${lines[Math.floor(Math.random() * lines.length)]}"`, 'info');
               return;
             }
             setEncounterNpcId(npcId);

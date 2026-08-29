@@ -85,6 +85,68 @@ export function LandmarkSvg({ id, size = 90 }: LandmarkProps) {
           <path d="M18 54 q-4 -2 -6 -6 M108 54 q4 -2 6 -6 M28 40 q-4 -2 -5 -5 M98 40 q4 -2 5 -5" stroke="#3D5A41" strokeWidth={2.4} fill="none" strokeLinecap="round" />
         </svg>
       );
+    case 'gyeongui-line':
+      return (
+        <svg width={size * 1.16} height={size * 0.8} viewBox="0 0 128 88" style={{ display: 'block' }} aria-label="경의선숲길">
+          <ellipse cx={64} cy={82} rx={52} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 잔디 둔덕 */}
+          <path d="M6 78 Q10 58 34 56 L94 56 Q118 58 122 78 Z" fill="#CDE3AE" />
+          <path d="M6 78 Q10 58 34 56 L94 56 Q118 58 122 78 Z" fill="none" stroke="#B7D398" strokeWidth={2.5} />
+          {/* 옛 철길 — 침목 + 두 레일 */}
+          <path d="M20 74 h88 M24 68 h80" stroke="#9C8D7B" strokeWidth={3} strokeLinecap="round" />
+          <path d="M28 78 l4 -14 M44 78 l4 -14 M60 78 l4 -14 M76 78 l4 -14 M92 78 l4 -14" stroke="#B8A98F" strokeWidth={4} strokeLinecap="round" />
+          {/* 나무 2그루 */}
+          <rect x={30} y={40} width={5} height={16} rx={2.5} fill="#8A6B52" />
+          <circle cx={32.5} cy={32} r={14} fill="#79AE60" />
+          <circle cx={27} cy={27} r={8} fill="#8CC073" />
+          <rect x={92} y={44} width={5} height={13} rx={2.5} fill="#8A6B52" />
+          <circle cx={94.5} cy={36} r={12} fill="#79AE60" />
+          <circle cx={90} cy={32} r={7} fill="#8CC073" />
+          {/* 산책 가로등 + 꽃 */}
+          <path d="M64 56 v-20" stroke="#5B4A3F" strokeWidth={3} strokeLinecap="round" />
+          <circle cx={64} cy={33} r={4.5} fill="#FFD66B" stroke="#E8B84B" strokeWidth={1.6} />
+          <circle cx={48} cy={60} r={2.6} fill="#F2A7C3" />
+          <circle cx={80} cy={61} r={2.6} fill="#FFFDF7" />
+          <circle cx={55} cy={63} r={2.2} fill="#FFD66B" />
+        </svg>
+      );
+    case 'busking-stage':
+      return (
+        <svg width={size * 1.1} height={size * 0.92} viewBox="0 0 122 102" style={{ display: 'block' }} aria-label="홍대 버스킹 무대">
+          <ellipse cx={61} cy={96} rx={48} ry={5.5} fill="rgba(74,59,50,0.13)" />
+          {/* 조명 폴대 + 알전구 스트링 */}
+          <rect x={14} y={26} width={4.5} height={64} rx={2.2} fill="#5B4A3F" />
+          <rect x={103} y={26} width={4.5} height={64} rx={2.2} fill="#5B4A3F" />
+          <path d="M16 30 Q61 48 105 30" stroke="#8C7B6E" strokeWidth={2} fill="none" />
+          {[24, 38, 52, 66, 80, 96].map((x, i) => (
+            <circle key={x} cx={x} cy={[33.5, 38.5, 41.5, 41.5, 38.5, 33][i]} r={3.2} fill={i % 2 ? '#FFD66B' : '#F2A7C3'} />
+          ))}
+          {/* 무대 (나무 데크) */}
+          <path d="M20 68 L61 60 L102 68 L102 88 L61 96 L20 88 Z" fill="#C9885A" />
+          <path d="M20 68 L61 60 L102 68 L61 76 Z" fill="#D89A6A" />
+          <path d="M34 65.5 L34 90.5 M48 63 L48 93 M75 63 L75 93 M89 65.5 L89 90.5" stroke="#B37845" strokeWidth={1.6} />
+          {/* 앰프 */}
+          <rect x={28} y={48} width={18} height={19} rx={2.5} fill="#3B4252" />
+          <circle cx={37} cy={59} r={5} fill="#2B2F3E" stroke="#5B6377" strokeWidth={1.6} />
+          <path d="M31 51.5 h12" stroke="#5B6377" strokeWidth={1.8} strokeLinecap="round" />
+          {/* 마이크 스탠드 */}
+          <path d="M66 68 v-26 l7 -5" stroke="#2B2B33" strokeWidth={2.6} strokeLinecap="round" fill="none" />
+          <ellipse cx={75} cy={35.5} rx={4.2} ry={5} fill="#5B5566" />
+          {/* 통기타 (세워 둠) */}
+          <g transform="rotate(9 88 56)">
+            <ellipse cx={88} cy={60} rx={8.5} ry={7} fill="#D89A6A" stroke="#B37845" strokeWidth={1.4} />
+            <ellipse cx={88} cy={52.5} rx={6.2} ry={5} fill="#D89A6A" />
+            <circle cx={88} cy={56.5} r={2.6} fill="#5B4A3F" />
+            <rect x={86.4} y={30} width={3.2} height={24} rx={1.6} fill="#8A6B52" />
+            <rect x={85} y={26} width={6} height={5.6} rx={2} fill="#5B4A3F" />
+          </g>
+          {/* 음표 */}
+          <g fill="#5F4FA0" stroke="#5F4FA0">
+            <ellipse cx={52} cy={22} rx={3} ry={2.4} transform="rotate(-18 52 22)" stroke="none" />
+            <path d="M54.8 21 v-8.5 q3.8 0 4.8 3.6" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+          </g>
+        </svg>
+      );
     default:
       return null;
   }

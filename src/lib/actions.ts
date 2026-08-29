@@ -2,7 +2,7 @@
 // 상세 시트와 데모 패널 양쪽에서 호출된다. 검증 순서:
 // 이동속도(비현실적 점프) → 반경 100m → 1일 1회 → 지급.
 
-import { DRUMMER_MAGPIE, LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS, storeById } from '../data/seed';
+import { LANDMARKS, STORES, TOWN_EVENTS, regionalNpcById, storeById } from '../data/seed';
 import type { Store } from '../types';
 import {
   CHECKIN_RADIUS_M,
@@ -153,7 +153,7 @@ export function submitReview(storeId: number, rating: 1 | 2 | 3 | 4 | 5, text: s
 export function registerNpcEncounter(npcId: string): void {
   const added = useCollectionStore.getState().addDex(npcId);
   if (!added) return;
-  const src = npcId === DRUMMER_MAGPIE.id ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+  const src = regionalNpcById(npcId);
   const name = tr(src.name, src.nameEn ?? src.name);
   const amount = useEconomyStore.getState().earnTokken('npcEncounter', name);
   toast(tr(`📖 ${name} 도감 등록! 톡큰 +${amount}`, `📖 ${name} added to your Dex! +${amount} Tokken`), 'tokken');

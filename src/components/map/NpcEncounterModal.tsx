@@ -2,15 +2,15 @@
 // 반경 안에서 미등록 NPC 를 탭하면 등장. 등록 시 톡큰 + 마을 입주 가능.
 
 import { useMemo } from 'react';
-import { DRUMMER_MAGPIE, REGIONAL_NPCS } from '../../data/seed';
+import { DRUMMER_MAGPIE, regionalNpcById } from '../../data/seed';
 import { registerNpcEncounter } from '../../lib/actions';
-import { MagpieSvg } from '../../assets/npcs';
+import { RegionalNpcSvg } from '../../assets/npcs';
 import { useT } from '../../i18n';
 
 export function NpcEncounterModal({ npcId, onClose }: { npcId: string; onClose: () => void }) {
   const T = useT();
   const isDrummer = npcId === DRUMMER_MAGPIE.id;
-  const npc = isDrummer ? DRUMMER_MAGPIE : REGIONAL_NPCS[0];
+  const npc = regionalNpcById(npcId);
   const lines = T(npc.lines, npc.linesEn ?? npc.lines);
   const lineIdx = useMemo(() => Math.floor(Math.random() * npc.lines.length), [npc]);
   const line = lines[lineIdx] ?? lines[0];
@@ -22,7 +22,7 @@ export function NpcEncounterModal({ npcId, onClose }: { npcId: string; onClose: 
           {T('✨ 새로운 만남 ✨', '✨ A New Encounter ✨')}
         </p>
         <div className="char-bob mx-auto mt-2 w-fit">
-          <MagpieSvg size={130} drummer={isDrummer} />
+          <RegionalNpcSvg npcId={npcId} size={130} />
         </div>
         <h3 className="mt-2 text-[20px] font-extrabold">
           {T(npc.name, npc.nameEn ?? npc.name)}

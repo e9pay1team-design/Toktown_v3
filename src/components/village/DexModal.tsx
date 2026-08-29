@@ -1,15 +1,14 @@
 // ─── NPC 도감 (기획 §4, MVP 포함) ─────────────────────────────────
 // 만난 지역 마스코트 NPC 수집·열람. 미조우 NPC 는 실루엣.
-// 다른 지역 NPC 는 전국 확대 로드맵 티저로 노출.
+// 개방 지역의 마스코트는 정식 카드, 미개방 지역은 확대 로드맵 티저.
 
 import { DRUMMER_MAGPIE, REGIONAL_NPCS } from '../../data/seed';
 import { useCollectionStore } from '../../store/useCollectionStore';
-import { MagpieSvg, UpcomingNpcSvg } from '../../assets/npcs';
+import { MagpieSvg, RegionalNpcSvg, UpcomingNpcSvg } from '../../assets/npcs';
 import { useT } from '../../i18n';
 
 /** 전국 확대 티저 (기획 §4 지역 마스코트 예시) — 디자인은 실루엣으로만 노출 */
 const UPCOMING = [
-  { id: 'hongdae-cat', region: '홍대', regionEn: 'Hongdae', hint: '기타 멘 인디 고양이', hintEn: 'An indie cat with a guitar' },
   { id: 'seongsu-deer', region: '성수/서울숲', regionEn: 'Seongsu', hint: '커피 든 꽃사슴', hintEn: 'A sika deer holding coffee' },
   { id: 'bukchon-tiger', region: '경복궁/북촌', regionEn: 'Gyeongbokgung', hint: '한옥 지붕 위 아기호랑이', hintEn: 'A tiger cub on a hanok roof' },
   { id: 'busan-gull', region: '부산', regionEn: 'Busan', hint: '서퍼 갈매기', hintEn: 'A surfer seagull' },
@@ -19,8 +18,6 @@ const UPCOMING = [
 export function DexModal({ onClose }: { onClose: () => void }) {
   const T = useT();
   const dex = useCollectionStore((s) => s.dex);
-  const magpie = REGIONAL_NPCS[0];
-  const hasMagpie = dex.includes(magpie.id);
   const hasDrummer = dex.includes(DRUMMER_MAGPIE.id);
 
   return (
@@ -46,37 +43,43 @@ export function DexModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="no-scrollbar flex-1 overflow-y-auto p-4 pb-8">
-          {/* 명동 까미 */}
-          <div
-            className={`flex items-center gap-3.5 rounded-2xl border-2 p-3.5 ${
-              hasMagpie ? 'border-town-leaf bg-town-leaf/5' : 'border-town-line bg-town-cream/50'
-            }`}
-          >
-            <div className={hasMagpie ? '' : 'opacity-30 brightness-0'}>
-              <MagpieSvg size={76} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 text-[14.5px] font-extrabold">
-                {hasMagpie ? T(magpie.name, magpie.nameEn ?? magpie.name) : '???'}
-                <span className="rounded-full bg-town-cream px-2 py-0.5 text-[9.5px] font-bold text-town-inkSoft">
-                  📍 {T(magpie.region, magpie.regionEn ?? magpie.region)}
-                </span>
-                {hasMagpie && (
-                  <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-                    {T('등록', 'Registered')}
-                  </span>
-                )}
-              </p>
-              <p className="mt-1 text-[11.5px] leading-snug text-town-inkSoft">
-                {hasMagpie
-                  ? T(magpie.bio, magpie.bioEn ?? magpie.bio)
-                  : T(
-                      '명동 어딘가에서 반짝이는 버블을 찾아 말을 걸어보세요. 하루마다 출몰 지점이 바뀌어요.',
-                      'Find the sparkling bubble somewhere in Myeongdong and say hi. Its spot changes daily.',
+          {/* 개방 지역 마스코트 — 지역 팩이 열릴 때마다 카드가 늘어난다 */}
+          {REGIONAL_NPCS.map((npc, i) => {
+            const met = dex.includes(npc.id);
+            return (
+              <div
+                key={npc.id}
+                className={`flex items-center gap-3.5 rounded-2xl border-2 p-3.5 ${i > 0 ? 'mt-2.5' : ''} ${
+                  met ? 'border-town-leaf bg-town-leaf/5' : 'border-town-line bg-town-cream/50'
+                }`}
+              >
+                <div className={met ? '' : 'opacity-30 brightness-0'}>
+                  <RegionalNpcSvg npcId={npc.id} size={76} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 text-[14.5px] font-extrabold">
+                    {met ? T(npc.name, npc.nameEn ?? npc.name) : '???'}
+                    <span className="rounded-full bg-town-cream px-2 py-0.5 text-[9.5px] font-bold text-town-inkSoft">
+                      📍 {T(npc.region, npc.regionEn ?? npc.region)}
+                    </span>
+                    {met && (
+                      <span className="rounded-full bg-town-leafDark px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+                        {T('등록', 'Registered')}
+                      </span>
                     )}
-              </p>
-            </div>
-          </div>
+                  </p>
+                  <p className="mt-1 text-[11.5px] leading-snug text-town-inkSoft">
+                    {met
+                      ? T(npc.bio, npc.bioEn ?? npc.bio)
+                      : T(
+                          npc.dexHint ?? '지도 어딘가에서 반짝이는 버블을 찾아 말을 걸어보세요.',
+                          npc.dexHintEn ?? 'Find the sparkling bubble on the map and say hi.',
+                        )}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
 
           {/* 까아미 (이벤트 한정) */}
           <div

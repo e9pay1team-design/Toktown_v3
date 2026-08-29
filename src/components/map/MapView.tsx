@@ -9,7 +9,8 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { EventBooth, Landmark, LatLng, NpcSpot, Store } from '../../types';
-import { MAP_CENTER, MAP_ZOOM } from '../../data/seed';
+import { regionalNpcById } from '../../data/seed';
+import type { Region } from '../../data/regions';
 import {
   PARKS,
   PARK_TREES,
@@ -21,7 +22,7 @@ import {
   URBAN,
   WATER,
   type RoadClass,
-} from '../../data/myeongdongMap';
+} from '../../data/illustratedMap';
 import { StorePin, NpcBubble } from '../../assets/markers';
 import { LandmarkSvg } from '../../assets/landmarks';
 import { CharacterSvg } from '../../assets/CharacterSvg';
@@ -29,6 +30,8 @@ import type { CharacterConfig } from '../../types';
 import { lmName, sName, tr, useLang } from '../../i18n';
 
 interface MapViewProps {
+  /** 활성 지역 — 초기 카메라와 이동 한계를 결정 */
+  region: Region;
   stores: Store[];
   savedIds: number[];
   selectedStoreId: number | null;
@@ -66,10 +69,10 @@ function storeIcon(store: Store, saved: boolean, selected: boolean): L.DivIcon {
   });
 }
 
-const npcIcon = (drummer: boolean) =>
+const npcIcon = (npcId: string | undefined, drummer: boolean) =>
   L.divIcon({
     className: 'toktown-marker',
-    html: `<div class="npc-bounce">${renderToStaticMarkup(<NpcBubble drummer={drummer} />)}</div>`,
+    html: `<div class="npc-bounce">${renderToStaticMarkup(<NpcBubble npcId={npcId} drummer={drummer} />)}</div>`,
     iconSize: [52, 60],
     iconAnchor: [26, 57],
   });
@@ -80,6 +83,8 @@ const LANDMARK_SIZE: Record<string, [number, number]> = {
   namsan: [46, 74],
   cheonggyecheon: [64, 45],
   gwanghwamun: [61, 58],
+  'gyeongui-line': [64, 44],
+  'busking-stage': [60, 50],
 };
 
 function landmarkIcon(lm: Landmark): L.DivIcon {
@@ -161,7 +166,9 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
   const z = coords.z;
   const ox = coords.x * TILE_D;
   const oy = coords.y * TILE_D;
-  const mpp = (156543.03392 * Math.cos((37.5636 * Math.PI) / 180)) / 2 ** z;
+  // 축척(m/px)은 타일 중심 위도로 계산 — 지역이 어느 위도든 도로 폭이 맞는다.
+  const tileLat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (coords.y + 0.5)) / 2 ** z))) * 180) / Math.PI;
+  const mpp = (156543.03392 * Math.cos((tileLat * Math.PI) / 180)) / 2 ** z;
   const px = (m: number, min = 1) => Math.max(min, m / mpp);
   const tracePath = (pts: [number, number][], close = false) => {
     g.beginPath();
@@ -345,13 +352,14 @@ export function MapView(props: MapViewProps) {
     const el = containerRef.current;
     if (!el) return;
 
+    const region = cbRef.current.region;
     const map = L.map(el, {
-      center: [MAP_CENTER.lat, MAP_CENTER.lng],
-      zoom: MAP_ZOOM,
+      center: [region.center.lat, region.center.lng],
+      zoom: region.zoom,
       zoomControl: false,
       minZoom: 13,
       maxZoom: 19,
-      maxBounds: L.latLngBounds([37.51, 126.9], [37.62, 127.05]),
+      maxBounds: L.latLngBounds(region.bounds),
       maxBoundsViscosity: 0.8,
     });
 
@@ -371,6 +379,14 @@ export function MapView(props: MapViewProps) {
       mapRef.current = null;
     };
   }, []);
+
+  /* 지역 전환 — 카메라 이동 한계를 새 지역으로 교체 (플라이는 호출부 담당) */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setMaxBounds(L.latLngBounds(props.region.bounds));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.region.id]);
 
   /* 매장 마커 */
   useEffect(() => {
@@ -400,12 +416,13 @@ export function MapView(props: MapViewProps) {
     layer.clearLayers();
     for (const spot of props.npcSpots) {
       const drummer = spot.variant === 'drummer';
+      const npc = regionalNpcById(spot.npcId ?? (drummer ? 'magpie-kkaami' : 'magpie'));
       const marker = L.marker([spot.lat, spot.lng], {
-        icon: npcIcon(drummer),
+        icon: npcIcon(spot.npcId, drummer),
         zIndexOffset: drummer ? 600 : 500,
       });
       marker.bindTooltip(
-        `${tr(drummer ? '까아미 🎪' : '까치 까미', drummer ? 'Kkaami 🎪' : 'Kkami the Magpie')} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
+        `${tr(`${npc.species} ${npc.name}`, `${npc.nameEn ?? npc.name} the ${npc.speciesEn ?? npc.species}`)}${drummer ? ' 🎪' : ''} · ${tr(spot.label, spot.labelEn ?? spot.label)}`,
         {
           direction: 'top',
           offset: [0, -56],

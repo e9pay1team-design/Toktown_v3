@@ -6,6 +6,8 @@
 import { useState, type ReactNode } from 'react';
 import { TownLogoMark } from '../../assets/misc';
 import { LANDMARKS, REGIONAL_NPCS, STORES, TOWN_EVENTS } from '../../data/seed';
+import { REGIONS, UPCOMING_REGIONS, regionById, regionOfPoint } from '../../data/regions';
+import { useRegionStore } from '../../store/useRegionStore';
 import { useVirtualLocation } from '../../mock/location';
 import { useVirtualClock, virtualToday } from '../../mock/clock';
 import { useToastStore } from '../../store/useToastStore';
@@ -41,14 +43,34 @@ export function DemoPanel() {
   const activeEventId = useEventStore((s) => s.activeEventId);
   const toggleEvent = useEventStore((s) => s.toggleEvent);
 
+  const regionId = useRegionStore((s) => s.regionId);
+  const setRegionId = useRegionStore((s) => s.setRegion);
+  const region = regionById(regionId);
+
   const [target, setTarget] = useState('s:1');
   // 리셋 2단계 확인 — window.confirm 은 웹 공유 샌드박스에서 차단되므로 쓰지 않는다.
   const [resetArmed, setResetArmed] = useState(false);
 
-  const magpie = REGIONAL_NPCS[0];
+  /* 활성 지역의 매장/마스코트/랜드마크만 이동 목록에 노출 */
+  const regionStores = STORES.filter((s) => regionOfPoint(s).id === regionId);
+  const regionLandmarks = LANDMARKS.filter((l) => regionOfPoint(l).id === regionId);
+  const mascot = REGIONAL_NPCS.find((n) => n.id === region.mascotId) ?? REGIONAL_NPCS[0];
   const suspicious = suspiciousUntil > Date.now();
   const concertEvent = TOWN_EVENTS[0];
   const eventOn = activeEventId === concertEvent.id;
+
+  const switchRegion = (nextId: string) => {
+    if (nextId === regionId) return;
+    const next = regionById(nextId);
+    setRegionId(next.id);
+    teleport({ lat: next.spawn.lat, lng: next.spawn.lng });
+    const firstStore = STORES.find((s) => regionOfPoint(s).id === next.id);
+    if (firstStore) setTarget(`s:${firstStore.id}`);
+    setTab('map');
+    requestFlyTo({ lat: next.center.lat, lng: next.center.lng, zoom: next.zoom });
+    toast(`🗺️ ${next.sido} ${next.name}(으)로 지역 이동! ${next.spawn.label}에 도착했어요`, 'success');
+    setTimeout(checkLandmarkDiscovery, 400);
+  };
 
   const moveTo = () => {
     const [kind, id] = target.split(':');
@@ -57,7 +79,7 @@ export function DemoPanel() {
         ? STORES.find((s) => s.id === Number(id))
         : kind === 'l'
           ? LANDMARKS.find((l) => l.id === id)
-          : magpie.spots.find((s) => s.id === id);
+          : REGIONAL_NPCS.flatMap((n) => n.spots).find((s) => s.id === id);
     if (!spot) return;
     const label = 'name' in spot ? spot.name : spot.label;
     teleport({ lat: spot.lat, lng: spot.lng });
@@ -97,9 +119,28 @@ export function DemoPanel() {
 
       <div className="rounded-2xl border border-town-line bg-town-paper p-3 shadow-card">
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-town-inkSoft">
-          가상 위치
+          지역 · 가상 위치
         </p>
         <Row>
+          <select
+            value={regionId}
+            onChange={(e) => switchRegion(e.target.value)}
+            className="min-w-0 rounded-xl border-2 border-town-leaf bg-town-leaf/10 px-2 py-2 text-[12.5px] font-extrabold outline-none"
+            aria-label="지역 선택"
+          >
+            {REGIONS.map((r) => (
+              <option key={r.id} value={r.id}>
+                🗺️ {r.sido} · {r.name}
+              </option>
+            ))}
+            <optgroup label="준비 중 (순차 업데이트)">
+              {UPCOMING_REGIONS.map((u) => (
+                <option key={u.name} disabled>
+                  🔒 {u.sido} · {u.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
           <div className="flex gap-1.5">
             <select
               value={target}
@@ -107,22 +148,22 @@ export function DemoPanel() {
               className="min-w-0 flex-1 rounded-xl border border-town-line bg-town-cream px-2 py-2 text-[12.5px] font-bold outline-none"
               aria-label="이동할 위치 선택"
             >
-              <optgroup label="매장">
-                {STORES.map((s) => (
+              <optgroup label={`${region.name} 매장`}>
+                {regionStores.map((s) => (
                   <option key={s.id} value={`s:${s.id}`}>
                     {s.name}
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="까치 출몰 지점">
-                {magpie.spots.map((s) => (
+              <optgroup label={`${mascot.name} 출몰 지점`}>
+                {mascot.spots.map((s) => (
                   <option key={s.id} value={`n:${s.id}`}>
                     {s.label}
                   </option>
                 ))}
               </optgroup>
               <optgroup label="랜드마크 (최초 방문 시 미니어처)">
-                {LANDMARKS.map((l) => (
+                {regionLandmarks.map((l) => (
                   <option key={l.id} value={`l:${l.id}`}>
                     {l.name}
                   </option>
@@ -246,10 +287,12 @@ export function DemoPanel() {
         <br />
         4. <b>명동성당</b>으로 이동 → 까치 조우 → 도감 등록
         <br />
-        5. 내 마을(걷는 월드) → 드래그/WASD 로 산책 → 🎒 보관함에서
-        미성옥 건물·까미 배치 → 부엉 촌장에게 <b>말 걸기</b>
+        5. <b>지역 전환 → 홍대</b> → 버스킹 무대 · 기냥 조우 · 경의선숲길 발견
         <br />
-        6. 커뮤니티 검색·<b>#태그 필터</b>·번역 보기 → 🎪 Event Map → 한정 혜택
+        6. 내 마을(걷는 월드) → 드래그/WASD 로 산책 → 🎒 보관함에서
+        미성옥 건물·까미·기냥 배치 → 부엉 촌장에게 <b>말 걸기</b>
+        <br />
+        7. 커뮤니티 검색·<b>#태그 필터</b>·번역 보기 → 🎪 Event Map → 한정 혜택
       </div>
       <div className="rounded-2xl border border-town-line bg-town-paper/70 p-3 text-[12px] leading-relaxed text-town-inkSoft">
         <p className="mb-1 font-bold text-town-ink">🏘️ 내 마을 조작</p>
