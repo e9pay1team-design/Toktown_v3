@@ -333,7 +333,7 @@ export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number })
       );
     case 'seongsu-deer': // 커피 든 꽃사슴 — 서울숲 잎사귀 + 아이스 아메리카노
       return (
-        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="성수 꽃사슴 실루엣">
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="성수 꽃사슴 라떼">
           <ellipse cx={60} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
           {/* 가지 뻗은 뿔 (벨벳 팁) */}
           <path d="M44 28 q-6 -16 -18 -18 M38 20 q-8 -3 -13 1" stroke="#8A6B52" strokeWidth={5} fill="none" strokeLinecap="round" />
@@ -395,7 +395,7 @@ export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number })
       );
     case 'bukchon-tiger': // 한옥 지붕 위 아기호랑이 — 색동 배자 + 기와 수막새
       return (
-        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="북촌 아기호랑이 실루엣">
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="북촌 아기호랑이 호야">
           <ellipse cx={60} cy={114} rx={38} ry={5} fill="rgba(74,59,50,0.14)" />
           {/* 기와 지붕 — 용마루 하이라이트 + 처마 수막새 */}
           <path d="M10 104 Q60 86 110 104 L110 113 Q60 95 10 113 Z" fill="#5E6470" />

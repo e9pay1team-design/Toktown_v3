@@ -30,7 +30,7 @@ import { ResidentCardModal } from './ResidentCardModal';
 import { DressingModal } from './DressingModal';
 import { StoreBuilding } from '../../assets/buildings';
 import { LandmarkSvg } from '../../assets/landmarks';
-import { MagpieSvg } from '../../assets/npcs';
+import { RegionalNpcSvg } from '../../assets/npcs';
 import { DecorSvg } from '../../assets/decor';
 import { decorName, lmName, sName, tr, useLang, useT } from '../../i18n';
 
@@ -50,7 +50,7 @@ export function ObjectSvg({ kind, refId }: { kind: PlacementKind; refId: string 
     if (!store) return null;
     return <StoreBuilding category={store.category} label={store.name} size={80} />;
   }
-  if (kind === 'npc') return <MagpieSvg size={54} drummer={refId === 'magpie-drummer'} />;
+  if (kind === 'npc') return <RegionalNpcSvg npcId={refId} size={54} />;
   if (kind === 'landmark') {
     const size = refId === 'namsan' ? 58 : 56;
     return <LandmarkSvg id={refId} size={size} />;
