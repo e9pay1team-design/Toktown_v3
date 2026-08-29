@@ -3222,6 +3222,73 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       if (p.v > 0.45) drawPine(sx + 13 * scale, sy - 12 * scale, 0.62 * scale);
       return;
     }
+    case 'tent-ruined': {
+      // 무너진 텐트 — 복구 전 캠프촌. 주저앉은 색바랜 천막 + 부러진 폴대.
+      shadow(ctx, sx, sy + 2, 20);
+      ctx.fillStyle = '#a8764b';
+      ctx.beginPath();
+      ctx.moveTo(sx - 20, sy + 2);
+      ctx.quadraticCurveTo(sx - 12, sy - 12, sx + 2, sy - 10);
+      ctx.quadraticCurveTo(sx + 16, sy - 12, sx + 22, sy + 2);
+      ctx.quadraticCurveTo(sx + 8, sy + 7, sx - 20, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c9885c';
+      ctx.beginPath();
+      ctx.moveTo(sx - 14, sy);
+      ctx.quadraticCurveTo(sx - 6, sy - 9, sx + 4, sy - 7);
+      ctx.quadraticCurveTo(sx + 1, sy - 1, sx - 3, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      // 찢어진 자락 + 주름.
+      ctx.strokeStyle = 'rgba(90,60,40,0.5)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(sx - 10, sy + 1);
+      ctx.quadraticCurveTo(sx - 2, sy - 4, sx + 8, sy - 3);
+      ctx.moveTo(sx + 4, sy + 3);
+      ctx.quadraticCurveTo(sx + 12, sy - 1, sx + 18, sy);
+      ctx.stroke();
+      // 부러진 폴대 (엇갈려 튀어나옴).
+      ctx.strokeStyle = '#6e5340';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx - 4, sy - 8);
+      ctx.lineTo(sx - 12, sy - 24);
+      ctx.moveTo(sx - 12, sy - 24);
+      ctx.lineTo(sx - 16, sy - 20);
+      ctx.stroke();
+      // 흘러내린 밧줄.
+      ctx.strokeStyle = 'rgba(201,177,140,0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx + 18, sy - 2);
+      ctx.quadraticCurveTo(sx + 26, sy + 2, sx + 27, sy + 6);
+      ctx.stroke();
+      return;
+    }
+    case 'campfire-cold': {
+      // 꺼진 모닥불 — 돌 링 + 까맣게 탄 장작 + 재.
+      shadow(ctx, sx, sy + 1, 12);
+      ctx.fillStyle = '#8c8377';
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        ellipse(ctx, sx + Math.cos(a) * 11, sy + Math.sin(a) * 5.2, 3, 2.2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#b9b2a6';
+      ellipse(ctx, sx, sy - 1, 6.5, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#3b332c';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx - 6, sy);
+      ctx.lineTo(sx + 6, sy - 4);
+      ctx.moveTo(sx - 6, sy - 4);
+      ctx.lineTo(sx + 6, sy);
+      ctx.stroke();
+      return;
+    }
     case 'rock': {
       const scale = 0.8 + p.v * 0.5;
       shadow(ctx, sx, sy + 1, 11 * scale);

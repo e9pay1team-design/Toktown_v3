@@ -294,24 +294,17 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
 
   // 2.5 구역 테마 고정물 (R6) — 전부 가장자리 개간 포켓에 몰아 배치해
   // 마을 가운데 동선을 막지 않는다.
-  // 뒷숲 캠프(서쪽 끝): 텐트·모닥불·나무 그네·그루터기 캠프촌.
+  // 뒷숲 캠프(서쪽 끝): 텐트·모닥불·그네는 복구 상태에 따라 모습이 바뀌는
+  // 합성 배치물(zoneSyntheticThings)로 얹힌다. 월드엔 그루터기만.
   if (ownedZone.has('west')) {
-    const camp: Array<[VPropType, number, number, boolean]> = [
-      ['tent', 1.6, 39.4, true],
-      ['campfire', 3.6, 41.1, true],
-      ['woodswing', 1.7, 43.2, true],
-      ['stump', 4.5, 39.2, true],
-      ['stump', 3.4, 43.9, false],
-    ];
-    for (const [type, cx, cy, blockIt] of camp) {
-      const i = vidx(Math.floor(cx), Math.floor(cy));
-      if (!blocked[i] && terrain[i] !== VT.Water) addProp(type, cx, cy, blockIt, vtileHash(Math.floor(cx), Math.floor(cy)));
-    }
+    const i = vidx(3, 43);
+    if (!blocked[i] && terrain[i] !== VT.Water) addProp('stump', 3.4, 43.9, false, vtileHash(3, 43));
   }
-  // 구름마루: 폭포 산 — 영역을 통째로 막고 산 아트 하나를 세운다.
+  // 구름마루: 폭포 산 — 본체만 막는다. 남쪽 소 앞자락은 열려 있어
+  // 폭포 바로 앞까지 걸어갈 수 있다.
   if (ownedZone.has('peak')) {
-    for (let ty = PEAK_FALLS_RECT.y0; ty < PEAK_FALLS_RECT.y1; ty++) {
-      for (let tx = PEAK_FALLS_RECT.x0; tx < PEAK_FALLS_RECT.x1; tx++) {
+    for (let ty = PEAK_FALLS_BLOCK.y0; ty < PEAK_FALLS_BLOCK.y1; ty++) {
+      for (let tx = PEAK_FALLS_BLOCK.x0; tx < PEAK_FALLS_BLOCK.x1; tx++) {
         blocked[vidx(tx, ty)] = 1;
       }
     }
@@ -431,22 +424,33 @@ export const DEFAULT_LAMP_TILES: ReadonlyArray<{ bx: number; by: number }> = [
 
 // ─── 구역 테마 고정물 (R6) ────────────────────────────────────────
 
+/** 복구형 시설 공통 — 복구 후 5시간마다 15 톡큰 표류물/보급품 */
+export const FACILITY_SALVAGE = 15;
+export const FACILITY_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+
 /** 별보기 언덕 — 맨 우측(동쪽 끝) 숲을 치운 포켓에 난파선·망원경을 몬다 */
 export const WRECK_TILE = { bx: 46, by: 1, w: 2, h: 2 } as const;
 export const WRECK_THING_ID = -101;
 export const WRECK_RESTORE_COST = 300;
-/** 표류물 — 5시간마다 15 톡큰 */
-export const WRECK_SALVAGE = 15;
-export const WRECK_COOLDOWN_MS = 5 * 60 * 60 * 1000;
 /** 별보기 언덕 동쪽 끝 개간 포켓 (숲 벽 생략 영역) */
 export const NORTH_POCKET_RECT = { x0: 43, y0: 0, x1: 51, y1: 7 } as const;
-/** 구름마루 폭포 전망 지점 (상호작용 → 마을 전경 컷신) */
-export const FALLS_VIEW_TILE = { bx: 4, by: 7 } as const;
+/** 구름마루 폭포 전망 지점 (상호작용 → 마을 전경 컷신) — 소 바로 앞 */
+export const FALLS_VIEW_TILE = { bx: 3, by: 5 } as const;
 export const FALLS_THING_ID = -102;
-/** 구름마루 폭포 산 — 맨 위 꼭짓점 숲을 치우고 그 자리에 선다 */
+/** 구름마루 폭포 산 — 맨 위 꼭짓점 숲을 치우고 그 자리에 선다 (개간 영역) */
 export const PEAK_FALLS_RECT = { x0: 0, y0: 0, x1: 7, y1: 7 } as const;
+/** 산 본체 통행 불가 영역 — 남쪽 소(웅덩이) 앞자락은 걸어서 다가갈 수 있다 */
+export const PEAK_FALLS_BLOCK = { x0: 0, y0: 0, x1: 7, y1: 5 } as const;
 /** 뒷숲 캠프 — 맨 좌측(서쪽 끝) 숲을 치운 개간 포켓 */
 export const CAMP_RECT = { x0: 0, y0: 37, x1: 7, y1: 45 } as const;
+/** 캠프촌 시설 자리 (합성 배치물) — 텐트가 상호작용 대상 */
+export const CAMP_TENT_TILE = { bx: 1, by: 39 } as const;
+export const CAMP_FIRE_TILE = { bx: 1, by: 41 } as const;
+export const CAMP_SWING_TILE = { bx: 1, by: 43 } as const;
+export const CAMP_THING_ID = -103;
+export const CAMP_FIRE_THING_ID = -104;
+export const CAMP_SWING_THING_ID = -105;
+export const CAMP_RESTORE_COST = 300;
 
 /** 오늘의 네잎클로버 타일 — 소유 구역의 걷을 수 있는 잔디 중 하루 고정 랜덤.
     occupied(동적 배치 풋프린트)를 빼서 건물 밑에 숨지 않게 한다. */

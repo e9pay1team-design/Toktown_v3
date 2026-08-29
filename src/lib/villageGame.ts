@@ -1832,7 +1832,11 @@ export class VillageGame {
           .filter((p) => p.type === 'lamp' || p.type === 'campfire')
           .map((p) => ({ x: p.x, y: p.y })),
         ...this.things
-          .filter((t) => t.kind === 'decor' && (t.decorType === 'lamp' || t.decorType === 'concert-lightstick'))
+          .filter(
+            (t) =>
+              t.kind === 'decor' &&
+              (t.decorType === 'lamp' || t.decorType === 'concert-lightstick' || t.decorType === 'campfire'),
+          )
           .map((t) => ({ x: t.bx + 0.5, y: t.by + 0.5, purple: t.decorType === 'concert-lightstick' })),
       ];
       for (const p of lampLike) {

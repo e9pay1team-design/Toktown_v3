@@ -46,6 +46,10 @@ interface VillageState {
   wreckRestored: boolean;
   /** 마지막 표류물 수거 시각 (가상 ms) */
   wreckLastClaimAt: number | null;
+  /** 뒷숲 캠프촌 복구 여부 (R6 — 복구하면 5시간마다 보급품) */
+  campRestored: boolean;
+  /** 마지막 캠프 보급품 수거 시각 (가상 ms) */
+  campLastClaimAt: number | null;
 
   place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se', variant?: number) => void;
   move: (placementId: number, bx: number, by: number, facing?: 'sw' | 'se') => void;
@@ -59,6 +63,10 @@ interface VillageState {
   restoreWreck: () => void;
   /** 표류물 수거 — 쿨다운(5시간) 중이거나 미복구면 false */
   claimWreck: (now: number, cooldownMs: number) => boolean;
+  /** 캠프촌 복구 — 비용 차감은 호출부에서 */
+  restoreCamp: () => void;
+  /** 캠프 보급품 수거 — 쿨다운 중이거나 미복구면 false */
+  claimCamp: (now: number, cooldownMs: number) => boolean;
 }
 
 let placementSeq = Date.now() % 1_000_000;
@@ -86,6 +94,8 @@ export const useVillageStore = create<VillageState>()(
       zonesOwned: ['base'],
       wreckRestored: false,
       wreckLastClaimAt: null,
+      campRestored: false,
+      campLastClaimAt: null,
 
       place: (kind, refId, bx, by, facing, variant) => {
         const { w, h } = footprintOf(kind);
@@ -126,6 +136,16 @@ export const useVillageStore = create<VillageState>()(
         if (!wreckRestored) return false;
         if (wreckLastClaimAt !== null && now - wreckLastClaimAt < cooldownMs) return false;
         set({ wreckLastClaimAt: now });
+        return true;
+      },
+
+      restoreCamp: () => set({ campRestored: true }),
+
+      claimCamp: (now, cooldownMs) => {
+        const { campRestored, campLastClaimAt } = get();
+        if (!campRestored) return false;
+        if (campLastClaimAt !== null && now - campLastClaimAt < cooldownMs) return false;
+        set({ campLastClaimAt: now });
         return true;
       },
     }),
