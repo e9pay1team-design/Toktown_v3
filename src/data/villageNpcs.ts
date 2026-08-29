@@ -211,5 +211,27 @@ export function regionalNpcSkin(npcId: string): VCharSkin {
       ear: 'cat',
     };
   }
+  if (npcId === 'busan-gull') {
+    // 부산 파랑 — 흰 깃털 + 서핑수트 블루 상의
+    return {
+      body: '#5EB3CC',
+      bodyDark: '#4489BB',
+      fur: '#F2F4F8',
+      furDark: '#C3CBD6',
+      hair: '#2B2B33',
+      ear: 'bird',
+    };
+  }
+  if (npcId === 'jeju-pony') {
+    // 제주 한라 — 갈색 털 + 감귤빛 상의
+    return {
+      body: '#F5A03C',
+      bodyDark: '#E8883C',
+      fur: '#8A6B52',
+      furDark: '#4A3B32',
+      hair: '#4A3B32',
+      ear: 'cat',
+    };
+  }
   return magpieSkin(npcId === 'magpie-kkaami');
 }

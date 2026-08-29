@@ -7,11 +7,9 @@ import { useCollectionStore } from '../../store/useCollectionStore';
 import { MagpieSvg, RegionalNpcSvg, UpcomingNpcSvg } from '../../assets/npcs';
 import { useT } from '../../i18n';
 
-/** 전국 확대 티저 (기획 §4 지역 마스코트 예시) — 디자인은 실루엣으로만 노출 */
-const UPCOMING = [
-  { id: 'busan-gull', region: '부산', regionEn: 'Busan', hint: '서퍼 갈매기', hintEn: 'A surfer seagull' },
-  { id: 'jeju-pony', region: '제주', regionEn: 'Jeju', hint: '감귤 문 조랑말', hintEn: 'A pony with a tangerine' },
-];
+/** 전국 확대 티저 — 예고했던 전 지역이 개방되어 현재는 비어 있다.
+    새 지역 예고 시 여기 추가하면 실루엣 카드로 노출된다. */
+const UPCOMING: { id: string; region: string; regionEn: string; hint: string; hintEn: string }[] = [];
 
 export function DexModal({ onClose }: { onClose: () => void }) {
   const T = useT();
@@ -111,29 +109,33 @@ export function DexModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* 전국 확대 티저 */}
-          <h4 className="mb-2 mt-5 text-[12px] font-extrabold text-town-inkSoft">
-            {T('다른 지역의 친구들 (여행하면 만날 수 있어요)', 'Friends in other regions (meet them by traveling)')}
-          </h4>
-          <div className="grid grid-cols-1 gap-1.5">
-            {UPCOMING.map((u) => (
-              <div
-                key={u.id}
-                className="flex items-center gap-3 rounded-xl border border-dashed border-town-line bg-town-cream/40 px-3 py-2"
-              >
-                {/* 미조우 — 검은 실루엣만 */}
-                <div className="shrink-0 opacity-35 brightness-0">
-                  <UpcomingNpcSvg id={u.id} size={52} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-extrabold text-town-inkSoft">
-                    ??? <span className="ml-1 rounded-full bg-town-cream px-2 py-0.5 text-[9.5px] font-bold">📍 {T(u.region, u.regionEn)}</span>
-                  </p>
-                  <p className="mt-0.5 text-[10.5px] text-town-inkSoft/70">{T(u.hint, u.hintEn)}</p>
-                </div>
+          {/* 전국 확대 티저 — 예고 지역이 있을 때만 */}
+          {UPCOMING.length > 0 && (
+            <>
+              <h4 className="mb-2 mt-5 text-[12px] font-extrabold text-town-inkSoft">
+                {T('다른 지역의 친구들 (여행하면 만날 수 있어요)', 'Friends in other regions (meet them by traveling)')}
+              </h4>
+              <div className="grid grid-cols-1 gap-1.5">
+                {UPCOMING.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center gap-3 rounded-xl border border-dashed border-town-line bg-town-cream/40 px-3 py-2"
+                  >
+                    {/* 미조우 — 검은 실루엣만 */}
+                    <div className="shrink-0 opacity-35 brightness-0">
+                      <UpcomingNpcSvg id={u.id} size={52} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12.5px] font-extrabold text-town-inkSoft">
+                        ??? <span className="ml-1 rounded-full bg-town-cream px-2 py-0.5 text-[9.5px] font-bold">📍 {T(u.region, u.regionEn)}</span>
+                      </p>
+                      <p className="mt-0.5 text-[10.5px] text-town-inkSoft/70">{T(u.hint, u.hintEn)}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>

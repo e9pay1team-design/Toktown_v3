@@ -19,6 +19,8 @@ import {
   ROADS,
   ROAD_MIN_ZOOM,
   ROAD_WIDTH_M,
+  SANDS,
+  SEAS,
   STREET_TREES,
   URBAN,
   WATER,
@@ -99,6 +101,10 @@ const LANDMARK_SIZE: Record<string, [number, number]> = {
   'bukchon-hanok': [67, 50],
   'seoul-forest': [65, 49],
   'red-brick': [58, 58],
+  'gwangan-bridge': [72, 42],
+  nurimaru: [58, 55],
+  yongduam: [64, 49],
+  'dol-hareubang': [58, 53],
 };
 
 function landmarkIcon(lm: Landmark): L.DivIcon {
@@ -223,6 +229,24 @@ function drawIllustratedTile(g: CanvasRenderingContext2D, coords: L.Coords, w: n
     ]);
     g.stroke();
     return;
+  }
+
+  // 바다·백사장 (해안 존) — 도심·녹지·다리보다 먼저 깔린다.
+  for (const poly of SEAS) {
+    tracePath(poly, true);
+    g.fillStyle = '#A8D4E4';
+    g.fill();
+    g.strokeStyle = '#8FC0D6';
+    g.lineWidth = px(6, 2);
+    g.stroke();
+  }
+  for (const poly of SANDS) {
+    tracePath(poly, true);
+    g.fillStyle = '#F5E7C2';
+    g.fill();
+    g.strokeStyle = '#E8D5A4';
+    g.lineWidth = px(3, 1.2);
+    g.stroke();
   }
 
   // 도심 블록(건물 밀집 지역) — 옅은 채움 + 확대 시 건물 점 텍스처.

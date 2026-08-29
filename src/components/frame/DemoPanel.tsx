@@ -133,13 +133,15 @@ export function DemoPanel() {
                 🗺️ {r.sido} · {r.name}
               </option>
             ))}
-            <optgroup label="준비 중 (순차 업데이트)">
-              {UPCOMING_REGIONS.map((u) => (
-                <option key={u.name} disabled>
-                  🔒 {u.sido} · {u.name}
-                </option>
-              ))}
-            </optgroup>
+            {UPCOMING_REGIONS.length > 0 && (
+              <optgroup label="준비 중 (순차 업데이트)">
+                {UPCOMING_REGIONS.map((u) => (
+                  <option key={u.name} disabled>
+                    🔒 {u.sido} · {u.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <div className="flex gap-1.5">
             <select

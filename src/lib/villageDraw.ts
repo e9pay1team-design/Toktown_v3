@@ -596,6 +596,22 @@ export function drawVNameplate(
  * 랜드마크 미니어처 — 템플릿을 쓰지 않는 유일한 건물들 (기획 요구).
  * 전부 2×2 풋프린트, 실물의 실루엣만 남긴 미니어처.
  */
+/** 두 스크린 코너 사이 수직 벽면 경로 — 부분 풋프린트 볼륨(한옥 등)용 */
+function vWallPath(
+  ctx: CanvasRenderingContext2D,
+  p: { sx: number; sy: number },
+  q: { sx: number; sy: number },
+  h0: number,
+  h1: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(p.sx, p.sy - h0);
+  ctx.lineTo(q.sx, q.sy - h0);
+  ctx.lineTo(q.sx, q.sy - h1);
+  ctx.lineTo(p.sx, p.sy - h1);
+  ctx.closePath();
+}
+
 export function drawVLandmark(
   ctx: CanvasRenderingContext2D,
   id: string,
@@ -854,360 +870,1549 @@ export function drawVLandmark(
       ctx.fill();
     }
   } else if (id === 'gyeongui-line') {
-    // 경의선숲길 — 잔디 둔덕 + 옛 철길 + 가로수 (낮은 랜드마크).
+    // 경의선숲길 — 입체 둔덕 + 자갈 철길 + 산책 데크 + 가로수·역명판 (낮은 랜드마크).
     vFootprintPath(ctx, x0, y0, x1, y1, 2);
     ctx.fillStyle = '#8fbf6d';
     ctx.fill();
-    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 3);
+    vFootprintPath(ctx, x0 + 0.1, y0 + 0.1, x1 - 0.1, y1 - 0.1, 4);
     ctx.fillStyle = '#a5d588';
     ctx.fill();
-    // 옛 철길 — 침목 먼저, 레일 위에.
-    ctx.strokeStyle = '#b8a98f';
-    ctx.lineWidth = 3;
-    for (let u = 0.35; u <= 1.7; u += 0.34) {
-      const t0 = toScreen(bx + u, by + 0.62);
+    // 자갈 노반 띠 (철길 아래).
+    ctx.beginPath();
+    const g0 = toScreen(bx + 0.12, by + 0.6);
+    const g1 = toScreen(bx + 1.88, by + 0.6);
+    const g2 = toScreen(bx + 1.88, by + 1.26);
+    const g3 = toScreen(bx + 0.12, by + 1.26);
+    ctx.moveTo(g0.sx, g0.sy - 4);
+    ctx.lineTo(g1.sx, g1.sy - 4);
+    ctx.lineTo(g2.sx, g2.sy - 4);
+    ctx.lineTo(g3.sx, g3.sy - 4);
+    ctx.closePath();
+    ctx.fillStyle = '#cfc6b0';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(120,105,92,0.55)';
+    for (let u = 0.18; u < 1.84; u += 0.11) {
+      const gp = toScreen(bx + u, by + 0.68 + ((u * 7) % 1) * 0.5);
+      ellipse(ctx, gp.sx, gp.sy - 4, 1.2, 0.85);
+      ctx.fill();
+    }
+    // 침목 + 레일 2줄 (짙은 강철 + 윗면 하이라이트).
+    ctx.strokeStyle = '#9c7c56';
+    ctx.lineWidth = 3.6;
+    for (let u = 0.26; u <= 1.78; u += 0.18) {
+      const t0 = toScreen(bx + u, by + 0.68);
       const t1 = toScreen(bx + u, by + 1.18);
       ctx.beginPath();
-      ctx.moveTo(t0.sx, t0.sy - 3);
-      ctx.lineTo(t1.sx, t1.sy - 3);
+      ctx.moveTo(t0.sx, t0.sy - 4);
+      ctx.lineTo(t1.sx, t1.sy - 4);
       ctx.stroke();
     }
-    ctx.strokeStyle = '#9c8d7b';
-    ctx.lineWidth = 2.2;
-    for (const v of [0.74, 1.06]) {
-      const r0 = toScreen(bx + 0.18, by + v);
-      const r1 = toScreen(bx + 1.82, by + v);
+    for (const v of [0.78, 1.08]) {
+      const r0 = toScreen(bx + 0.14, by + v);
+      const r1 = toScreen(bx + 1.86, by + v);
+      ctx.strokeStyle = '#5f5648';
+      ctx.lineWidth = 2.8;
       ctx.beginPath();
-      ctx.moveTo(r0.sx, r0.sy - 3);
-      ctx.lineTo(r1.sx, r1.sy - 3);
+      ctx.moveTo(r0.sx, r0.sy - 4);
+      ctx.lineTo(r1.sx, r1.sy - 4);
+      ctx.stroke();
+      ctx.strokeStyle = '#d8ccb4';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(r0.sx, r0.sy - 5.5);
+      ctx.lineTo(r1.sx, r1.sy - 5.5);
       ctx.stroke();
     }
-    // 가로수 2그루 — 바람에 살짝 흔들린다.
+    // 산책 데크 (좌하단 면 앞) + 벤치 2.
+    faceQuad(ctx, D, C, 0.52, 0.96, 0, 6);
+    ctx.fillStyle = '#c9885a';
+    ctx.fill();
+    ctx.strokeStyle = '#b37845';
+    ctx.lineWidth = 1;
+    for (const u of [0.6, 0.68, 0.76, 0.84, 0.92]) {
+      const dp0 = facePoint(D, C, u, 0);
+      const dp1 = facePoint(D, C, u, 6);
+      ctx.beginPath();
+      ctx.moveTo(dp0.x, dp0.y);
+      ctx.lineTo(dp1.x, dp1.y);
+      ctx.stroke();
+    }
+    for (const bu of [0.64, 0.86]) {
+      const bp = facePoint(D, C, bu, 6);
+      ctx.fillStyle = '#8a6b52';
+      ctx.fillRect(bp.x - 7, bp.y - 8, 14, 3);
+      ctx.fillRect(bp.x - 6, bp.y - 5, 2.4, 5);
+      ctx.fillRect(bp.x + 3.6, bp.y - 5, 2.4, 5);
+    }
+    // 가로수 4그루 — 층진 수관 + 바람 스웨이 (숲길의 주인공).
     for (const [tx, ty, r] of [
-      [0.42, 0.4, 11],
-      [1.58, 1.55, 9],
+      [0.4, 0.32, 17],
+      [1.5, 0.26, 14],
+      [1.74, 1.5, 15],
+      [0.3, 1.56, 12],
     ] as const) {
       const p = toScreen(bx + tx, by + ty);
-      const sw = Math.sin(opts.time * 1.4 + tx * 7) * 1.2;
+      const th = 16 + r * 0.7;
+      const sw = Math.sin(opts.time * 1.4 + tx * 7) * 1.5;
       ctx.fillStyle = 'rgba(40,50,35,0.16)';
-      ellipse(ctx, p.sx, p.sy - 1, r * 0.9, r * 0.32);
+      ellipse(ctx, p.sx, p.sy - 1, r * 0.95, r * 0.34);
       ctx.fill();
       ctx.fillStyle = '#8a6b52';
-      ctx.fillRect(p.sx - 2, p.sy - 16, 4, 14);
-      ctx.fillStyle = '#79ae60';
-      ellipse(ctx, p.sx + sw, p.sy - 22, r, r * 0.92);
+      ctx.fillRect(p.sx - 2.6, p.sy - th, 5.2, th - 2);
+      ctx.fillStyle = '#5e9147';
+      ellipse(ctx, p.sx + sw, p.sy - th - r * 0.75, r, r * 0.95);
+      ctx.fill();
+      ctx.fillStyle = '#6ba254';
+      ellipse(ctx, p.sx + sw - r * 0.32, p.sy - th - r * 0.95, r * 0.66, r * 0.6);
       ctx.fill();
       ctx.fillStyle = '#8cc073';
-      ellipse(ctx, p.sx + sw - r * 0.3, p.sy - 25, r * 0.55, r * 0.5);
+      ellipse(ctx, p.sx + sw + r * 0.3, p.sy - th - r * 0.5, r * 0.5, r * 0.44);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ellipse(ctx, p.sx + sw - r * 0.4, p.sy - th - r * 1.05, r * 0.3, r * 0.26);
       ctx.fill();
     }
-    // 산책 가로등 + 들꽃.
-    ctx.strokeStyle = '#5b4a3f';
+    // 산책 가로등 — 헤드 하우징 + 은은한 온광.
+    const lampP = toScreen(bx + 1.08, by + 1.62);
+    ctx.strokeStyle = '#4b4038';
     ctx.lineWidth = 2.6;
     ctx.beginPath();
-    ctx.moveTo(top.sx + 16, top.sy + 2);
-    ctx.lineTo(top.sx + 16, top.sy - 20);
+    ctx.moveTo(lampP.sx, lampP.sy);
+    ctx.lineTo(lampP.sx, lampP.sy - 30);
     ctx.stroke();
-    ctx.fillStyle = '#ffd66b';
-    ellipse(ctx, top.sx + 16, top.sy - 23, 3.4, 3.4);
+    ctx.fillStyle = '#4b4038';
+    ctx.fillRect(lampP.sx - 4.4, lampP.sy - 33, 8.8, 3.4);
+    ctx.fillStyle = 'rgba(255,214,107,0.16)';
+    ellipse(ctx, lampP.sx, lampP.sy - 29, 6.5, 6.5);
     ctx.fill();
+    ctx.fillStyle = '#ffd66b';
+    ellipse(ctx, lampP.sx, lampP.sy - 29.2, 2.6, 2.6);
+    ctx.fill();
+    // 역명판 팻말 — 경의선 옛 역 표지.
+    const sgn = toScreen(bx + 1.6, by + 1.68);
+    ctx.fillStyle = '#8a6b52';
+    ctx.fillRect(sgn.sx - 9, sgn.sy - 17, 2.6, 17);
+    ctx.fillRect(sgn.sx + 6.4, sgn.sy - 17, 2.6, 17);
+    ctx.fillStyle = '#a3835f';
+    ctx.fillRect(sgn.sx - 12, sgn.sy - 24, 24, 9);
+    ctx.fillStyle = '#f1ead5';
+    ctx.fillRect(sgn.sx - 10.4, sgn.sy - 22.6, 20.8, 6.2);
+    ctx.strokeStyle = '#5b4a3f';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(sgn.sx - 7, sgn.sy - 20.6);
+    ctx.lineTo(sgn.sx + 7, sgn.sy - 20.6);
+    ctx.moveTo(sgn.sx - 5, sgn.sy - 18.2);
+    ctx.lineTo(sgn.sx + 5, sgn.sy - 18.2);
+    ctx.stroke();
+    // 들꽃 + 풀포기.
     for (const [fx, fy, c] of [
-      [-22, 6, '#f2a7c3'],
-      [-10, 10, '#fffdf7'],
-      [22, 10, '#ffd66b'],
+      [-34, 12, '#f2a7c3'],
+      [-20, 18, '#fffdf7'],
+      [24, 16, '#ffd66b'],
+      [40, 8, '#f2a7c3'],
     ] as const) {
       ctx.fillStyle = c;
       ellipse(ctx, top.sx + fx, top.sy + fy, 2.2, 2.2);
       ctx.fill();
+      ctx.fillStyle = '#e8a63c';
+      ellipse(ctx, top.sx + fx, top.sy + fy, 0.8, 0.8);
+      ctx.fill();
     }
-  } else if (id === 'busking-stage') {
-    // 홍대 버스킹 무대 — 나무 데크 + 앰프 + 마이크 + 알전구 (낮은 랜드마크).
-    faceQuad(ctx, D, C, 0, 1, 0, 10);
-    ctx.fillStyle = '#a06a44';
-    ctx.fill();
-    faceQuad(ctx, C, B, 0, 1, 0, 10);
-    ctx.fillStyle = '#8f5c3a';
-    ctx.fill();
-    vFootprintPath(ctx, x0, y0, x1, y1, 10);
-    ctx.fillStyle = '#c9885a';
-    ctx.fill();
-    // 데크 플랭크 라인.
-    ctx.strokeStyle = '#b37845';
-    ctx.lineWidth = 1.2;
-    for (const v of [0.55, 0.95, 1.35]) {
-      const p0 = toScreen(bx + 0.15, by + v);
-      const p1 = toScreen(bx + 1.85, by + v);
+    ctx.strokeStyle = VPALETTE.grassBlade;
+    ctx.lineWidth = 1.4;
+    for (const [gx2, gy2] of [
+      [-46, 6],
+      [42, 10],
+      [6, 24],
+    ] as const) {
       ctx.beginPath();
-      ctx.moveTo(p0.sx, p0.sy - 10);
-      ctx.lineTo(p1.sx, p1.sy - 10);
+      ctx.moveTo(top.sx + gx2, top.sy + gy2);
+      ctx.lineTo(top.sx + gx2 - 2, top.sy + gy2 - 6);
+      ctx.moveTo(top.sx + gx2 + 3, top.sy + gy2);
+      ctx.lineTo(top.sx + gx2 + 5, top.sy + gy2 - 5);
       ctx.stroke();
     }
-    // 앰프 (좌측) — 스피커 콘.
-    const amp = toScreen(bx + 0.55, by + 0.72);
+  } else if (id === 'busking-stage') {
+    // 홍대 버스킹 무대 — 목재 데크 + 스피커·앰프·마이크·기타 + 알전구·가랜드.
+    faceQuad(ctx, D, C, 0, 1, 0, 11);
+    ctx.fillStyle = '#a06a44';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0, 1, 0, 11);
+    ctx.fillStyle = '#8f5c3a';
+    ctx.fill();
+    // 데크 스커트 판자선.
+    ctx.strokeStyle = 'rgba(74,52,34,0.5)';
+    ctx.lineWidth = 1;
+    for (const u of [0.2, 0.4, 0.6, 0.8]) {
+      const s0 = facePoint(D, C, u, 0);
+      const s1 = facePoint(D, C, u, 11);
+      ctx.beginPath();
+      ctx.moveTo(s0.x, s0.y);
+      ctx.lineTo(s1.x, s1.y);
+      ctx.stroke();
+      const s2 = facePoint(C, B, u, 0);
+      const s3 = facePoint(C, B, u, 11);
+      ctx.beginPath();
+      ctx.moveTo(s2.x, s2.y);
+      ctx.lineTo(s3.x, s3.y);
+      ctx.stroke();
+    }
+    vFootprintPath(ctx, x0, y0, x1, y1, 11);
+    ctx.fillStyle = '#c9885a';
+    ctx.fill();
+    ctx.strokeStyle = '#b37845';
+    ctx.lineWidth = 1.4;
+    for (const v of [0.45, 0.8, 1.15, 1.5]) {
+      const p0 = toScreen(bx + 0.12, by + v);
+      const p1 = toScreen(bx + 1.88, by + v);
+      ctx.beginPath();
+      ctx.moveTo(p0.sx, p0.sy - 11);
+      ctx.lineTo(p1.sx, p1.sy - 11);
+      ctx.stroke();
+    }
+    // 스피커 스택 2 (앞 코너).
+    for (const [ux, uy] of [
+      [0.32, 1.55],
+      [1.62, 0.35],
+    ] as const) {
+      const sp = toScreen(bx + ux, by + uy);
+      ctx.fillStyle = '#2b2f3e';
+      ctx.fillRect(sp.sx - 7, sp.sy - 34, 14, 23);
+      ctx.strokeStyle = '#5b6377';
+      ctx.lineWidth = 1.3;
+      ctx.strokeRect(sp.sx - 7, sp.sy - 34, 14, 23);
+      ctx.fillStyle = '#1d212c';
+      ellipse(ctx, sp.sx, sp.sy - 27.5, 4.4, 4.4);
+      ctx.fill();
+      ellipse(ctx, sp.sx, sp.sy - 16.5, 3.2, 3.2);
+      ctx.fill();
+      ctx.strokeStyle = '#5b6377';
+      ctx.beginPath();
+      ctx.arc(sp.sx, sp.sy - 27.5, 4.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // 앰프 + 스티커.
+    const amp = toScreen(bx + 0.6, by + 0.62);
     ctx.fillStyle = '#3b4252';
-    ctx.fillRect(amp.sx - 8, amp.sy - 30, 16, 19);
+    ctx.fillRect(amp.sx - 9, amp.sy - 31, 18, 20);
     ctx.strokeStyle = '#5b6377';
     ctx.lineWidth = 1.4;
-    ctx.strokeRect(amp.sx - 8, amp.sy - 30, 16, 19);
+    ctx.strokeRect(amp.sx - 9, amp.sy - 31, 18, 20);
     ctx.fillStyle = '#2b2f3e';
-    ellipse(ctx, amp.sx, amp.sy - 18, 4.6, 4.6);
+    ellipse(ctx, amp.sx, amp.sy - 18.5, 5, 5);
     ctx.fill();
-    // 마이크 스탠드 (중앙).
-    const mic = toScreen(bx + 1.15, by + 1.0);
+    ctx.fillStyle = '#f2705e';
+    ctx.fillRect(amp.sx - 6.5, amp.sy - 29, 5, 3.4);
+    ctx.fillStyle = '#7bc47f';
+    ctx.fillRect(amp.sx + 2, amp.sy - 28, 4, 4);
+    // 마이크 스탠드 + 케이블.
+    const mic = toScreen(bx + 1.12, by + 1.02);
     ctx.strokeStyle = '#2b2b33';
     ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.moveTo(mic.sx, mic.sy - 10);
-    ctx.lineTo(mic.sx, mic.sy - 32);
-    ctx.lineTo(mic.sx + 6, mic.sy - 37);
+    ctx.moveTo(mic.sx, mic.sy - 11);
+    ctx.lineTo(mic.sx, mic.sy - 34);
+    ctx.lineTo(mic.sx + 6, mic.sy - 39);
     ctx.stroke();
     ctx.fillStyle = '#5b5566';
-    ellipse(ctx, mic.sx + 7.5, mic.sy - 38, 3.4, 4);
+    ellipse(ctx, mic.sx + 7.5, mic.sy - 40, 3.4, 4);
     ctx.fill();
-    // 알전구 스트링 — 폴대 2개 + 늘어진 전구줄 (밤에 반짝임).
+    ctx.strokeStyle = 'rgba(43,43,51,0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(mic.sx, mic.sy - 11);
+    ctx.quadraticCurveTo(mic.sx - 10, mic.sy - 6, amp.sx + 4, amp.sy - 10);
+    ctx.stroke();
+    // 통기타 (스탠드).
+    ctx.save();
+    const gt = toScreen(bx + 1.52, by + 1.28);
+    ctx.translate(gt.sx, gt.sy);
+    ctx.rotate(0.16);
+    ctx.fillStyle = '#d89a6a';
+    ellipse(ctx, 0, -16, 8, 6.6);
+    ctx.fill();
+    ellipse(ctx, 0, -23, 5.8, 4.6);
+    ctx.fill();
+    ctx.strokeStyle = '#b37845';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, -16, 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#5b4a3f';
+    ellipse(ctx, 0, -19.5, 2.4, 2.4);
+    ctx.fill();
+    ctx.fillRect(-1.5, -44, 3, 22);
+    ctx.fillStyle = '#3d3129';
+    ctx.fillRect(-2.6, -48, 5.2, 5);
+    ctx.strokeStyle = '#fff3dc';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-1, -43);
+    ctx.lineTo(-1, -10);
+    ctx.moveTo(1, -43);
+    ctx.lineTo(1, -10);
+    ctx.stroke();
+    ctx.restore();
+    // 폴대 2 + 가랜드(삼각 깃발) + 알전구.
     ctx.strokeStyle = '#5b4a3f';
-    ctx.lineWidth = 2.8;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(D.sx + 6, D.sy - 2);
-    ctx.lineTo(D.sx + 6, D.sy - 46);
-    ctx.moveTo(B.sx - 6, B.sy - 2);
-    ctx.lineTo(B.sx - 6, B.sy - 46);
+    ctx.moveTo(D.sx + 6, D.sy - 4);
+    ctx.lineTo(D.sx + 6, D.sy - 52);
+    ctx.moveTo(B.sx - 6, B.sy - 4);
+    ctx.lineTo(B.sx - 6, B.sy - 52);
     ctx.stroke();
+    ctx.fillStyle = '#5b4a3f';
+    ctx.fillRect(D.sx + 2.5, D.sy - 6, 7, 4);
+    ctx.fillRect(B.sx - 9.5, B.sy - 6, 7, 4);
+    const bunt = (t: number) => {
+      const bxp = (1 - t) * (1 - t) * (D.sx + 6) + 2 * (1 - t) * t * top.sx + t * t * (B.sx - 6);
+      const byp = (1 - t) * (1 - t) * (D.sy - 50) + 2 * (1 - t) * t * (top.sy - 30) + t * t * (B.sy - 50);
+      return { x: bxp, y: byp };
+    };
     ctx.strokeStyle = '#8c7b6e';
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(D.sx + 6, D.sy - 44);
-    ctx.quadraticCurveTo(top.sx, top.sy - 26, B.sx - 6, B.sy - 44);
+    ctx.moveTo(D.sx + 6, D.sy - 50);
+    ctx.quadraticCurveTo(top.sx, top.sy - 30, B.sx - 6, B.sy - 50);
     ctx.stroke();
-    for (let i = 0; i <= 5; i++) {
-      const t = i / 5;
-      const gx = (1 - t) * (1 - t) * (D.sx + 6) + 2 * (1 - t) * t * top.sx + t * t * (B.sx - 6);
-      const gy = (1 - t) * (1 - t) * (D.sy - 44) + 2 * (1 - t) * t * (top.sy - 26) + t * t * (B.sy - 44);
+    const flagC = ['#f2705e', '#ffd66b', '#7bc47f', '#8b79c9', '#5eb3cc'];
+    for (let i = 0; i < 5; i++) {
+      const t = 0.14 + i * 0.18;
+      const p0 = bunt(t);
+      const p1 = bunt(t + 0.07);
+      ctx.fillStyle = flagC[i];
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo((p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+    for (let i = 0; i <= 6; i++) {
+      const p = bunt(i / 6);
       const tw = 0.75 + Math.sin(opts.time * 3 + i * 1.7) * 0.25;
       ctx.fillStyle = i % 2 ? `rgba(255,214,107,${tw})` : `rgba(242,167,195,${tw})`;
-      ellipse(ctx, gx, gy + 2, 2.4, 2.4);
+      ellipse(ctx, p.x, p.y - 3, 2.2, 2.2);
       ctx.fill();
     }
   } else if (id === 'geunjeongjeon') {
-    // 근정전 — 2단 월대 + 붉은 기둥 본전 + 2단 팔작지붕.
-    faceQuad(ctx, D, C, 0, 1, 0, 14);
+    // 근정전 — 2단 월대·계단 + 붉은 기둥·단청 + 처마 살린 2단 팔작지붕.
+    faceQuad(ctx, D, C, 0, 1, 0, 12);
     ctx.fillStyle = '#e8e0d2';
     ctx.fill();
-    faceQuad(ctx, C, B, 0, 1, 0, 14);
+    faceQuad(ctx, C, B, 0, 1, 0, 12);
     ctx.fillStyle = '#d5cbb8';
     ctx.fill();
-    vFootprintPath(ctx, x0, y0, x1, y1, 14);
-    ctx.fillStyle = '#efebe2';
+    vFootprintPath(ctx, x0, y0, x1, y1, 12);
+    ctx.fillStyle = '#efeae0';
     ctx.fill();
-    vFootprintPath(ctx, x0 + 0.14, y0 + 0.14, x1 - 0.14, y1 - 0.14, 24);
-    ctx.fillStyle = '#e7e3da';
+    faceQuad(ctx, D, C, 0.12, 0.88, 12, 22);
+    ctx.fillStyle = '#e0d7c6';
     ctx.fill();
-    // 본전 벽 — 붉은 기둥.
-    faceQuad(ctx, D, C, 0.2, 0.8, 24, 46);
+    faceQuad(ctx, C, B, 0.12, 0.88, 12, 22);
+    ctx.fillStyle = '#cdc2ac';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 22);
+    ctx.fillStyle = '#e9e3d6';
+    ctx.fill();
+    // 월대 난간 기둥 점 + 정면 계단.
+    ctx.fillStyle = '#c3b8a0';
+    for (const u of [0.15, 0.35, 0.55, 0.75, 0.92]) {
+      const n0 = facePoint(D, C, u, 12);
+      const n1 = facePoint(C, B, u, 12);
+      ctx.fillRect(n0.x - 1.2, n0.y - 5, 2.4, 5);
+      ctx.fillRect(n1.x - 1.2, n1.y - 5, 2.4, 5);
+    }
+    const stair = facePoint(D, C, 0.5, 0);
+    ctx.fillStyle = '#d9d0bd';
+    ctx.fillRect(stair.x - 9, stair.y - 22, 18, 22);
+    ctx.strokeStyle = '#b3a88f';
+    ctx.lineWidth = 1.2;
+    for (let sy2 = 4; sy2 <= 20; sy2 += 4) {
+      ctx.beginPath();
+      ctx.moveTo(stair.x - 9, stair.y - sy2);
+      ctx.lineTo(stair.x + 9, stair.y - sy2);
+      ctx.stroke();
+    }
+    // 본전 벽 — 붉은 기둥 + 창방 + 창호.
+    faceQuad(ctx, D, C, 0.2, 0.8, 22, 46);
     ctx.fillStyle = '#b8574a';
     ctx.fill();
-    faceQuad(ctx, C, B, 0.2, 0.8, 24, 46);
+    faceQuad(ctx, C, B, 0.2, 0.8, 22, 46);
     ctx.fillStyle = '#9c4438';
     ctx.fill();
-    for (const u of [0.28, 0.5, 0.72]) {
-      faceQuad(ctx, D, C, u - 0.025, u + 0.025, 24, 46);
+    for (const u of [0.24, 0.415, 0.585, 0.76]) {
+      faceQuad(ctx, D, C, u - 0.018, u + 0.018, 22, 46);
       ctx.fillStyle = '#7d3025';
       ctx.fill();
+      faceQuad(ctx, C, B, u - 0.018, u + 0.018, 22, 46);
+      ctx.fillStyle = '#6b281f';
+      ctx.fill();
     }
-    // 팔작지붕 2단.
-    vFootprintPath(ctx, x0 - 0.2, y0 - 0.2, x1 + 0.2, y1 + 0.2, 50);
+    for (const uu of [0.32, 0.5, 0.68]) {
+      const w0 = facePoint(D, C, uu, 30);
+      ctx.fillStyle = '#f5efdc';
+      ctx.fillRect(w0.x - 4.5, w0.y - 10, 9, 10);
+      ctx.strokeStyle = '#8a5a40';
+      ctx.lineWidth = 0.9;
+      ctx.strokeRect(w0.x - 4.5, w0.y - 10, 9, 10);
+      ctx.beginPath();
+      ctx.moveTo(w0.x, w0.y - 10);
+      ctx.lineTo(w0.x, w0.y);
+      ctx.moveTo(w0.x - 4.5, w0.y - 5);
+      ctx.lineTo(w0.x + 4.5, w0.y - 5);
+      ctx.stroke();
+    }
+    // 단청 띠 (지붕 밑 초록).
+    faceQuad(ctx, D, C, 0.18, 0.82, 46, 50);
+    ctx.fillStyle = '#3f6d4e';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0.18, 0.82, 46, 50);
+    ctx.fillStyle = '#345c41';
+    ctx.fill();
+    // 1단 지붕 — 처마 겹.
+    vFootprintPath(ctx, x0 - 0.16, y0 - 0.16, x1 + 0.16, y1 + 0.16, 54);
+    ctx.fillStyle = '#3f4a55';
+    ctx.fill();
+    vFootprintPath(ctx, x0 - 0.02, y0 - 0.02, x1 + 0.02, y1 + 0.02, 58);
     ctx.fillStyle = '#4e5a66';
     ctx.fill();
-    vFootprintPath(ctx, x0 - 0.04, y0 - 0.04, x1 + 0.04, y1 + 0.04, 54);
+    // 2단 지붕.
+    faceQuad(ctx, D, C, 0.32, 0.68, 58, 68);
+    ctx.fillStyle = '#a34e42';
+    ctx.fill();
+    faceQuad(ctx, C, B, 0.32, 0.68, 58, 68);
+    ctx.fillStyle = '#8d4237';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.24, y0 + 0.24, x1 - 0.24, y1 - 0.24, 72);
+    ctx.fillStyle = '#3f4a55';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.32, y0 + 0.32, x1 - 0.32, y1 - 0.32, 76);
     ctx.fillStyle = '#5d6b78';
     ctx.fill();
-    vFootprintPath(ctx, x0 + 0.3, y0 + 0.3, x1 - 0.3, y1 - 0.3, 66);
-    ctx.fillStyle = '#4e5a66';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    // 용마루 + 취두 + 잡상.
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(top.sx - 13, top.sy - 67);
-    ctx.lineTo(top.sx + 13, top.sy - 67);
+    ctx.moveTo(top.sx - 11, top.sy - 77);
+    ctx.lineTo(top.sx + 11, top.sy - 77);
     ctx.stroke();
+    ctx.fillStyle = '#2f3841';
+    ctx.fillRect(top.sx - 14, top.sy - 80, 4.5, 6);
+    ctx.fillRect(top.sx + 9.5, top.sy - 80, 4.5, 6);
+    for (const [jx, jy] of [
+      [-30, -62],
+      [-22, -66],
+      [30, -62],
+      [22, -66],
+    ] as const) {
+      ellipse(ctx, top.sx + jx, top.sy + jy, 1.6, 2);
+      ctx.fill();
+    }
   } else if (id === 'bukchon-hanok') {
-    // 북촌 한옥마을 — 마당 + 한옥 2채(기와지붕) + 돌담.
+    // 북촌 한옥마을 — 마당 + 본채·별채(회벽·목구조·기와) + 감나무·돌담·장독대.
     vFootprintPath(ctx, x0, y0, x1, y1, 2);
     ctx.fillStyle = '#e5decb';
     ctx.fill();
-    // 본채 벽 (크림 회벽 + 나무 문).
-    faceQuad(ctx, D, C, 0.08, 0.92, 2, 18);
-    ctx.fillStyle = '#f5efdc';
-    ctx.fill();
-    faceQuad(ctx, C, B, 0.08, 0.92, 2, 18);
-    ctx.fillStyle = '#e8e0d0';
-    ctx.fill();
-    const door = facePoint(D, C, 0.5, 0);
-    ctx.fillStyle = '#7a5c42';
-    ctx.fillRect(door.x - 5, door.y - 16, 10, 14);
-    ctx.strokeStyle = '#5b4433';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(door.x, door.y - 16);
-    ctx.lineTo(door.x, door.y - 2);
-    ctx.stroke();
-    // 본채 기와지붕 + 뒤채 지붕.
-    vFootprintPath(ctx, x0 - 0.14, y0 - 0.14, x1 + 0.14, y1 + 0.14, 24);
-    ctx.fillStyle = '#6b7280';
-    ctx.fill();
-    vFootprintPath(ctx, x0 + 0.0, y0 + 0.0, x1 + 0.0, y1 + 0.0, 27);
-    ctx.fillStyle = '#7a8290';
-    ctx.fill();
-    vFootprintPath(ctx, x0 + 0.5, y0 + 0.5, x1 - 0.08, y1 - 0.08, 38);
-    ctx.fillStyle = '#5e6470';
-    ctx.fill();
-    // 처마 수막새 (앞면).
-    ctx.fillStyle = '#4a515e';
-    for (const u of [0.2, 0.4, 0.6, 0.8]) {
-      const p = facePoint(D, C, u, 24);
-      ellipse(ctx, p.x, p.y + 2, 2.2, 2.2);
+    ctx.fillStyle = 'rgba(180,166,140,0.4)';
+    for (let u = 0.25; u < 1.8; u += 0.3) {
+      const yd = toScreen(bx + u, by + 1.55 + ((u * 5) % 1) * 0.3);
+      ellipse(ctx, yd.sx, yd.sy - 2, 1.6, 1);
       ctx.fill();
     }
-    // 돌담 (우측 하단 면 앞).
-    faceQuad(ctx, C, B, 0.62, 1.0, 0, 9);
+    // 본채 (뒤쪽 크게) — 회벽 + 목구조 + 창호.
+    const a0x = bx + 0.1;
+    const a0y = by + 0.1;
+    const a1x = bx + 1.44;
+    const a1y = by + 1.1;
+    const aD = toScreen(a0x, a1y);
+    const aC = toScreen(a1x, a1y);
+    const aB = toScreen(a1x, a0y);
+    vWallPath(ctx, aD, aC, 2, 30);
+    ctx.fillStyle = '#f5efdc';
+    ctx.fill();
+    vWallPath(ctx, aC, aB, 2, 30);
+    ctx.fillStyle = '#e6ddc9';
+    ctx.fill();
+    // 기단선.
+    vWallPath(ctx, aD, aC, 2, 5);
     ctx.fillStyle = '#d9d2c2';
     ctx.fill();
-    ctx.strokeStyle = '#b8ae99';
+    vWallPath(ctx, aC, aB, 2, 5);
+    ctx.fill();
+    // 기둥·인방 (목구조).
+    ctx.fillStyle = '#7a5c42';
+    for (const t of [0, 0.33, 0.66, 1]) {
+      const px2 = aD.sx + (aC.sx - aD.sx) * t;
+      const py2 = aD.sy + (aC.sy - aD.sy) * t;
+      ctx.fillRect(px2 - 1.5, py2 - 30, 3, 28);
+    }
+    for (const t of [0.5, 1]) {
+      const qx2 = aC.sx + (aB.sx - aC.sx) * t;
+      const qy2 = aC.sy + (aB.sy - aC.sy) * t;
+      ctx.fillRect(qx2 - 1.5, qy2 - 30, 3, 28);
+    }
+    vWallPath(ctx, aD, aC, 27.5, 30);
+    ctx.fill();
+    vWallPath(ctx, aC, aB, 27.5, 30);
+    ctx.fill();
+    // 창호 (좌면 문살 2짝) + 대청 마루문 + 우면 창.
+    for (const t of [0.17, 0.5] as const) {
+      const wx = aD.sx + (aC.sx - aD.sx) * t;
+      const wy = aD.sy + (aC.sy - aD.sy) * t;
+      ctx.fillStyle = '#fbf3df';
+      ctx.fillRect(wx - 6, wy - 24, 12, 16);
+      ctx.strokeStyle = '#8a6b52';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(wx - 6, wy - 24, 12, 16);
+      ctx.beginPath();
+      ctx.moveTo(wx, wy - 24);
+      ctx.lineTo(wx, wy - 8);
+      ctx.moveTo(wx - 6, wy - 16);
+      ctx.lineTo(wx + 6, wy - 16);
+      ctx.stroke();
+    }
+    {
+      const mx = aD.sx + (aC.sx - aD.sx) * 0.83;
+      const my = aD.sy + (aC.sy - aD.sy) * 0.83;
+      ctx.fillStyle = '#8a6b52';
+      ctx.fillRect(mx - 5.5, my - 24, 11, 19);
+      ctx.strokeStyle = '#5b4433';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mx, my - 24);
+      ctx.lineTo(mx, my - 5);
+      ctx.stroke();
+      const rx2 = aC.sx + (aB.sx - aC.sx) * 0.28;
+      const ry2 = aC.sy + (aB.sy - aC.sy) * 0.28;
+      ctx.fillStyle = '#fbf3df';
+      ctx.fillRect(rx2 - 5, ry2 - 23, 10, 14);
+      ctx.strokeStyle = '#8a6b52';
+      ctx.strokeRect(rx2 - 5, ry2 - 23, 10, 14);
+      ctx.beginPath();
+      ctx.moveTo(rx2, ry2 - 23);
+      ctx.lineTo(rx2, ry2 - 9);
+      ctx.stroke();
+    }
+    // 본채 기와지붕 — 3겹 + 용마루 + 수막새.
+    vFootprintPath(ctx, a0x - 0.18, a0y - 0.18, a1x + 0.18, a1y + 0.18, 34);
+    ctx.fillStyle = '#5b6470';
+    ctx.fill();
+    vFootprintPath(ctx, a0x - 0.06, a0y - 0.06, a1x + 0.06, a1y + 0.06, 38);
+    ctx.fillStyle = '#6b7280';
+    ctx.fill();
+    vFootprintPath(ctx, a0x + 0.3, a0y + 0.3, a1x - 0.3, a1y - 0.3, 46);
+    ctx.fillStyle = '#7a8290';
+    ctx.fill();
+    const aTop = toScreen((a0x + a1x) / 2, (a0y + a1y) / 2);
+    ctx.strokeStyle = '#4a515e';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(aTop.sx - 11, aTop.sy - 47);
+    ctx.lineTo(aTop.sx + 11, aTop.sy - 47);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    const w0 = facePoint(C, B, 0.66, 5);
-    const w1 = facePoint(C, B, 0.96, 5);
-    ctx.moveTo(w0.x, w0.y);
-    ctx.lineTo(w1.x, w1.y);
+    ctx.moveTo(aTop.sx - 11, aTop.sy - 45.4);
+    ctx.lineTo(aTop.sx + 11, aTop.sy - 45.4);
     ctx.stroke();
+    ctx.fillStyle = '#4a515e';
+    for (const t of [0.1, 0.28, 0.46, 0.64, 0.82, 0.97]) {
+      const e0x = aD.sx + (aC.sx - aD.sx) * t;
+      const e0y = aD.sy + (aC.sy - aD.sy) * t;
+      ellipse(ctx, e0x - 3.5, e0y - 32.5, 2, 2);
+      ctx.fill();
+      const e1x = aC.sx + (aB.sx - aC.sx) * t;
+      const e1y = aC.sy + (aB.sy - aC.sy) * t;
+      ellipse(ctx, e1x + 3.5, e1y - 32.5, 2, 2);
+      ctx.fill();
+    }
+    // 별채 (앞쪽 우측) + 대문.
+    const b0x = bx + 1.14;
+    const b0y = by + 1.04;
+    const b1x = bx + 1.94;
+    const b1y = by + 1.78;
+    const bD = toScreen(b0x, b1y);
+    const bC = toScreen(b1x, b1y);
+    const bB = toScreen(b1x, b0y);
+    vWallPath(ctx, bD, bC, 2, 19);
+    ctx.fillStyle = '#f1ead5';
+    ctx.fill();
+    vWallPath(ctx, bC, bB, 2, 19);
+    ctx.fillStyle = '#e2d8c2';
+    ctx.fill();
+    ctx.fillStyle = '#7a5c42';
+    for (const t of [0.04, 0.96]) {
+      const px2 = bD.sx + (bC.sx - bD.sx) * t;
+      const py2 = bD.sy + (bC.sy - bD.sy) * t;
+      ctx.fillRect(px2 - 1.4, py2 - 19, 2.8, 17);
+    }
+    const bwx = (bD.sx + bC.sx) / 2;
+    const bwy = (bD.sy + bC.sy) / 2;
+    ctx.fillStyle = '#7a5c42';
+    ctx.fillRect(bwx - 5.5, bwy - 16, 11, 14);
+    ctx.strokeStyle = '#5b4433';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bwx, bwy - 16);
+    ctx.lineTo(bwx, bwy - 2);
+    ctx.stroke();
+    ctx.fillStyle = '#d9b45f';
+    ellipse(ctx, bwx - 2.4, bwy - 9, 1.1, 1.1);
+    ctx.fill();
+    ellipse(ctx, bwx + 2.4, bwy - 9, 1.1, 1.1);
+    ctx.fill();
+    vFootprintPath(ctx, b0x - 0.14, b0y - 0.14, b1x + 0.14, b1y + 0.14, 24);
+    ctx.fillStyle = '#525a66';
+    ctx.fill();
+    vFootprintPath(ctx, b0x - 0.04, b0y - 0.04, b1x + 0.04, b1y + 0.04, 27);
+    ctx.fillStyle = '#646c7a';
+    ctx.fill();
+    vFootprintPath(ctx, b0x + 0.26, b0y + 0.26, b1x - 0.26, b1y - 0.26, 33);
+    ctx.fillStyle = '#747c8a';
+    ctx.fill();
+    const bTop = toScreen((b0x + b1x) / 2, (b0y + b1y) / 2);
+    ctx.strokeStyle = '#4a515e';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bTop.sx - 6, bTop.sy - 34);
+    ctx.lineTo(bTop.sx + 6, bTop.sy - 34);
+    ctx.stroke();
+    // 감나무 (마당 세로 포인트).
+    {
+      const tp = toScreen(bx + 0.34, by + 1.34);
+      ctx.fillStyle = 'rgba(40,50,35,0.16)';
+      ellipse(ctx, tp.sx, tp.sy - 1, 10, 3.6);
+      ctx.fill();
+      ctx.fillStyle = '#7a5c42';
+      ctx.fillRect(tp.sx - 2.2, tp.sy - 19, 4.4, 17);
+      ctx.fillStyle = '#6ba254';
+      ellipse(ctx, tp.sx, tp.sy - 26, 11.5, 10);
+      ctx.fill();
+      ctx.fillStyle = '#79ae60';
+      ellipse(ctx, tp.sx - 4, tp.sy - 30, 6.5, 5.5);
+      ctx.fill();
+      ctx.fillStyle = '#f2914e';
+      for (const [ox2, oy2] of [
+        [-6, -23],
+        [2, -20],
+        [6, -27],
+        [-1, -31],
+      ] as const) {
+        ellipse(ctx, tp.sx + ox2, tp.sy + oy2, 1.7, 1.7);
+        ctx.fill();
+      }
+    }
+    // 돌담 (좌하단 면 앞) + 기와 캡.
+    faceQuad(ctx, D, C, 0.02, 0.42, 0, 10);
+    ctx.fillStyle = '#d9d2c2';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(150,140,118,0.6)';
+    for (const [wu, wh] of [
+      [0.07, 3],
+      [0.15, 6.5],
+      [0.24, 2.8],
+      [0.32, 6],
+      [0.39, 3.6],
+    ] as const) {
+      const wp = facePoint(D, C, wu, wh);
+      ellipse(ctx, wp.x, wp.y, 2.3, 1.7);
+      ctx.fill();
+    }
+    const cap0 = facePoint(D, C, 0.0, 10);
+    const cap1 = facePoint(D, C, 0.44, 10);
+    ctx.strokeStyle = '#6b7280';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cap0.x, cap0.y - 1);
+    ctx.lineTo(cap1.x, cap1.y - 1);
+    ctx.stroke();
+    // 장독대 (앞마당) — 항아리 3.
+    for (const [jx, jy, jr] of [
+      [0.38, 1.62, 4.6],
+      [0.58, 1.74, 3.8],
+      [0.26, 1.78, 3.2],
+    ] as const) {
+      const jp = toScreen(bx + jx, by + jy);
+      ctx.fillStyle = '#6e4a33';
+      ellipse(ctx, jp.sx, jp.sy - jr, jr, jr * 1.05);
+      ctx.fill();
+      ctx.fillStyle = '#82593d';
+      ellipse(ctx, jp.sx - jr * 0.3, jp.sy - jr * 1.25, jr * 0.42, jr * 0.5);
+      ctx.fill();
+      ctx.fillStyle = '#54382a';
+      ellipse(ctx, jp.sx, jp.sy - jr * 2, jr * 0.62, jr * 0.24);
+      ctx.fill();
+    }
   } else if (id === 'seoul-forest') {
-    // 서울숲 — 잔디 둔덕 + 나무 군락 + 꽃사슴 (낮은 랜드마크).
+    // 서울숲 — 굽은 산책로 + 수종 다른 나무들 + 꽃사슴 + 팻말 (낮은 랜드마크).
     vFootprintPath(ctx, x0, y0, x1, y1, 2);
     ctx.fillStyle = '#8fbf6d';
     ctx.fill();
-    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 3);
+    vFootprintPath(ctx, x0 + 0.1, y0 + 0.1, x1 - 0.1, y1 - 0.1, 4);
     ctx.fillStyle = '#a5d588';
     ctx.fill();
-    // 나무 3그루 — 가운데가 가장 크다.
-    for (const [tx, ty, r] of [
-      [0.4, 0.42, 11],
-      [1.05, 1.0, 15],
-      [1.62, 0.5, 9],
-    ] as const) {
+    // 굽은 자갈 산책로.
+    const pw0 = toScreen(bx + 0.28, by + 1.85);
+    const pw1 = toScreen(bx + 1.0, by + 1.0);
+    const pw2 = toScreen(bx + 1.85, by + 0.6);
+    ctx.strokeStyle = '#ded2b6';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(pw0.sx, pw0.sy - 4);
+    ctx.quadraticCurveTo(pw1.sx - 12, pw1.sy - 4, pw1.sx, pw1.sy - 4);
+    ctx.quadraticCurveTo(pw1.sx + 16, pw1.sy - 6, pw2.sx, pw2.sy - 4);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(160,145,116,0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(pw0.sx, pw0.sy - 4);
+    ctx.quadraticCurveTo(pw1.sx - 12, pw1.sy - 4, pw1.sx, pw1.sy - 4);
+    ctx.quadraticCurveTo(pw1.sx + 16, pw1.sy - 6, pw2.sx, pw2.sy - 4);
+    ctx.stroke();
+    // 나무들 — 큰 참나무 + 은행나무(노랑) + 소나무 느낌.
+    const tree = (tx: number, ty: number, r: number, c1: string, c2: string, c3: string) => {
       const p = toScreen(bx + tx, by + ty);
       const sw = Math.sin(opts.time * 1.3 + tx * 6) * 1.3;
       ctx.fillStyle = 'rgba(40,50,35,0.16)';
-      ellipse(ctx, p.sx, p.sy - 1, r * 0.9, r * 0.3);
+      ellipse(ctx, p.sx, p.sy - 1, r * 0.95, r * 0.32);
       ctx.fill();
       ctx.fillStyle = '#8a6b52';
-      ctx.fillRect(p.sx - 2.2, p.sy - 18, 4.4, 16);
-      ctx.fillStyle = '#6ba254';
-      ellipse(ctx, p.sx + sw, p.sy - 24 - r * 0.35, r, r * 0.95);
+      ctx.fillRect(p.sx - 2.6, p.sy - 22, 5.2, 20);
+      ctx.fillStyle = c1;
+      ellipse(ctx, p.sx + sw, p.sy - 30 - r * 0.3, r, r * 0.92);
       ctx.fill();
-      ctx.fillStyle = '#82bb68';
-      ellipse(ctx, p.sx + sw - r * 0.32, p.sy - 27 - r * 0.35, r * 0.55, r * 0.5);
+      ctx.fillStyle = c2;
+      ellipse(ctx, p.sx + sw - r * 0.36, p.sy - 34 - r * 0.3, r * 0.58, r * 0.52);
       ctx.fill();
-    }
-    // 꽃사슴 — 몸통 + 목 + 뿔 + 점무늬.
-    const deer = toScreen(bx + 1.5, by + 1.5);
-    ctx.fillStyle = '#a9855c';
-    ellipse(ctx, deer.sx, deer.sy - 8, 8, 5.2);
+      ctx.fillStyle = c3;
+      ellipse(ctx, p.sx + sw + r * 0.32, p.sy - 27 - r * 0.3, r * 0.42, r * 0.38);
+      ctx.fill();
+    };
+    tree(0.55, 0.55, 17, '#6ba254', '#82bb68', '#8cc073');
+    tree(1.55, 1.5, 13, '#6ba254', '#79ae60', '#8cc073');
+    tree(1.62, 0.38, 12, '#d9b84a', '#e8ca5f', '#c9a838'); // 은행나무
+    tree(0.3, 1.25, 10, '#54885c', '#68a06e', '#7bb281');
+    // 꽃사슴 — 서 있는 옆모습.
+    const deer = toScreen(bx + 1.06, by + 1.32);
+    ctx.fillStyle = 'rgba(40,50,35,0.15)';
+    ellipse(ctx, deer.sx, deer.sy - 1, 11, 3.4);
     ctx.fill();
-    ctx.fillRect(deer.sx - 6, deer.sy - 6, 2.2, 6);
-    ctx.fillRect(deer.sx + 3.8, deer.sy - 6, 2.2, 6);
-    ellipse(ctx, deer.sx + 8.5, deer.sy - 14, 3.6, 3.2);
+    ctx.fillStyle = '#a9855c';
+    ellipse(ctx, deer.sx, deer.sy - 12, 9.5, 6);
+    ctx.fill();
+    for (const lx of [-6.5, -2.5, 2.5, 6.5]) {
+      ctx.fillRect(deer.sx + lx - 1, deer.sy - 9, 2, 9);
+    }
+    ctx.beginPath();
+    ctx.moveTo(deer.sx + 7.5, deer.sy - 14);
+    ctx.quadraticCurveTo(deer.sx + 11, deer.sy - 18, deer.sx + 11.5, deer.sy - 22);
+    ctx.lineTo(deer.sx + 14.5, deer.sy - 21);
+    ctx.quadraticCurveTo(deer.sx + 13, deer.sy - 15, deer.sx + 9, deer.sy - 11);
+    ctx.closePath();
+    ctx.fill();
+    ellipse(ctx, deer.sx + 14, deer.sy - 23.5, 4, 3.4);
+    ctx.fill();
+    ellipse(ctx, deer.sx + 17.5, deer.sy - 22.3, 2.2, 1.7);
+    ctx.fill();
+    ctx.fillStyle = '#8a6b52';
+    ellipse(ctx, deer.sx + 12, deer.sy - 26.5, 1.8, 1);
     ctx.fill();
     ctx.strokeStyle = '#8a6b52';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.moveTo(deer.sx + 7.5, deer.sy - 16.5);
-    ctx.quadraticCurveTo(deer.sx + 5.5, deer.sy - 21, deer.sx + 3, deer.sy - 22);
-    ctx.moveTo(deer.sx + 10, deer.sy - 16.5);
-    ctx.quadraticCurveTo(deer.sx + 12, deer.sy - 21, deer.sx + 14.5, deer.sy - 21.5);
+    ctx.moveTo(deer.sx + 13, deer.sy - 26.5);
+    ctx.quadraticCurveTo(deer.sx + 11.5, deer.sy - 31, deer.sx + 8.5, deer.sy - 32);
+    ctx.moveTo(deer.sx + 15, deer.sy - 26.5);
+    ctx.quadraticCurveTo(deer.sx + 16.5, deer.sy - 31, deer.sx + 19, deer.sy - 31.5);
     ctx.stroke();
+    ctx.fillStyle = '#2b2b33';
+    ellipse(ctx, deer.sx + 15.2, deer.sy - 23.8, 0.9, 0.9);
+    ctx.fill();
     ctx.fillStyle = '#fff3dc';
-    ellipse(ctx, deer.sx - 2, deer.sy - 10, 1.1, 1.1);
+    for (const [sx2, sy2] of [
+      [-4, -14],
+      [0, -12],
+      [3.5, -14.5],
+      [-6, -11],
+    ] as const) {
+      ellipse(ctx, deer.sx + sx2, deer.sy + sy2, 1, 1);
+      ctx.fill();
+    }
+    ellipse(ctx, deer.sx - 9, deer.sy - 13, 1.6, 2.4);
     ctx.fill();
-    ellipse(ctx, deer.sx + 2.5, deer.sy - 8.5, 1, 1);
-    ctx.fill();
-    // 들꽃.
+    // 팻말 + 들꽃 + 나비.
+    const sign = toScreen(bx + 0.62, by + 1.72);
+    ctx.fillStyle = '#8a6b52';
+    ctx.fillRect(sign.sx - 1.6, sign.sy - 16, 3.2, 14);
+    ctx.fillStyle = '#c9885a';
+    ctx.fillRect(sign.sx - 8, sign.sy - 23, 16, 8);
+    ctx.strokeStyle = '#a06a44';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sign.sx - 8, sign.sy - 23, 16, 8);
+    ctx.strokeStyle = '#7a5c42';
+    ctx.beginPath();
+    ctx.moveTo(sign.sx - 5, sign.sy - 20.5);
+    ctx.lineTo(sign.sx + 5, sign.sy - 20.5);
+    ctx.moveTo(sign.sx - 5, sign.sy - 17.5);
+    ctx.lineTo(sign.sx + 2, sign.sy - 17.5);
+    ctx.stroke();
     for (const [fx, fy, c] of [
-      [-24, 6, '#f2a7c3'],
-      [10, 11, '#ffd66b'],
-      [24, 5, '#fffdf7'],
+      [-40, 8, '#f2a7c3'],
+      [30, 16, '#ffd66b'],
+      [44, 4, '#fffdf7'],
     ] as const) {
       ctx.fillStyle = c;
       ellipse(ctx, top.sx + fx, top.sy + fy, 2.2, 2.2);
       ctx.fill();
     }
+    const bf = Math.sin(opts.time * 2.6) * 4;
+    ctx.fillStyle = '#f2a7c3';
+    ellipse(ctx, top.sx + 14 + bf, top.sy - 34, 2.2, 1.4);
+    ctx.fill();
+    ellipse(ctx, top.sx + 17 + bf, top.sy - 35, 2.2, 1.4);
+    ctx.fill();
   } else if (id === 'red-brick') {
-    // 붉은벽돌 카페 — 벽돌 공장 개조 + 굴뚝 + 커피잔 간판.
-    faceQuad(ctx, D, C, 0.04, 0.96, 0, 32);
+    // 붉은벽돌 카페 — 벽돌결·아치창 + 천창 2기 + 어닝 입구 + 굴뚝 연기.
+    faceQuad(ctx, D, C, 0.04, 0.96, 0, 34);
     ctx.fillStyle = '#b95d50';
     ctx.fill();
-    faceQuad(ctx, C, B, 0.04, 0.96, 0, 32);
+    faceQuad(ctx, C, B, 0.04, 0.96, 0, 34);
     ctx.fillStyle = '#a34f42';
     ctx.fill();
-    // 벽돌 결 (앞면 가로줄).
-    ctx.strokeStyle = 'rgba(139,64,56,0.75)';
-    ctx.lineWidth = 1.2;
-    for (const h of [10, 20]) {
-      const l0 = facePoint(D, C, 0.06, h);
-      const l1 = facePoint(D, C, 0.94, h);
+    // 벽돌 결 — 가로 모르타르 + 엇갈린 세로 점.
+    ctx.strokeStyle = 'rgba(139,64,56,0.8)';
+    ctx.lineWidth = 1;
+    for (let h = 6; h <= 30; h += 6) {
+      const l0 = facePoint(D, C, 0.05, h);
+      const l1 = facePoint(D, C, 0.95, h);
+      ctx.beginPath();
+      ctx.moveTo(l0.x, l0.y);
+      ctx.lineTo(l1.x, l1.y);
+      ctx.stroke();
+      const r0 = facePoint(C, B, 0.05, h);
+      const r1 = facePoint(C, B, 0.95, h);
+      ctx.beginPath();
+      ctx.moveTo(r0.x, r0.y);
+      ctx.lineTo(r1.x, r1.y);
+      ctx.stroke();
+    }
+    for (let h = 3; h <= 33; h += 6) {
+      for (let u = 0.1 + ((h / 6) % 2) * 0.05; u < 0.95; u += 0.1) {
+        const dp = facePoint(D, C, u, h);
+        ctx.beginPath();
+        ctx.moveTo(dp.x, dp.y - 2.2);
+        ctx.lineTo(dp.x, dp.y + 2.2);
+        ctx.stroke();
+      }
+    }
+    // 아치창 2 (좌면) + 헌팅 트로피? 대신 벽 램프.
+    for (const u of [0.24, 0.52]) {
+      const wpt = facePoint(D, C, u, 20);
+      ctx.fillStyle = '#ffefc9';
+      ctx.beginPath();
+      ctx.ellipse(wpt.x, wpt.y - 2, 4.6, 5.6, 0, Math.PI, 0);
+      ctx.rect(wpt.x - 4.6, wpt.y - 2, 9.2, 9);
+      ctx.fill();
+      ctx.strokeStyle = '#8b4038';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(wpt.x, wpt.y - 2, 4.6, 5.6, 0, Math.PI, 0);
+      ctx.moveTo(wpt.x - 4.6, wpt.y - 2);
+      ctx.lineTo(wpt.x - 4.6, wpt.y + 7);
+      ctx.moveTo(wpt.x + 4.6, wpt.y - 2);
+      ctx.lineTo(wpt.x + 4.6, wpt.y + 7);
+      ctx.moveTo(wpt.x, wpt.y - 7.6);
+      ctx.lineTo(wpt.x, wpt.y + 7);
+      ctx.stroke();
+    }
+    // 카페 입구 (좌면 앞쪽) — 문 + 줄무늬 어닝 + 화분.
+    const door = facePoint(D, C, 0.8, 0);
+    ctx.fillStyle = '#3f4550';
+    ctx.fillRect(door.x - 6, door.y - 16, 12, 16);
+    ctx.fillStyle = '#ffefc9';
+    ctx.fillRect(door.x - 4, door.y - 13.5, 8, 7);
+    ctx.fillStyle = '#d9b45f';
+    ellipse(ctx, door.x + 3.4, door.y - 6.5, 0.9, 0.9);
+    ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      ctx.fillStyle = i % 2 ? '#fffdf7' : '#f2705e';
+      ctx.beginPath();
+      ctx.moveTo(door.x - 9 + i * 3.8, door.y - 19);
+      ctx.lineTo(door.x - 5.2 + i * 3.8, door.y - 19);
+      ctx.lineTo(door.x - 5.2 + i * 3.8, door.y - 16.2);
+      ctx.quadraticCurveTo(door.x - 7.1 + i * 3.8, door.y - 14.6, door.x - 9 + i * 3.8, door.y - 16.2);
+      ctx.closePath();
+      ctx.fill();
+    }
+    const pot = facePoint(D, C, 0.62, 0);
+    ctx.fillStyle = '#a06a44';
+    ctx.fillRect(pot.x - 2.6, pot.y - 4.5, 5.2, 4.5);
+    ctx.fillStyle = '#6ba254';
+    ellipse(ctx, pot.x, pot.y - 7, 3.6, 3.2);
+    ctx.fill();
+    // 지붕 + 천창(톱니) 2기.
+    vFootprintPath(ctx, x0, y0, x1, y1, 34);
+    ctx.fillStyle = '#8b4038';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.07, y0 + 0.07, x1 - 0.07, y1 - 0.07, 36);
+    ctx.fillStyle = '#9c473d';
+    ctx.fill();
+    for (const off of [0.22, 1.06]) {
+      const s0 = toScreen(bx + 0.3, by + off + 0.62);
+      const s1 = toScreen(bx + 1.7 - off * 0.0, by + off + 0.14);
+      // 천창 볼륨 — 남쪽 벽(벽돌) + 북쪽 유리 경사.
+      const k0 = toScreen(bx + 0.35 + off * 0.35, by + 0.2 + off);
+      const k1 = toScreen(bx + 1.62 - off * 0.0 + 0, by + 0.2 + off);
+      void s0;
+      void s1;
+      vWallPath(ctx, k0, k1, 36, 46);
+      ctx.fillStyle = '#8b4038';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(k0.sx, k0.sy - 46);
+      ctx.lineTo(k1.sx, k1.sy - 46);
+      ctx.lineTo(k1.sx - 9, k1.sy - 36 - 4);
+      ctx.lineTo(k0.sx - 9, k0.sy - 36 - 4);
+      ctx.closePath();
+      ctx.fillStyle = '#cfe0e8';
+      ctx.fill();
+      ctx.strokeStyle = '#9db4be';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo((k0.sx + k1.sx) / 2 - 4.5, (k0.sy + k1.sy) / 2 - 44);
+      ctx.lineTo((k0.sx + k1.sx) / 2 - 13.5, (k0.sy + k1.sy) / 2 - 38);
+      ctx.stroke();
+    }
+    // 굴뚝 + 연기.
+    const chim = toScreen(bx + 1.6, by + 0.42);
+    ctx.fillStyle = '#a34f42';
+    ctx.fillRect(chim.sx - 5, chim.sy - 66, 10, 32);
+    ctx.strokeStyle = '#8b4038';
+    ctx.lineWidth = 1.1;
+    for (const hh of [56, 48, 40]) {
+      ctx.beginPath();
+      ctx.moveTo(chim.sx - 5, chim.sy - hh);
+      ctx.lineTo(chim.sx + 5, chim.sy - hh);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#8b4038';
+    ctx.fillRect(chim.sx - 6.5, chim.sy - 70, 13, 5);
+    for (let i = 0; i < 2; i++) {
+      const puff = (opts.time * 8 + i * 10) % 20;
+      ctx.fillStyle = `rgba(228,220,208,${0.65 - puff * 0.028})`;
+      ellipse(ctx, chim.sx + puff * 0.35, chim.sy - 74 - puff, 3.6 + puff * 0.2, 3 + puff * 0.16);
+      ctx.fill();
+    }
+    // 커피잔 간판 (우면).
+    const sign2 = facePoint(C, B, 0.5, 24);
+    ctx.fillStyle = '#fffdf7';
+    ellipse(ctx, sign2.x, sign2.y, 7, 7);
+    ctx.fill();
+    ctx.strokeStyle = '#8b4038';
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.arc(sign2.x, sign2.y, 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#9c6b43';
+    ctx.beginPath();
+    ctx.moveTo(sign2.x - 3.2, sign2.y - 2);
+    ctx.lineTo(sign2.x + 2.8, sign2.y - 2);
+    ctx.lineTo(sign2.x + 2.2, sign2.y + 3.4);
+    ctx.lineTo(sign2.x - 2.6, sign2.y + 3.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#9c6b43';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sign2.x - 1.4, sign2.y - 3.6);
+    ctx.quadraticCurveTo(sign2.x - 0.6, sign2.y - 5.2, sign2.x - 1.4, sign2.y - 6.4);
+    ctx.moveTo(sign2.x + 1.4, sign2.y - 3.6);
+    ctx.quadraticCurveTo(sign2.x + 2.2, sign2.y - 5.2, sign2.x + 1.4, sign2.y - 6.4);
+    ctx.stroke();
+    // 담쟁이.
+    ctx.strokeStyle = '#6ba254';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const ivy = facePoint(C, B, 0.12, 0);
+    ctx.moveTo(ivy.x, ivy.y);
+    ctx.quadraticCurveTo(ivy.x + 4, ivy.y - 12, ivy.x - 2, ivy.y - 20);
+    ctx.stroke();
+    ctx.fillStyle = '#79ae60';
+    for (const [vx2, vy2] of [
+      [1, -7],
+      [3, -13],
+      [-1, -18],
+    ] as const) {
+      ellipse(ctx, ivy.x + vx2, ivy.y + vy2, 2.2, 1.8);
+      ctx.fill();
+    }
+  } else if (id === 'gwangan-bridge') {
+    // 광안대교 — 2층 상판 슬래브 + 현수 주케이블·행어 + 주탑·조명·돛단배.
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fc0d6';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.13, y0 + 0.13, x1 - 0.13, y1 - 0.13, 3);
+    ctx.fillStyle = '#a8d4e4';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 4; i++) {
+      const ph = opts.time * 1.8 + i * 1.9;
+      const wx = Math.sin(ph) * 4;
+      ctx.beginPath();
+      ctx.moveTo(top.sx - 34 + wx + i * 17, top.sy + 8 + (i % 2) * 9);
+      ctx.quadraticCurveTo(top.sx - 28 + wx + i * 17, top.sy + 5 + (i % 2) * 9, top.sx - 22 + wx + i * 17, top.sy + 8 + (i % 2) * 9);
+      ctx.stroke();
+    }
+    const DK = 24; // 상판 윗면 높이
+    const cab = (u: number, h: number) => {
+      const p = toScreen(bx + u, by + 1);
+      return { x: p.sx, y: p.sy - h };
+    };
+    // 교각 2 + 수면 반사.
+    for (const pu of [0.3, 1.7]) {
+      const pb = toScreen(bx + pu, by + 1.1);
+      ctx.fillStyle = '#6b7280';
+      ctx.fillRect(pb.sx - 3.4, pb.sy - 16, 6.8, 13.5);
+      ctx.fillStyle = 'rgba(107,114,128,0.35)';
+      ellipse(ctx, pb.sx, pb.sy - 1, 4.6, 1.7);
+      ctx.fill();
+    }
+    // 상판 슬래브 — 윗면 + 전면 파사드(2층 개구 슬롯) + 우측 단면.
+    const sA = toScreen(bx + 0.1, by + 0.9);
+    const sB2 = toScreen(bx + 1.9, by + 0.9);
+    const sC2 = toScreen(bx + 1.9, by + 1.1);
+    const sD2 = toScreen(bx + 0.1, by + 1.1);
+    ctx.beginPath();
+    ctx.moveTo(sA.sx, sA.sy - DK);
+    ctx.lineTo(sB2.sx, sB2.sy - DK);
+    ctx.lineTo(sC2.sx, sC2.sy - DK);
+    ctx.lineTo(sD2.sx, sD2.sy - DK);
+    ctx.closePath();
+    ctx.fillStyle = '#7a8290';
+    ctx.fill();
+    vWallPath(ctx, sD2, sC2, 15, DK);
+    ctx.fillStyle = '#4d5560';
+    ctx.fill();
+    vWallPath(ctx, sD2, sC2, 18.4, 20.4);
+    ctx.fillStyle = '#2f353d';
+    ctx.fill();
+    vWallPath(ctx, sC2, sB2, 15, DK);
+    ctx.fillStyle = '#3f454f';
+    ctx.fill();
+    // 차선 (윗면 중앙 점선).
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.1;
+    for (let u = 0.22; u < 1.8; u += 0.16) {
+      const l0 = cab(u, DK);
+      const l1 = cab(u + 0.07, DK);
       ctx.beginPath();
       ctx.moveTo(l0.x, l0.y);
       ctx.lineTo(l1.x, l1.y);
       ctx.stroke();
     }
-    // 지붕 (플랫 + 파라펫).
-    vFootprintPath(ctx, x0, y0, x1, y1, 32);
-    ctx.fillStyle = '#8b4038';
-    ctx.fill();
-    vFootprintPath(ctx, x0 + 0.1, y0 + 0.1, x1 - 0.1, y1 - 0.1, 34);
-    ctx.fillStyle = '#9c473d';
-    ctx.fill();
-    // 굴뚝 + 연기.
-    const chim = toScreen(bx + 1.55, by + 0.5);
-    ctx.fillStyle = '#a34f42';
-    ctx.fillRect(chim.sx - 4.5, chim.sy - 62, 9, 30);
-    ctx.fillStyle = '#8b4038';
-    ctx.fillRect(chim.sx - 6, chim.sy - 66, 12, 5);
-    const puff = (opts.time * 8) % 20;
-    ctx.fillStyle = `rgba(228,220,208,${0.7 - puff * 0.03})`;
-    ellipse(ctx, chim.sx + puff * 0.3, chim.sy - 70 - puff, 4 + puff * 0.18, 3.4 + puff * 0.15);
-    ctx.fill();
-    // 아치창 2 + 카페 문 (앞면).
-    ctx.fillStyle = '#fff3dc';
-    for (const u of [0.26, 0.74]) {
-      const wpt = facePoint(D, C, u, 18);
+    // 주탑 2기 (상판 위 A형) + 크로스빔.
+    for (const tu of [0.62, 1.38]) {
+      const tb = cab(tu, DK);
+      ctx.strokeStyle = '#d95a73';
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.ellipse(wpt.x, wpt.y, 4, 5, 0, Math.PI, 0);
-      ctx.rect(wpt.x - 4, wpt.y, 8, 6);
-      ctx.fill();
+      ctx.moveTo(tb.x - 6, tb.y + 3);
+      ctx.lineTo(tb.x - 1.6, tb.y - 36);
+      ctx.moveTo(tb.x + 6, tb.y + 3);
+      ctx.lineTo(tb.x + 1.6, tb.y - 36);
+      ctx.stroke();
+      ctx.strokeStyle = '#b8455c';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(tb.x - 4.6, tb.y - 12);
+      ctx.lineTo(tb.x + 4.6, tb.y - 12);
+      ctx.moveTo(tb.x - 3, tb.y - 26);
+      ctx.lineTo(tb.x + 3, tb.y - 26);
+      ctx.moveTo(tb.x - 2.4, tb.y - 35);
+      ctx.lineTo(tb.x + 2.4, tb.y - 35);
+      ctx.stroke();
     }
-    const cdoor = facePoint(D, C, 0.5, 0);
-    ctx.fillStyle = '#3f4550';
-    ctx.fillRect(cdoor.x - 5.5, cdoor.y - 15, 11, 13);
-    ctx.fillStyle = '#ffefc9';
-    ctx.fillRect(cdoor.x - 3.5, cdoor.y - 13, 7, 6);
-    // 커피잔 간판 (우측 하단 면).
-    const sign = facePoint(C, B, 0.5, 22);
-    ctx.fillStyle = '#fffdf7';
-    ellipse(ctx, sign.x, sign.y, 6.5, 6.5);
-    ctx.fill();
-    ctx.strokeStyle = '#8b4038';
-    ctx.lineWidth = 1.6;
+    // 현수 주케이블 (중앙 스팬 새그 + 측경간) + 행어.
+    const TWH = DK + 36;
+    const cableH = (u: number): number => {
+      if (u < 0.62) {
+        const t = (0.62 - u) / 0.52;
+        return TWH - (TWH - DK - 2.5) * t * t;
+      }
+      if (u > 1.38) {
+        const t = (u - 1.38) / 0.52;
+        return TWH - (TWH - DK - 2.5) * t * t;
+      }
+      const t = (u - 0.62) / 0.76;
+      return TWH - 19 * Math.sin(Math.PI * t);
+    };
+    ctx.strokeStyle = '#c07285';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(sign.x, sign.y, 6.5, 0, Math.PI * 2);
+    {
+      const c0 = cab(0.1, cableH(0.1));
+      ctx.moveTo(c0.x, c0.y);
+    }
+    for (let u = 0.16; u <= 1.9; u += 0.06) {
+      const cp = cab(u, cableH(u));
+      ctx.lineTo(cp.x, cp.y);
+    }
     ctx.stroke();
-    ctx.fillStyle = '#9c6b43';
+    ctx.strokeStyle = '#c9a6ae';
+    ctx.lineWidth = 1;
+    for (let u = 0.7; u <= 1.31; u += 0.085) {
+      const h0 = cab(u, cableH(u));
+      const h1 = cab(u, DK);
+      ctx.beginPath();
+      ctx.moveTo(h0.x, h0.y);
+      ctx.lineTo(h1.x, h1.y);
+      ctx.stroke();
+    }
+    // 조명 (케이블 라인 금/보라 트윙클) + 수면 반짝.
+    for (let i = 0; i <= 10; i++) {
+      const u = 0.15 + (i / 10) * 1.7;
+      const tw = 0.7 + Math.sin(opts.time * 3.2 + i * 1.35) * 0.3;
+      ctx.fillStyle = i % 2 ? `rgba(255,214,107,${tw})` : `rgba(180,140,255,${tw})`;
+      const lp = cab(u, cableH(u) + 2);
+      ellipse(ctx, lp.x, lp.y, 1.8, 1.8);
+      ctx.fill();
+      if (i % 3 === 0) {
+        const rp = toScreen(bx + u, by + 1.32);
+        ctx.fillStyle = `rgba(255,214,107,${tw * 0.3})`;
+        ellipse(ctx, rp.sx, rp.sy - 2, 2.6, 0.9);
+        ctx.fill();
+      }
+    }
+    // 돛단배 (앞바다, 봅질).
+    const bob = Math.sin(opts.time * 1.6) * 1.6;
+    const boat = toScreen(bx + 0.5, by + 1.6);
+    ctx.fillStyle = '#fffdf7';
     ctx.beginPath();
-    ctx.moveTo(sign.x - 3, sign.y - 2);
-    ctx.lineTo(sign.x + 2.6, sign.y - 2);
-    ctx.lineTo(sign.x + 2, sign.y + 3.2);
-    ctx.lineTo(sign.x - 2.4, sign.y + 3.2);
+    ctx.moveTo(boat.sx - 7, boat.sy - 4 + bob);
+    ctx.lineTo(boat.sx + 7, boat.sy - 4 + bob);
+    ctx.lineTo(boat.sx + 4.5, boat.sy + bob);
+    ctx.lineTo(boat.sx - 4.5, boat.sy + bob);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = '#f2705e';
+    ctx.beginPath();
+    ctx.moveTo(boat.sx, boat.sy - 5 + bob);
+    ctx.lineTo(boat.sx, boat.sy - 16 + bob);
+    ctx.lineTo(boat.sx + 7, boat.sy - 6.5 + bob);
+    ctx.closePath();
+    ctx.fill();
+  } else if (id === 'nurimaru') {
+    // 누리마루 — 동백섬 + 석재 기단 + 유리홀(창살·온광) + 리브 지붕 + 동백.
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fbf6d';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.1, y0 + 0.1, x1 - 0.1, y1 - 0.1, 4);
+    ctx.fillStyle = '#a5d588';
+    ctx.fill();
+    // 해안 바위 모서리 + 파도.
+    const rk = toScreen(bx + 1.82, by + 1.62);
+    ctx.fillStyle = '#7c8794';
+    ellipse(ctx, rk.sx, rk.sy - 3, 7, 4.5);
+    ctx.fill();
+    ellipse(ctx, rk.sx + 6, rk.sy - 1, 4.5, 3);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(168,212,228,0.9)';
+    ctx.lineWidth = 2;
+    const wv = Math.sin(opts.time * 2.4) * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(rk.sx - 6 + wv, rk.sy + 4);
+    ctx.quadraticCurveTo(rk.sx + wv, rk.sy + 1.6, rk.sx + 6 + wv, rk.sy + 4);
+    ctx.stroke();
+    // 산책로 링.
+    ctx.strokeStyle = '#ded2b6';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.ellipse(top.sx, top.sy - 2, 44, 17, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // 석재 기단 (원형).
+    ctx.fillStyle = '#c9c2b4';
+    ellipse(ctx, top.sx, top.sy - 8, 30, 11.5);
+    ctx.fill();
+    ctx.fillStyle = '#d9d2c2';
+    ellipse(ctx, top.sx, top.sy - 11, 30, 11);
+    ctx.fill();
+    // 유리홀 — 온광 + 창살.
+    ctx.fillStyle = '#f5e6c0';
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 22, top.sy - 13);
+    ctx.lineTo(top.sx - 22, top.sy - 30);
+    ctx.lineTo(top.sx + 22, top.sy - 30);
+    ctx.lineTo(top.sx + 22, top.sy - 13);
+    ctx.closePath();
+    ctx.fill();
+    ellipse(ctx, top.sx, top.sy - 13, 22, 8.5);
+    ctx.fill();
+    ctx.fillStyle = '#dce8ec';
+    ellipse(ctx, top.sx, top.sy - 30, 22, 8.5);
+    ctx.fill();
+    ctx.strokeStyle = '#a5bcc6';
+    ctx.lineWidth = 1.2;
+    for (const ox2 of [-22, -14.5, -7, 0, 7, 14.5, 22]) {
+      ctx.beginPath();
+      ctx.moveTo(top.sx + ox2, top.sy - 13 + (Math.abs(ox2) > 15 ? -1 : 3.5) * 0);
+      ctx.lineTo(top.sx + ox2, top.sy - 30);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.ellipse(top.sx, top.sy - 13, 22, 8.5, 0, 0, Math.PI);
+    ctx.stroke();
+    // 리브 지붕 디스크.
+    ctx.fillStyle = '#8fa6b2';
+    ellipse(ctx, top.sx, top.sy - 34, 28, 10);
+    ctx.fill();
+    ctx.fillStyle = '#aec3cd';
+    ellipse(ctx, top.sx, top.sy - 37, 28, 9.5);
+    ctx.fill();
+    ctx.strokeStyle = '#8fa6b2';
+    ctx.lineWidth = 1.2;
+    for (const a of [-0.9, -0.45, 0, 0.45, 0.9]) {
+      ctx.beginPath();
+      ctx.moveTo(top.sx + Math.sin(a) * 4, top.sy - 44);
+      ctx.lineTo(top.sx + Math.sin(a) * 27, top.sy - 37 + Math.cos(a) * 6);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#8fa6b2';
+    ellipse(ctx, top.sx, top.sy - 44, 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#aec3cd';
+    ellipse(ctx, top.sx, top.sy - 45.5, 8, 2.8);
+    ctx.fill();
+    ctx.strokeStyle = '#6e8794';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(top.sx, top.sy - 46);
+    ctx.lineTo(top.sx, top.sy - 52);
+    ctx.stroke();
+    ctx.fillStyle = '#d9485e';
+    ellipse(ctx, top.sx, top.sy - 53.5, 1.8, 1.8);
+    ctx.fill();
+    // 동백 덤불 3 + 낙화.
+    for (const [ux, uy, br] of [
+      [0.34, 1.5, 9],
+      [1.66, 0.42, 8],
+      [0.4, 0.5, 7],
+    ] as const) {
+      const p = toScreen(bx + ux, by + uy);
+      ctx.fillStyle = '#5e8c61';
+      ellipse(ctx, p.sx, p.sy - 7, br, br * 0.82);
+      ctx.fill();
+      ctx.fillStyle = '#6da370';
+      ellipse(ctx, p.sx - br * 0.35, p.sy - 9.5, br * 0.5, br * 0.42);
+      ctx.fill();
+      for (const [dx2, dy2] of [
+        [-br * 0.4, -br * 0.9],
+        [br * 0.35, -br * 0.55],
+        [-br * 0.05, -br * 1.15],
+      ] as const) {
+        ctx.fillStyle = '#d9485e';
+        ellipse(ctx, p.sx + dx2, p.sy - 5 + dy2, 2.2, 2.2);
+        ctx.fill();
+        ctx.fillStyle = '#ffd66b';
+        ellipse(ctx, p.sx + dx2, p.sy - 5 + dy2, 0.8, 0.8);
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(217,72,94,0.75)';
+      ellipse(ctx, p.sx + br * 0.7, p.sy + 1, 1.6, 1.1);
+      ctx.fill();
+    }
+  } else if (id === 'yongduam') {
+    // 용두암 — 바다 + 현무암 용머리(뿔·금빛 눈·벌린 입) + 바위 결·포말.
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fc0d6';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.13, y0 + 0.13, x1 - 0.13, y1 - 0.13, 3);
+    ctx.fillStyle = '#a8d4e4';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 3; i++) {
+      const ph = opts.time * 1.8 + i * 2.1;
+      const wx = Math.sin(ph) * 4;
+      ctx.beginPath();
+      ctx.moveTo(top.sx - 38 + wx + i * 15, top.sy + 8 + i * 5);
+      ctx.quadraticCurveTo(top.sx - 32 + wx + i * 15, top.sy + 5 + i * 5, top.sx - 26 + wx + i * 15, top.sy + 8 + i * 5);
+      ctx.stroke();
+    }
+    // 동반 바위 (기암 둔덕).
+    ctx.fillStyle = '#4a515e';
+    ellipse(ctx, top.sx - 30, top.sy - 2, 9.5, 5.6);
+    ctx.fill();
+    ctx.fillStyle = '#3f4550';
+    ellipse(ctx, top.sx - 34, top.sy - 4.5, 5.6, 3.8);
+    ctx.fill();
+    ctx.fillStyle = '#5b6377';
+    ellipse(ctx, top.sx - 27, top.sy - 5.5, 3, 1.8);
+    ctx.fill();
+    // 용머리 본체 — 굵은 목 S커브 + 이마·주둥이 + 벌린 입.
+    ctx.fillStyle = '#3f4550';
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 22, top.sy + 5);
+    ctx.quadraticCurveTo(top.sx - 19, top.sy - 20, top.sx - 6, top.sy - 34);
+    ctx.quadraticCurveTo(top.sx + 1, top.sy - 44, top.sx + 8, top.sy - 52);
+    ctx.quadraticCurveTo(top.sx + 13, top.sy - 58, top.sx + 22, top.sy - 57.5);
+    ctx.quadraticCurveTo(top.sx + 32, top.sy - 57, top.sx + 35, top.sy - 50);
+    ctx.lineTo(top.sx + 38, top.sy - 46);
+    ctx.lineTo(top.sx + 24, top.sy - 46.5);
+    // 벌린 입 (아래턱).
+    ctx.quadraticCurveTo(top.sx + 33, top.sy - 41, top.sx + 29, top.sy - 36);
+    ctx.quadraticCurveTo(top.sx + 23, top.sy - 32, top.sx + 17, top.sy - 35);
+    ctx.quadraticCurveTo(top.sx + 19, top.sy - 28, top.sx + 12, top.sy - 23);
+    ctx.quadraticCurveTo(top.sx + 3, top.sy - 16, top.sx - 3, top.sy - 15);
+    ctx.quadraticCurveTo(top.sx - 8, top.sy - 6, top.sx - 5, top.sy + 5);
+    ctx.closePath();
+    ctx.fill();
+    // 입 안 그림자.
+    ctx.fillStyle = '#242a33';
+    ctx.beginPath();
+    ctx.moveTo(top.sx + 24, top.sy - 46);
+    ctx.quadraticCurveTo(top.sx + 32, top.sy - 41.5, top.sx + 28, top.sy - 37.5);
+    ctx.quadraticCurveTo(top.sx + 22, top.sy - 34, top.sx + 18, top.sy - 37);
+    ctx.closePath();
+    ctx.fill();
+    // 오른쪽 볕면 파셋 + 왼쪽 음영 크레바스 (현무암 각).
+    ctx.fillStyle = '#4a515e';
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 1, top.sy - 17);
+    ctx.lineTo(top.sx + 8, top.sy - 27);
+    ctx.lineTo(top.sx + 12, top.sy - 40);
+    ctx.lineTo(top.sx + 5, top.sy - 34);
+    ctx.lineTo(top.sx - 3, top.sy - 23);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#343a44';
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 14, top.sy - 4);
+    ctx.lineTo(top.sx - 9, top.sy - 14);
+    ctx.lineTo(top.sx - 12, top.sy - 15);
+    ctx.lineTo(top.sx - 16, top.sy - 6);
+    ctx.closePath();
+    ctx.fill();
+    // 등줄기 하이라이트.
+    ctx.strokeStyle = '#5f6880';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 17, top.sy - 8);
+    ctx.quadraticCurveTo(top.sx - 14, top.sy - 24, top.sx - 3, top.sy - 34);
+    ctx.stroke();
+    // 뿔 2 (굵은 바위 뿔) + 수염.
+    ctx.strokeStyle = '#4a515e';
+    ctx.lineWidth = 3.6;
+    ctx.beginPath();
+    ctx.moveTo(top.sx + 14, top.sy - 56);
+    ctx.quadraticCurveTo(top.sx + 11, top.sy - 64, top.sx + 5, top.sy - 67);
+    ctx.moveTo(top.sx + 21, top.sy - 58);
+    ctx.quadraticCurveTo(top.sx + 20, top.sy - 66, top.sx + 15, top.sy - 70);
+    ctx.stroke();
+    ctx.strokeStyle = '#3f4550';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(top.sx + 36, top.sy - 47);
+    ctx.quadraticCurveTo(top.sx + 42, top.sy - 44, top.sx + 43, top.sy - 37);
+    ctx.stroke();
+    // 지층결 (용암 결).
+    ctx.strokeStyle = '#6a7388';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 15, top.sy - 6);
+    ctx.quadraticCurveTo(top.sx - 11, top.sy - 22, top.sx - 2, top.sy - 30);
+    ctx.moveTo(top.sx - 9, top.sy - 2);
+    ctx.quadraticCurveTo(top.sx - 4, top.sy - 14, top.sx + 4, top.sy - 21);
+    ctx.moveTo(top.sx + 1, top.sy - 36);
+    ctx.quadraticCurveTo(top.sx + 6, top.sy - 44, top.sx + 13, top.sy - 49);
+    ctx.moveTo(top.sx - 19, top.sy - 12);
+    ctx.quadraticCurveTo(top.sx - 16, top.sy - 22, top.sx - 10, top.sy - 28);
+    ctx.stroke();
+    // 눈 (금빛 + 링) + 콧구멍.
+    ctx.fillStyle = '#ffd66b';
+    ellipse(ctx, top.sx + 20, top.sy - 51.5, 2.7, 2.7);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,214,107,0.45)';
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.arc(top.sx + 20, top.sy - 51.5, 4.8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#2b2b33';
+    ellipse(ctx, top.sx + 20.7, top.sy - 51.5, 1.1, 1.1);
+    ctx.fill();
+    ctx.fillStyle = '#2b323c';
+    ellipse(ctx, top.sx + 33, top.sy - 53, 1.2, 0.9);
+    ctx.fill();
+    // 포말 링 + 물보라.
+    ctx.strokeStyle = 'rgba(255,253,247,0.8)';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.ellipse(top.sx - 12, top.sy + 4, 16, 5.2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    const spray = Math.abs(Math.sin(opts.time * 2.2));
+    ctx.fillStyle = `rgba(255,253,247,${0.5 + spray * 0.4})`;
+    ellipse(ctx, top.sx - 26, top.sy - 4 - spray * 5, 3, 3);
+    ctx.fill();
+    ellipse(ctx, top.sx + 3, top.sy - 1 - spray * 3.5, 2.3, 2.3);
+    ctx.fill();
+    ellipse(ctx, top.sx - 18, top.sy - 10 - spray * 6, 1.7, 1.7);
+    ctx.fill();
+    // 갈매기 2.
+    ctx.strokeStyle = '#8c7b6e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 36, top.sy - 48);
+    ctx.quadraticCurveTo(top.sx - 33.5, top.sy - 51, top.sx - 31, top.sy - 48);
+    ctx.quadraticCurveTo(top.sx - 28.5, top.sy - 51, top.sx - 26, top.sy - 48);
+    ctx.moveTo(top.sx + 40, top.sy - 62);
+    ctx.quadraticCurveTo(top.sx + 42.5, top.sy - 65, top.sx + 45, top.sy - 62);
+    ctx.quadraticCurveTo(top.sx + 47.5, top.sy - 65, top.sx + 50, top.sy - 62);
+    ctx.stroke();
+  } else if (id === 'dol-hareubang') {
+    // 돌하르방 — 현무암 질감·벙거지·왕방울 눈 한 쌍 + 받침돌·귤나무·유채.
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#a5d588';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.1, y0 + 0.1, x1 - 0.1, y1 - 0.1, 3);
+    ctx.fillStyle = '#cde3ae';
+    ctx.fill();
+    // 뒤 돌담.
+    faceQuad(ctx, D, C, 0.02, 0.35, 0, 8);
+    ctx.fillStyle = '#c3bca9';
+    ctx.fill();
+    const grandpa = (px2: number, py2: number, s2: number, tone: string, toneHi: string) => {
+      const p = toScreen(bx + px2, by + py2);
+      // 받침돌.
+      ctx.fillStyle = '#b7b0a0';
+      ellipse(ctx, p.sx, p.sy - 2 * s2, 11 * s2, 4 * s2);
+      ctx.fill();
+      ctx.fillStyle = '#c9c2b2';
+      ellipse(ctx, p.sx, p.sy - 3.5 * s2, 11 * s2, 3.6 * s2);
+      ctx.fill();
+      // 몸돌.
+      ctx.fillStyle = tone;
+      ellipse(ctx, p.sx, p.sy - 16 * s2, 9 * s2, 13 * s2);
+      ctx.fill();
+      // 팔 — 배 위에 위/아래.
+      ctx.strokeStyle = '#6e7886';
+      ctx.lineWidth = 3 * s2;
+      ctx.beginPath();
+      ctx.moveTo(p.sx - 8 * s2, p.sy - 19 * s2);
+      ctx.quadraticCurveTo(p.sx - 2 * s2, p.sy - 14.5 * s2, p.sx + 5 * s2, p.sy - 16 * s2);
+      ctx.moveTo(p.sx + 8 * s2, p.sy - 15 * s2);
+      ctx.quadraticCurveTo(p.sx + 2 * s2, p.sy - 10.5 * s2, p.sx - 5 * s2, p.sy - 12 * s2);
+      ctx.stroke();
+      ctx.fillStyle = toneHi;
+      ellipse(ctx, p.sx + 5.5 * s2, p.sy - 16 * s2, 2 * s2, 2 * s2);
+      ctx.fill();
+      ellipse(ctx, p.sx - 5.5 * s2, p.sy - 12 * s2, 2 * s2, 2 * s2);
+      ctx.fill();
+      // 머리.
+      ctx.fillStyle = toneHi;
+      ellipse(ctx, p.sx, p.sy - 30 * s2, 7 * s2, 6.4 * s2);
+      ctx.fill();
+      // 귀.
+      ctx.fillStyle = tone;
+      ellipse(ctx, p.sx - 6.8 * s2, p.sy - 29 * s2, 1.6 * s2, 2.6 * s2);
+      ctx.fill();
+      ellipse(ctx, p.sx + 6.8 * s2, p.sy - 29 * s2, 1.6 * s2, 2.6 * s2);
+      ctx.fill();
+      // 벙거지 2단.
+      ctx.fillStyle = '#7a8492';
+      ellipse(ctx, p.sx, p.sy - 34.5 * s2, 7.8 * s2, 2.8 * s2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(p.sx, p.sy - 36 * s2, 5.2 * s2, 3.4 * s2, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#87919f';
+      ellipse(ctx, p.sx, p.sy - 38.6 * s2, 3.4 * s2, 1.4 * s2);
+      ctx.fill();
+      // 눈썹 능선 + 왕방울 눈 + 주먹코 + 다문 입.
+      ctx.strokeStyle = '#5b6470';
+      ctx.lineWidth = 1.6 * s2;
+      ctx.beginPath();
+      ctx.moveTo(p.sx - 4.6 * s2, p.sy - 33 * s2);
+      ctx.quadraticCurveTo(p.sx, p.sy - 34.4 * s2, p.sx + 4.6 * s2, p.sy - 33 * s2);
+      ctx.stroke();
+      ctx.fillStyle = '#5b6470';
+      ellipse(ctx, p.sx - 2.8 * s2, p.sy - 31 * s2, 2.1 * s2, 2.3 * s2);
+      ctx.fill();
+      ellipse(ctx, p.sx + 2.8 * s2, p.sy - 31 * s2, 2.1 * s2, 2.3 * s2);
+      ctx.fill();
+      ctx.fillStyle = tone;
+      ellipse(ctx, p.sx - 2.8 * s2, p.sy - 30.6 * s2, 0.9 * s2, 1 * s2);
+      ctx.fill();
+      ellipse(ctx, p.sx + 2.8 * s2, p.sy - 30.6 * s2, 0.9 * s2, 1 * s2);
+      ctx.fill();
+      ctx.fillStyle = '#67707e';
+      ellipse(ctx, p.sx, p.sy - 27.6 * s2, 1.9 * s2, 2.6 * s2);
+      ctx.fill();
+      ctx.strokeStyle = '#5b6470';
+      ctx.lineWidth = 1.2 * s2;
+      ctx.beginPath();
+      ctx.moveTo(p.sx - 2.4 * s2, p.sy - 24.6 * s2);
+      ctx.quadraticCurveTo(p.sx, p.sy - 23.6 * s2, p.sx + 2.4 * s2, p.sy - 24.6 * s2);
+      ctx.stroke();
+      // 현무암 기공.
+      ctx.fillStyle = 'rgba(91,100,112,0.55)';
+      for (const [qx2, qy2] of [
+        [-4, -20],
+        [3, -17],
+        [-1.5, -13],
+        [5.5, -22],
+        [-6, -25],
+        [2, -33.5],
+        [-3.5, -35.5],
+      ] as const) {
+        ellipse(ctx, p.sx + qx2 * s2, p.sy + qy2 * s2, 0.9 * s2, 0.9 * s2);
+        ctx.fill();
+      }
+    };
+    grandpa(0.72, 1.18, 1.25, '#8f9aa8', '#9aa5b2');
+    grandpa(1.52, 0.68, 1.0, '#9aa5b2', '#a6b0bc');
+    // 감귤나무 + 유채꽃.
+    const tree2 = toScreen(bx + 0.34, by + 1.76);
+    ctx.fillStyle = '#8a6b52';
+    ctx.fillRect(tree2.sx - 2, tree2.sy - 16, 4, 14);
+    ctx.fillStyle = '#5e8c61';
+    ellipse(ctx, tree2.sx, tree2.sy - 21, 9.5, 8);
+    ctx.fill();
+    ctx.fillStyle = '#6da370';
+    ellipse(ctx, tree2.sx - 3.5, tree2.sy - 24, 5, 4.2);
+    ctx.fill();
+    for (const [ox2, oy2] of [
+      [-4, -19],
+      [3.5, -22.5],
+      [0.5, -17],
+    ] as const) {
+      ctx.fillStyle = '#f5a03c';
+      ellipse(ctx, tree2.sx + ox2, tree2.sy + oy2, 2, 2);
+      ctx.fill();
+    }
+    for (const [yx, yy] of [
+      [30, 12],
+      [36, 7],
+      [42, 13],
+    ] as const) {
+      ctx.strokeStyle = '#7ba85c';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(top.sx + yx, top.sy + yy);
+      ctx.lineTo(top.sx + yx, top.sy + yy - 6);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd66b';
+      ellipse(ctx, top.sx + yx, top.sy + yy - 7.5, 2.2, 2.2);
+      ctx.fill();
+      ctx.fillStyle = '#e8a63c';
+      ellipse(ctx, top.sx + yx, top.sy + yy - 7.5, 0.8, 0.8);
+      ctx.fill();
+    }
   } else {
     // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
     faceQuad(ctx, D, C, 0, 1, 0, 24);
@@ -1268,6 +2473,10 @@ export const LANDMARK_ACCENTS: Record<string, string> = {
   'bukchon-hanok': '#6b7280',
   'seoul-forest': '#5f9037',
   'red-brick': '#a34f42',
+  'gwangan-bridge': '#d95a73',
+  nurimaru: '#8fa6b2',
+  yongduam: '#3f4550',
+  'dol-hareubang': '#8f9aa8',
 };
 
 /** 랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */

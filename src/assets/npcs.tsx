@@ -458,7 +458,7 @@ export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number })
       );
     case 'busan-gull': // 서퍼 갈매기 — 이마 선글라스 + 서프보드
       return (
-        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="부산 서퍼 갈매기 실루엣">
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="부산 서퍼 갈매기 파랑">
           <ellipse cx={62} cy={113} rx={34} ry={5} fill="rgba(74,59,50,0.14)" />
           {/* 파도 */}
           <path d="M14 98 q6 -5 12 0" stroke="#5EB3CC" strokeWidth={3} fill="none" strokeLinecap="round" />
@@ -501,7 +501,7 @@ export function UpcomingNpcSvg({ id, size = 76 }: { id: string; size?: number })
       );
     case 'jeju-pony': // 감귤 문 조랑말 — 갈기 + 유채꽃 + 발굽
       return (
-        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="제주 조랑말 실루엣">
+        <svg width={size} height={size} viewBox="0 0 120 120" style={{ display: 'block' }} aria-label="제주 조랑말 한라">
           <ellipse cx={60} cy={112} rx={30} ry={5.5} fill="rgba(74,59,50,0.14)" />
           {/* 꼬리 */}
           <path d="M90 84 q14 4 12 20" stroke="#4A3B32" strokeWidth={7} fill="none" strokeLinecap="round" />

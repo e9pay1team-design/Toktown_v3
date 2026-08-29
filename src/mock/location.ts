@@ -6,6 +6,21 @@
 import { create } from 'zustand';
 import type { LatLng } from '../types';
 import { DEFAULT_POSITION } from '../data/seed';
+import { regionById } from '../data/regions';
+
+/** 초기 위치 — 지난 세션의 활성 지역 스폰 지점에서 시작한다.
+    (지역은 persist 되는데 위치가 명동으로 리셋되면 카메라·GPS 가 어긋난다) */
+function initialPosition(): LatLng {
+  try {
+    const raw = localStorage.getItem('toktown:region');
+    const id = raw ? (JSON.parse(raw)?.state?.regionId as string | undefined) : undefined;
+    if (!id) return DEFAULT_POSITION;
+    const r = regionById(id);
+    return { lat: r.spawn.lat, lng: r.spawn.lng };
+  } catch {
+    return DEFAULT_POSITION;
+  }
+}
 
 /** 체크인·인증 리뷰·NPC 조우 공통 반경 (기획 §3.1: 약 100m) */
 export const CHECKIN_RADIUS_M = 100;
@@ -30,7 +45,7 @@ export interface VirtualLocationApi {
 }
 
 export const useVirtualLocation = create<VirtualLocationApi>((set, get) => ({
-  position: DEFAULT_POSITION,
+  position: initialPosition(),
   movedAt: 0,
   prevPosition: null,
   suspiciousUntil: 0,
