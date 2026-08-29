@@ -364,7 +364,8 @@ export function MapView(props: MapViewProps) {
       minZoom: 13,
       maxZoom: 19,
       maxBounds: L.latLngBounds(region.bounds),
-      maxBoundsViscosity: 0.8,
+      // 1.0 = 경계에서 탄성 없이 딱 멈춤 — 0.8 의 '잡아당기는' 되튕김 제거
+      maxBoundsViscosity: 1.0,
     });
 
     // 일러스트 벡터 지도 — 외부 타일 서버 없이 항상 그려진다.

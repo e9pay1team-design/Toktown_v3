@@ -33,9 +33,11 @@ export const REGIONS: Region[] = [
     sidoEn: 'Seoul',
     center: { lat: 37.5636, lng: 126.985 },
     zoom: 15,
+    // 카메라 한계는 최저 줌(13) 화면(~13km)보다 넉넉해야 어느 줌에서도
+    // 팬이 자유롭다 — 콘텐츠보다 훨씬 넓게 (바깥은 종이 질감 배경).
     bounds: [
-      [37.51, 126.9],
-      [37.62, 127.05],
+      [37.468, 126.865],
+      [37.658, 127.105],
     ],
     spawn: { lat: 37.561, lng: 126.9863, label: '명동역 6번 출구', labelEn: 'Myeongdong Stn. Exit 6' },
     mascotId: 'magpie',
@@ -49,8 +51,8 @@ export const REGIONS: Region[] = [
     center: { lat: 37.5548, lng: 126.9235 },
     zoom: 15,
     bounds: [
-      [37.538, 126.897],
-      [37.572, 126.947],
+      [37.46, 126.803],
+      [37.65, 127.043],
     ],
     spawn: { lat: 37.5568, lng: 126.9237, label: '홍대입구역 9번 출구', labelEn: 'Hongik Univ. Stn. Exit 9' },
     mascotId: 'hongdae-cat',
@@ -64,8 +66,8 @@ export const REGIONS: Region[] = [
     center: { lat: 37.579, lng: 126.982 },
     zoom: 15,
     bounds: [
-      [37.565, 126.955],
-      [37.595, 127.005],
+      [37.484, 126.862],
+      [37.674, 127.102],
     ],
     spawn: { lat: 37.5762, lng: 126.9852, label: '안국역 1번 출구', labelEn: 'Anguk Stn. Exit 1' },
     mascotId: 'bukchon-tiger',
@@ -79,8 +81,8 @@ export const REGIONS: Region[] = [
     center: { lat: 37.5445, lng: 127.048 },
     zoom: 15,
     bounds: [
-      [37.531, 127.028],
-      [37.558, 127.072],
+      [37.45, 126.928],
+      [37.64, 127.168],
     ],
     spawn: { lat: 37.5444, lng: 127.056, label: '성수역 2번 출구', labelEn: 'Seongsu Stn. Exit 2' },
     mascotId: 'seongsu-deer',
