@@ -13,11 +13,9 @@ export interface Region {
   /** 시·도 구분 (지역 선택 UI 그룹) */
   sido: string;
   sidoEn: string;
-  /** 지도 카메라 초기 중심/줌 */
+  /** 지도 카메라 초기 중심/줌 (이동 한계는 전국 공통 — koreaOutline.KOREA_BOUNDS) */
   center: LatLng;
   zoom: number;
-  /** 카메라 이동 한계 [[남,서],[북,동]] */
-  bounds: [[number, number], [number, number]];
   /** 지역 진입 시 내 위치 스폰 지점 */
   spawn: LatLng & { label: string; labelEn: string };
   /** 지역 마스코트 NPC id (REGIONAL_NPCS) */
@@ -33,12 +31,6 @@ export const REGIONS: Region[] = [
     sidoEn: 'Seoul',
     center: { lat: 37.5636, lng: 126.985 },
     zoom: 15,
-    // 카메라 한계는 최저 줌(13) 화면(~13km)보다 넉넉해야 어느 줌에서도
-    // 팬이 자유롭다 — 콘텐츠보다 훨씬 넓게 (바깥은 종이 질감 배경).
-    bounds: [
-      [37.468, 126.865],
-      [37.658, 127.105],
-    ],
     spawn: { lat: 37.561, lng: 126.9863, label: '명동역 6번 출구', labelEn: 'Myeongdong Stn. Exit 6' },
     mascotId: 'magpie',
   },
@@ -50,10 +42,6 @@ export const REGIONS: Region[] = [
     sidoEn: 'Seoul',
     center: { lat: 37.5548, lng: 126.9235 },
     zoom: 15,
-    bounds: [
-      [37.46, 126.803],
-      [37.65, 127.043],
-    ],
     spawn: { lat: 37.5568, lng: 126.9237, label: '홍대입구역 9번 출구', labelEn: 'Hongik Univ. Stn. Exit 9' },
     mascotId: 'hongdae-cat',
   },
@@ -65,10 +53,6 @@ export const REGIONS: Region[] = [
     sidoEn: 'Seoul',
     center: { lat: 37.579, lng: 126.982 },
     zoom: 15,
-    bounds: [
-      [37.484, 126.862],
-      [37.674, 127.102],
-    ],
     spawn: { lat: 37.5762, lng: 126.9852, label: '안국역 1번 출구', labelEn: 'Anguk Stn. Exit 1' },
     mascotId: 'bukchon-tiger',
   },
@@ -80,19 +64,15 @@ export const REGIONS: Region[] = [
     sidoEn: 'Seoul',
     center: { lat: 37.5445, lng: 127.048 },
     zoom: 15,
-    bounds: [
-      [37.45, 126.928],
-      [37.64, 127.168],
-    ],
     spawn: { lat: 37.5444, lng: 127.056, label: '성수역 2번 출구', labelEn: 'Seongsu Stn. Exit 2' },
     mascotId: 'seongsu-deer',
   },
 ];
 
-/** 다음 라운드 예고 — 지역 선택 UI 에 '준비 중'으로 노출 */
-export const UPCOMING_REGIONS: { name: string; nameEn: string; sido: string; sidoEn: string }[] = [
-  { name: '해운대·광안리', nameEn: 'Haeundae', sido: '부산', sidoEn: 'Busan' },
-  { name: '제주', nameEn: 'Jeju', sido: '제주', sidoEn: 'Jeju' },
+/** 다음 라운드 예고 — 지역 선택 UI '준비 중' + 전국 뷰 잠금 배지 */
+export const UPCOMING_REGIONS: { name: string; nameEn: string; sido: string; sidoEn: string; center: LatLng }[] = [
+  { name: '해운대·광안리', nameEn: 'Haeundae', sido: '부산', sidoEn: 'Busan', center: { lat: 35.163, lng: 129.163 } },
+  { name: '제주', nameEn: 'Jeju', sido: '제주', sidoEn: 'Jeju', center: { lat: 33.4, lng: 126.55 } },
 ];
 
 export const DEFAULT_REGION_ID = 'myeongdong';

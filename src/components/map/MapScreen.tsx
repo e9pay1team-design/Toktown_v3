@@ -147,6 +147,24 @@ export function MapScreen() {
       <div className="absolute inset-0 z-0">
         <MapView
           region={region}
+          onZonePick={(pick) => {
+            if (pick.locked) {
+              toast(
+                tr(`🔒 ${pick.name}은(는) 다음 업데이트에서 열려요!`, `🔒 ${pick.nameEn} opens in a future update!`),
+                'info',
+              );
+              return;
+            }
+            if (pick.kind === 'sido') {
+              // 시·도 배지 → 그 권역으로 확대 (존 배지가 펼쳐지는 중간 줌)
+              requestFlyTo({ lat: pick.center.lat, lng: pick.center.lng, zoom: 12 });
+              toast(tr(`🔍 ${pick.name} 권역 확대 — 동네를 골라보세요`, `🔍 Zooming to ${pick.nameEn} — pick a town`), 'info');
+              return;
+            }
+            if (pick.regionId && pick.regionId !== regionId) setRegion(pick.regionId);
+            requestFlyTo({ lat: pick.center.lat, lng: pick.center.lng, zoom: 15 });
+            toast(tr(`🗺️ ${pick.name}(으)로 이동!`, `🗺️ Flying to ${pick.nameEn}!`), 'success');
+          }}
           stores={filteredStores}
           savedIds={savedIds}
           selectedStoreId={selectedStoreId}
