@@ -30,6 +30,8 @@ export interface Placement {
   h: number;
   /** 건물 방향 — sw(좌측 하단, 기본) | se(우측 하단) */
   facing?: 'sw' | 'se';
+  /** 배치 시 굴린 외형 시드 0..1 — 꽃 화단 색 등 (없으면 id 기반 폴백) */
+  variant?: number;
   /** 기본 마을 구성물(광장 돌바닥·가로등) — 풍성도 계산에서 제외 */
   preset?: boolean;
 }
@@ -41,7 +43,7 @@ interface VillageState {
   /** 소유한 섬 구역 — base 는 항상 포함 (R5 섬 확장) */
   zonesOwned: VillageZoneId[];
 
-  place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se') => void;
+  place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se', variant?: number) => void;
   move: (placementId: number, bx: number, by: number, facing?: 'sw' | 'se') => void;
   remove: (placementId: number) => void;
   /** 배치된 모든 오브젝트를 보관함으로 회수 (획득물은 유지) */
@@ -75,10 +77,13 @@ export const useVillageStore = create<VillageState>()(
       decorOwned: defaultDecorOwned(),
       zonesOwned: ['base'],
 
-      place: (kind, refId, bx, by, facing) => {
+      place: (kind, refId, bx, by, facing, variant) => {
         const { w, h } = footprintOf(kind);
         set((s) => ({
-          placements: [...s.placements, { id: ++placementSeq, kind, refId, bx, by, w, h, facing }],
+          placements: [
+            ...s.placements,
+            { id: ++placementSeq, kind, refId, bx, by, w, h, facing, variant: variant ?? Math.random() },
+          ],
         }));
       },
 

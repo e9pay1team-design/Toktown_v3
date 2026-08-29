@@ -334,10 +334,11 @@ export function VillageScreen() {
     bx: number;
     by: number;
     facing?: 'sw' | 'se';
+    variant?: number;
   }) => {
     advanceQuest('decorate', day);
     if (e.placementId === null) {
-      place(e.kind as PlacementKind, e.refId, e.bx, e.by, e.facing);
+      place(e.kind as PlacementKind, e.refId, e.bx, e.by, e.facing, e.variant);
       toast(tr('마을에 배치했어요!', 'Placed in your town!'), 'success');
       // 바닥 타일 연속 배치 — 보관함에 같은 타일이 남았으면 진행 방향으로 다음 타일 준비.
       if (e.kind === 'decor' && GROUND_DECOR.has(e.refId)) {

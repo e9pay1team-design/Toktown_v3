@@ -66,6 +66,8 @@ export interface PlacedThing {
   lmId?: string;
   /** decor 전용 — villageDraw prop type */
   decorType?: string;
+  /** decor 전용 — 배치 시 굴린 외형 시드 (꽃 화단 색 등) */
+  variant?: number;
   /** npc 전용 — 배치 모드 정적 렌더용 */
   npcSkin?: VCharSkin;
   blocking: boolean;
@@ -98,6 +100,8 @@ export interface EditMeta {
   facing?: VBuildingFacing;
   lmId?: string;
   decorType?: string;
+  /** decor 외형 시드 — 보관함에서 꺼낼 때 굴려 배치까지 유지 */
+  variant?: number;
   npcSkin?: VCharSkin;
 }
 
@@ -133,6 +137,7 @@ export interface VillageHooks {
     bx: number;
     by: number;
     facing?: VBuildingFacing;
+    variant?: number;
   }): void;
   /** ✕ — 보관함 반환 (placementId null 이면 그냥 취소) */
   onEditReturn(e: { placementId: number | null }): void;
@@ -511,6 +516,8 @@ export class VillageGame {
     }
     this.edit = {
       ...meta,
+      // 배치 시마다 랜덤 외형(꽃 화단 색 등) — 미리보기부터 확정까지 유지.
+      variant: meta.variant ?? Math.random(),
       placementId: null,
       bx,
       by,
@@ -942,6 +949,7 @@ export class VillageGame {
         facing: hit.facing,
         lmId: hit.lmId,
         decorType: hit.decorType,
+        variant: hit.variant,
         npcSkin: hit.npcSkin,
         bx: hit.bx,
         by: hit.by,
@@ -1037,11 +1045,11 @@ export class VillageGame {
 
   private commitEdit(): void {
     if (!this.edit || !this.edit.ok) return;
-    const { placementId, kind, refId, bx, by, facing } = this.edit;
+    const { placementId, kind, refId, bx, by, facing, variant } = this.edit;
     this.edit = null;
     this.editDragging = false;
     this.hooks.onEditSelection(null);
-    this.hooks.onEditCommit({ placementId, kind, refId, bx, by, facing });
+    this.hooks.onEditCommit({ placementId, kind, refId, bx, by, facing, variant });
   }
 
   private returnEdit(): void {
@@ -1331,7 +1339,8 @@ export class VillageGame {
       const cx = t.bx + 0.5;
       const cy = t.by + 0.5;
       const seed = 'id' in t && t.id !== undefined ? t.id : 7;
-      drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v: (Number(seed) % 97) / 97 }, this.time);
+      const v = t.variant ?? (Number(seed) % 97) / 97;
+      drawVProp(ctx, { type: t.decorType ?? 'bench', x: cx, y: cy, v }, this.time);
     }
   }
 

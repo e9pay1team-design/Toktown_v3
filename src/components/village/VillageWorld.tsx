@@ -98,7 +98,8 @@ export function trayMetaFor(kind: PlacementKind, refId: string, label: string): 
   if (kind === 'landmark') return { kind, refId, w, h, label, lmId: refId, facing: 'sw' };
   if (kind === 'npc')
     return { kind, refId, w, h, label, npcSkin: regionalNpcSkin(refId) };
-  return { kind, refId, w, h, label, decorType: refId === 'tree' ? 'maple' : refId };
+  // 상점 '꽃 화단'(flower)은 야생 들꽃(flower)과 다른 플랜터 박스로 그린다.
+  return { kind, refId, w, h, label, decorType: refId === 'tree' ? 'maple' : refId === 'flower' ? 'flowerbed' : refId };
 }
 
 function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
@@ -145,8 +146,9 @@ function thingsFromPlacements(placements: Placement[]): PlacedThing[] {
         w: p.w,
         h: p.h,
         label: item ? decorName(item) : p.refId,
-        // 상점의 '단풍나무'는 숲 나무와 다른 단풍 팔레트로 그린다.
-        decorType: p.refId === 'tree' ? 'maple' : p.refId,
+        // 상점의 '단풍나무'는 숲 나무와, '꽃 화단'은 야생 들꽃과 다르게 그린다.
+        decorType: p.refId === 'tree' ? 'maple' : p.refId === 'flower' ? 'flowerbed' : p.refId,
+        variant: p.variant,
         // 1×1 소품은 히트박스 없음 — 캐릭터/주민이 끼지 않는다.
         blocking: false,
       });
@@ -230,6 +232,7 @@ interface VillageWorldProps {
     bx: number;
     by: number;
     facing?: 'sw' | 'se';
+    variant?: number;
   }) => void;
   onEditReturn: (e: { placementId: number | null }) => void;
   onEditSelection: (sel: { label: string; isNew: boolean; canRotate: boolean } | null) => void;

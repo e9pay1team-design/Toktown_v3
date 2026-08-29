@@ -26,32 +26,43 @@ export function DecorSvg({ id, size = 56 }: { id: string; size?: number }) {
         </svg>
       );
     case 'flower':
+      // 꽃 화단 — 나무 플랜터 박스. 실제 배치 색은 핑크/노랑/보라 중 랜덤이라
+      // 썸네일은 세 색을 섞어 보여준다.
       return (
-        <svg width={size} height={size * 0.65} viewBox="0 0 80 52" style={{ display: 'block' }} aria-label="꽃밭">
-          <ellipse cx={40} cy={40} rx={34} ry={12} fill="#8FCB77" />
-          <ellipse cx={40} cy={37} rx={34} ry={12} fill="#A8D98A" />
+        <svg width={size} height={size * 0.75} viewBox="0 0 80 60" style={{ display: 'block' }} aria-label="꽃 화단">
+          <ellipse cx={40} cy={54} rx={30} ry={5} fill="rgba(74,59,50,0.14)" />
+          {/* 플랜터 박스 */}
+          <path d="M8 34 L40 50 L72 34 L72 44 L40 58 L8 44 Z" fill="#B98A5C" />
+          <path d="M40 50 L72 34 L72 44 L40 58 Z" fill="#9C714C" />
+          <path d="M8 34 L40 18 L72 34 L40 50 Z" fill="#CE9F6C" />
+          <path d="M14 34 L40 21.5 L66 34 L40 46.5 Z" fill="#6E4A33" />
+          {/* 잎 */}
+          <ellipse cx={24} cy={33} rx={5} ry={3.2} fill="#79AE60" />
+          <ellipse cx={52} cy={38} rx={5} ry={3.2} fill="#79AE60" />
+          {/* 꽃 3송이 — 세 가지 색 변형 미리보기 */}
           {[
-            [18, 32, '#FF8B7B'],
-            [32, 26, '#FFD66B'],
-            [48, 30, '#F2A7C3'],
-            [60, 35, '#C7B9F2'],
-            [40, 40, '#FF8B7B'],
+            [26, 24, '#F2A7C3'],
+            [40, 30, '#FFD66B'],
+            [55, 25, '#C7B9F2'],
           ].map(([x, y, c], i) => (
             <g key={i}>
+              <line x1={Number(x)} y1={Number(y) + 9} x2={Number(x)} y2={Number(y) + 2} stroke="#5B8A46" strokeWidth={2} strokeLinecap="round" />
               {[0, 72, 144, 216, 288].map((deg) => (
                 <ellipse
                   key={deg}
                   cx={Number(x)}
-                  cy={Number(y) - 5}
-                  rx={2.6}
-                  ry={4}
+                  cy={Number(y) - 4.4}
+                  rx={2.8}
+                  ry={4.2}
                   fill={String(c)}
                   transform={`rotate(${deg} ${x} ${y})`}
                 />
               ))}
-              <circle cx={Number(x)} cy={Number(y)} r={2.6} fill="#FFF3DC" />
+              <circle cx={Number(x)} cy={Number(y)} r={2.7} fill="#FFF3DC" />
             </g>
           ))}
+          <circle cx={18} cy={22} r={1.6} fill="#FFFDF7" opacity={0.9} />
+          <circle cx={63} cy={19} r={1.4} fill="#FFFDF7" opacity={0.9} />
         </svg>
       );
     case 'fountain':
