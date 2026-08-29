@@ -962,6 +962,17 @@ export function VillageScreen() {
         </div>
       )}
 
+      {/* 💰 보유 톡큰 HUD (걷기 모드, 좌측 하단) */}
+      {!editMode && !cutsceneOn && (
+        <div
+          className="absolute bottom-24 left-4 z-20 flex items-center gap-1.5 rounded-full border-2 border-town-line bg-town-paper/95 px-3 py-2 shadow-card"
+          aria-label={T('보유 톡큰', 'Tokken balance')}
+        >
+          <TokkenCoin size={18} />
+          <span className="text-[13px] font-extrabold leading-none">{tokken.toLocaleString()}</span>
+        </div>
+      )}
+
       {/* 배치 모드 진입 FAB (걷기 모드) */}
       {!editMode && !cutsceneOn && (
         <button

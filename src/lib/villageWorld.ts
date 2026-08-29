@@ -208,17 +208,17 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
       const along = frontDist === fx ? ty : tx;
       const sea = seaDepthAt(along);
       const zone = zoneOfTile(tx, ty);
-      // 구역 변주(R6): 별보기 언덕은 모래모래한 지형(넓고 들쭉날쭉한 백사장
-      // + 내륙 모래 얼룩), 뒷숲 캠프는 잔디가 짙다.
+      // 구역 변주(R6): 별보기 언덕 백사장은 기본 마을과의 경계(ty≈VZ)에선
+      // 좁게 시작해 동쪽 끝(ty→0)으로 갈수록 대각선으로 넓어진다.
+      // 뒷숲 캠프는 잔디가 짙다.
       const sandBand =
         zone === 'north'
-          ? sea + 6.8 + (vtileHash(tx + 21, ty + 13) - 0.5) * 2.6
+          ? sea + 0.8 + (1 - ty / VZ) * 6.2 + (vtileHash(tx + 21, ty + 13) - 0.5) * 1.4
           : sea + 1.4;
       const darkBias = zone === 'west' ? 0.7 : 0.82;
       let t: VTerrainId;
       if (frontDist < sea) t = VT.Water;
       else if (frontDist < sandBand) t = VT.Sand;
-      else if (zone === 'north' && vtileHash(tx + 3, ty + 9) > 0.88) t = VT.Sand;
       else t = vtileHash(tx, ty) > darkBias ? VT.GrassDark : VT.Grass;
       terrain[vidx(tx, ty)] = t;
     }
@@ -342,11 +342,9 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
       const roll = vtileHash(tx + 17, ty + 29);
       const cx = tx + 0.5;
       const cy = ty + 0.5;
-      if (t === VT.Sand) {
-        if (roll < 0.05) addProp('rock', cx, cy, true, vtileHash(tx + 5, ty + 1));
-        else if (roll < 0.08) addProp('pine', cx, cy, true, vtileHash(tx + 9, ty + 2));
-        continue;
-      }
+      // 모래 위에는 아무것도 두지 않는다 — 마을 내부 이동을 막는 오브젝트는
+      // 숲 경계(뒷숲 벽·산)로 충분하다.
+      if (t === VT.Sand) continue;
       // 잔디(초록 타일) 위에는 이동을 막는 돌·수풀을 두지 않는다 —
       // 노는 공간과 배치 공간을 넓게, 장식은 비충돌 꽃만.
       const centerDist = Math.hypot(tx - PLAZA.tx, ty - PLAZA.ty);
@@ -424,14 +422,14 @@ export const DEFAULT_LAMP_TILES: ReadonlyArray<{ bx: number; by: number }> = [
 
 // ─── 구역 테마 고정물 (R6) ────────────────────────────────────────
 
-/** 복구형 시설 공통 — 복구 후 5시간마다 15 톡큰 표류물/보급품 */
-export const FACILITY_SALVAGE = 15;
+/** 복구형 시설 공통 — 복구 후 5시간마다 50 톡큰 표류물/보급품 */
+export const FACILITY_SALVAGE = 50;
 export const FACILITY_COOLDOWN_MS = 5 * 60 * 60 * 1000;
 
 /** 별보기 언덕 — 맨 우측(동쪽 끝) 숲을 치운 포켓에 난파선·망원경을 몬다 */
 export const WRECK_TILE = { bx: 46, by: 1, w: 2, h: 2 } as const;
 export const WRECK_THING_ID = -101;
-export const WRECK_RESTORE_COST = 300;
+export const WRECK_RESTORE_COST = 200;
 /** 별보기 언덕 동쪽 끝 개간 포켓 (숲 벽 생략 영역) */
 export const NORTH_POCKET_RECT = { x0: 43, y0: 0, x1: 51, y1: 7 } as const;
 /** 구름마루 폭포 전망 지점 (상호작용 → 마을 전경 컷신) — 소 바로 앞 */
@@ -450,7 +448,7 @@ export const CAMP_SWING_TILE = { bx: 1, by: 43 } as const;
 export const CAMP_THING_ID = -103;
 export const CAMP_FIRE_THING_ID = -104;
 export const CAMP_SWING_THING_ID = -105;
-export const CAMP_RESTORE_COST = 300;
+export const CAMP_RESTORE_COST = 200;
 
 /** 오늘의 네잎클로버 타일 — 소유 구역의 걷을 수 있는 잔디 중 하루 고정 랜덤.
     occupied(동적 배치 풋프린트)를 빼서 건물 밑에 숨지 않게 한다. */

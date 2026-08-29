@@ -2944,6 +2944,30 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       // 구름마루 — 무지개 폭포 산 (최종 콘텐츠 랜드마크).
       const W2 = 176;
       shadow(ctx, sx, sy + 8, W2 * 0.52, 0.18);
+      // 배경 산맥 — 폭포 산 뒤로 이어지는 원경 봉우리들 (옅은 톤, 설선 힌트).
+      const bgPeak = (ox: number, hw2: number, h2: number, tone: string) => {
+        ctx.fillStyle = tone;
+        ctx.beginPath();
+        ctx.moveTo(sx + ox - hw2, sy - 34);
+        ctx.lineTo(sx + ox - hw2 * 0.24, sy - 34 - h2);
+        ctx.lineTo(sx + ox + hw2 * 0.18, sy - 34 - h2 * 0.62);
+        ctx.lineTo(sx + ox + hw2 * 0.5, sy - 34 - h2 * 0.84);
+        ctx.lineTo(sx + ox + hw2, sy - 34);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#eef0e9';
+        ctx.beginPath();
+        ctx.moveTo(sx + ox - hw2 * 0.34, sy - 34 - h2 * 0.9);
+        ctx.lineTo(sx + ox - hw2 * 0.24, sy - 34 - h2);
+        ctx.lineTo(sx + ox - hw2 * 0.12, sy - 34 - h2 * 0.87);
+        ctx.lineTo(sx + ox - hw2 * 0.2, sy - 34 - h2 * 0.82);
+        ctx.closePath();
+        ctx.fill();
+      };
+      bgPeak(-W2 * 0.52, 74, 78, '#98a29b');
+      bgPeak(W2 * 0.5, 84, 64, '#a5aea3');
+      bgPeak(-W2 * 0.14, 60, 96, '#8f9a91');
+      bgPeak(W2 * 0.2, 56, 72, '#9aa49c');
       // 산 본체 3겹.
       ctx.fillStyle = '#6f675c';
       ctx.beginPath();
