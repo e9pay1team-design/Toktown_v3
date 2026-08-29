@@ -13,7 +13,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { DECOR_ITEMS, DRUMMER_MAGPIE, LANDMARKS, regionalNpcById, storeById } from '../../data/seed';
-import { useVirtualClock, virtualDayIndex, virtualToday } from '../../mock/clock';
+import { useVirtualClock, virtualDayIndex, virtualNow, virtualToday } from '../../mock/clock';
 import { useVillageStore, type PlacementKind } from '../../store/useVillageStore';
 import { useCollectionStore } from '../../store/useCollectionStore';
 import { useVisitStore } from '../../store/useVisitStore';
@@ -29,8 +29,9 @@ import { residentNpcs, villageRichness, VILLAGE_NPCS, ZONE_NPCS, zoneInfo, zoneN
 import {
   FALLS_THING_ID,
   nextExpansionCost,
-  WRECK_DAILY_SALVAGE,
+  WRECK_COOLDOWN_MS,
   WRECK_RESTORE_COST,
+  WRECK_SALVAGE,
   WRECK_THING_ID,
   zoneAvailable,
   type VillageZoneId,
@@ -155,7 +156,7 @@ export function VillageScreen() {
   const tokken = useEconomyStore((s) => s.tokken);
   const grantTokken = useEconomyStore((s) => s.grantTokken);
   const wreckRestored = useVillageStore((s) => s.wreckRestored);
-  const wreckLastClaimDay = useVillageStore((s) => s.wreckLastClaimDay);
+  const wreckLastClaimAt = useVillageStore((s) => s.wreckLastClaimAt);
   const restoreWreck = useVillageStore((s) => s.restoreWreck);
   const claimWreck = useVillageStore((s) => s.claimWreck);
   const questProgress = useQuestStore((s) => s.progress);
@@ -328,8 +329,16 @@ export function VillageScreen() {
     advanceQuest('clover', day);
   };
 
-  /* 🚢 난파선 — 복구(300 톡큰) → 매일 표류물 수거 */
-  const wreckClaimable = wreckRestored && wreckLastClaimDay !== day;
+  /* 🚢 난파선 — 복구(300 톡큰) → 5시간마다 표류물 수거 */
+  const nowVirtual = virtualNow(dayOffset);
+  const wreckMsLeft =
+    wreckLastClaimAt === null ? 0 : Math.max(0, WRECK_COOLDOWN_MS - (nowVirtual - wreckLastClaimAt));
+  const wreckClaimable = wreckRestored && wreckMsLeft <= 0;
+  const wreckLeftLabel = (() => {
+    const h = Math.floor(wreckMsLeft / 3_600_000);
+    const m = Math.ceil((wreckMsLeft % 3_600_000) / 60_000);
+    return h > 0 ? tr(`${h}시간 ${m}분`, `${h}h ${m}m`) : tr(`${m}분`, `${m}m`);
+  })();
   const doRestoreWreck = () => {
     if (tokken < WRECK_RESTORE_COST) {
       toast(
@@ -343,14 +352,14 @@ export function VillageScreen() {
     }
     grantTokken(-WRECK_RESTORE_COST, 'salvage', tr('난파선 복구', 'Ship restoration'));
     restoreWreck();
-    toast(tr('⛵ 범선을 복구했어요! 이제 매일 표류물이 도착해요', '⛵ Ship restored! Daily salvage incoming'), 'success');
+    toast(tr('⛵ 범선을 복구했어요! 5시간마다 표류물이 도착해요', '⛵ Ship restored! Salvage arrives every 5h'), 'success');
   };
   const doClaimWreck = () => {
-    if (claimWreck(day)) {
-      grantTokken(WRECK_DAILY_SALVAGE, 'salvage', tr('오늘의 표류물', "Today's salvage"));
-      toast(tr(`⚓ 표류물 수거! 톡큰 +${WRECK_DAILY_SALVAGE}`, `⚓ Salvage collected! +${WRECK_DAILY_SALVAGE} Tokken`), 'tokken');
+    if (claimWreck(nowVirtual, WRECK_COOLDOWN_MS)) {
+      grantTokken(WRECK_SALVAGE, 'salvage', tr('표류물 수거', 'Salvage haul'));
+      toast(tr(`⚓ 표류물 수거! 톡큰 +${WRECK_SALVAGE}`, `⚓ Salvage collected! +${WRECK_SALVAGE} Tokken`), 'tokken');
     } else {
-      toast(tr('오늘 몫은 이미 받았어요 — 내일 다시! 🌊', 'Already collected today — come back tomorrow! 🌊'), 'info');
+      toast(tr(`다음 표류물까지 ${wreckLeftLabel} 남았어요 🌊`, `Next salvage in ${wreckLeftLabel} 🌊`), 'info');
     }
   };
 
@@ -363,7 +372,7 @@ export function VillageScreen() {
       stops.push({ x: p.bx + p.w / 2, y: p.by + p.h / 2 });
     }
     if (zonesOwned.includes('west')) stops.push({ x: 13.5, y: 39.5 });
-    if (zonesOwned.includes('north')) stops.push({ x: 45, y: 12 });
+    if (zonesOwned.includes('north')) stops.push({ x: 46.5, y: 3.5 });
     setInteract(null);
     g.startCutscene(stops, tr('탭하여 건너뛰기', 'Tap to skip'));
   };
@@ -1087,8 +1096,8 @@ export function VillageScreen() {
             {wreckRestored ? (
               <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
                 {wreckClaimable
-                  ? T('오늘의 표류물이 도착해 있어요!', "Today's salvage has arrived!")
-                  : T('오늘 몫은 받았어요 — 내일 새 표류물이 떠밀려와요.', 'Collected today — new salvage drifts in tomorrow.')}
+                  ? T('표류물이 도착해 있어요!', 'Salvage has arrived!')
+                  : T(`다음 표류물까지 ${wreckLeftLabel} — 5시간마다 밀려와요.`, `Next salvage in ${wreckLeftLabel} — arrives every 5h.`)}
               </p>
             ) : (
               <>
@@ -1098,7 +1107,7 @@ export function VillageScreen() {
                     'A storm washed this ship ashore. Restore it and the sea will',
                   )}
                   <br />
-                  {T(`매일 톡큰 +${WRECK_DAILY_SALVAGE}씩 가져다줘요.`, `bring +${WRECK_DAILY_SALVAGE} Tokken of salvage daily.`)}
+                  {T(`5시간마다 톡큰 +${WRECK_SALVAGE}씩 가져다줘요.`, `bring +${WRECK_SALVAGE} Tokken every 5 hours.`)}
                 </p>
                 <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-town-cream px-3 py-2.5">
                   <TokkenCoin size={20} />
@@ -1122,8 +1131,8 @@ export function VillageScreen() {
                   }`}
                 >
                   {wreckClaimable
-                    ? T(`⚓ 표류물 수거 (+${WRECK_DAILY_SALVAGE} 톡큰)`, `⚓ Collect salvage (+${WRECK_DAILY_SALVAGE})`)
-                    : T('🌊 내일 다시 와요', '🌊 Come back tomorrow')}
+                    ? T(`⚓ 표류물 수거 (+${WRECK_SALVAGE} 톡큰)`, `⚓ Collect salvage (+${WRECK_SALVAGE})`)
+                    : T(`🌊 ${wreckLeftLabel} 후 도착`, `🌊 Arrives in ${wreckLeftLabel}`)}
                 </button>
               ) : (
                 <button

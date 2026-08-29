@@ -99,7 +99,8 @@ export type VPropType =
   | 'woodswing'
   | 'stump'
   | 'telescope'
-  | 'falls-mountain';
+  | 'falls-mountain'
+  | 'ridgehill';
 
 export interface VProp {
   id: string;
@@ -207,12 +208,17 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
       const along = frontDist === fx ? ty : tx;
       const sea = seaDepthAt(along);
       const zone = zoneOfTile(tx, ty);
-      // 구역 변주(R6): 별보기 언덕은 백사장이 넓고, 뒷숲 캠프는 잔디가 짙다.
-      const sandBand = zone === 'north' ? sea + 3.4 : sea + 1.4;
+      // 구역 변주(R6): 별보기 언덕은 모래모래한 지형(넓고 들쭉날쭉한 백사장
+      // + 내륙 모래 얼룩), 뒷숲 캠프는 잔디가 짙다.
+      const sandBand =
+        zone === 'north'
+          ? sea + 6.8 + (vtileHash(tx + 21, ty + 13) - 0.5) * 2.6
+          : sea + 1.4;
       const darkBias = zone === 'west' ? 0.7 : 0.82;
       let t: VTerrainId;
       if (frontDist < sea) t = VT.Water;
       else if (frontDist < sandBand) t = VT.Sand;
+      else if (zone === 'north' && vtileHash(tx + 3, ty + 9) > 0.88) t = VT.Sand;
       else t = vtileHash(tx, ty) > darkBias ? VT.GrassDark : VT.Grass;
       terrain[vidx(tx, ty)] = t;
     }
@@ -242,6 +248,21 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
       ) {
         continue;
       }
+      // 개간 포켓 — 캠프촌(서쪽 끝)·난파선 포구(동쪽 끝)는 숲을 치운다.
+      if (
+        ownedZone.has('west') &&
+        tx >= CAMP_RECT.x0 && tx < CAMP_RECT.x1 &&
+        ty >= CAMP_RECT.y0 && ty < CAMP_RECT.y1
+      ) {
+        continue;
+      }
+      if (
+        ownedZone.has('north') &&
+        tx >= NORTH_POCKET_RECT.x0 && tx < NORTH_POCKET_RECT.x1 &&
+        ty >= NORTH_POCKET_RECT.y0 && ty < NORTH_POCKET_RECT.y1
+      ) {
+        continue;
+      }
       const bxd = tx - backXStart(tx, ty);
       const byd = ty - backYStart(tx, ty);
       const backDist = Math.min(bxd, byd);
@@ -249,29 +270,38 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
       const depth = forestDepthAt(along);
       const cx = tx + 0.35 + vtileHash(tx, ty) * 0.3;
       const cy = ty + 0.35 + vtileHash(ty, tx) * 0.3;
-      // 뒷숲 캠프(west)는 침엽 위주의 어두운 숲으로 변주.
+      // 뒷숲 캠프(west)는 침엽 위주의 어두운 숲, 구름마루(peak)는 언덕
+      // 능선이 섞여 폭포 산에서 산맥이 이어지는 느낌으로 변주.
       const dark = zone === 'west';
+      const ridge = zone === 'peak';
       if (backDist < depth) {
         // 숲 벽 본체 — 전부 블로킹.
-        const pine = vtileHash(tx + 7, ty + 3) < (dark ? 0.62 : 0.35);
-        const kind = dark ? (pine ? 'darkpine' : 'darktree') : pine ? 'pine' : 'tree';
-        addProp(kind as VPropType, cx, cy, true, vtileHash(tx, ty));
+        if (ridge && vtileHash(tx + 5, ty + 11) < 0.34) {
+          addProp('ridgehill', cx, cy, true, vtileHash(tx, ty));
+        } else {
+          const pineBias = dark ? 0.62 : ridge ? 0.72 : 0.35;
+          const pine = vtileHash(tx + 7, ty + 3) < pineBias;
+          const kind = dark ? (pine ? 'darkpine' : 'darktree') : pine ? 'pine' : 'tree';
+          addProp(kind as VPropType, cx, cy, true, vtileHash(tx, ty));
+        }
       } else if (backDist < depth + 1.6 && vtileHash(tx + 11, ty + 5) < 0.3) {
-        // 가장자리 감쇠 지대.
-        addProp((dark ? 'darktree' : 'tree') as VPropType, cx, cy, true, vtileHash(tx + 3, ty));
+        // 가장자리 감쇠 지대 — 구름마루는 낮은 언덕이 드문드문 이어진다.
+        const kind = ridge ? 'ridgehill' : dark ? 'darktree' : 'tree';
+        addProp(kind as VPropType, cx, cy, true, vtileHash(tx + 3, ty));
       }
     }
   }
 
-  // 2.5 구역 테마 고정물 (R6).
-  // 뒷숲 캠프: 텐트·모닥불·나무 그네·그루터기 캠프촌.
+  // 2.5 구역 테마 고정물 (R6) — 전부 가장자리 개간 포켓에 몰아 배치해
+  // 마을 가운데 동선을 막지 않는다.
+  // 뒷숲 캠프(서쪽 끝): 텐트·모닥불·나무 그네·그루터기 캠프촌.
   if (ownedZone.has('west')) {
     const camp: Array<[VPropType, number, number, boolean]> = [
-      ['tent', 5.5, 38.5, true],
-      ['campfire', 7.6, 40.3, true],
-      ['woodswing', 4.6, 42.6, true],
-      ['stump', 8.6, 38.1, true],
-      ['stump', 6.3, 43.6, false],
+      ['tent', 1.6, 39.4, true],
+      ['campfire', 3.6, 41.1, true],
+      ['woodswing', 1.7, 43.2, true],
+      ['stump', 4.5, 39.2, true],
+      ['stump', 3.4, 43.9, false],
     ];
     for (const [type, cx, cy, blockIt] of camp) {
       const i = vidx(Math.floor(cx), Math.floor(cy));
@@ -294,10 +324,10 @@ export function buildVillageWorld(zonesIn: readonly VillageZoneId[] = ['base']):
       v: 0.5,
     });
   }
-  // 별보기 언덕: 백사장 망원경 포인트.
+  // 별보기 언덕(동쪽 끝 포켓): 백사장 망원경 포인트 — 난파선 곁.
   if (ownedZone.has('north')) {
-    const i = vidx(40, 11);
-    if (!blocked[i] && terrain[i] !== VT.Water) addProp('telescope', 40.5, 11.6, false, 0.3);
+    const i = vidx(44, 4);
+    if (!blocked[i] && terrain[i] !== VT.Water) addProp('telescope', 44.6, 4.6, false, 0.3);
   }
 
   // 3. 잔여 지면에 수풀·꽃·바위 산포 — 타일 해시 기반이라 확장으로 월드를
@@ -401,16 +431,22 @@ export const DEFAULT_LAMP_TILES: ReadonlyArray<{ bx: number; by: number }> = [
 
 // ─── 구역 테마 고정물 (R6) ────────────────────────────────────────
 
-/** 별보기 언덕 백사장의 난파선 자리 (합성 배치물 — 스토어에 없음) */
-export const WRECK_TILE = { bx: 46, by: 10, w: 2, h: 2 } as const;
+/** 별보기 언덕 — 맨 우측(동쪽 끝) 숲을 치운 포켓에 난파선·망원경을 몬다 */
+export const WRECK_TILE = { bx: 46, by: 1, w: 2, h: 2 } as const;
 export const WRECK_THING_ID = -101;
 export const WRECK_RESTORE_COST = 300;
-export const WRECK_DAILY_SALVAGE = 20;
+/** 표류물 — 5시간마다 15 톡큰 */
+export const WRECK_SALVAGE = 15;
+export const WRECK_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+/** 별보기 언덕 동쪽 끝 개간 포켓 (숲 벽 생략 영역) */
+export const NORTH_POCKET_RECT = { x0: 43, y0: 0, x1: 51, y1: 7 } as const;
 /** 구름마루 폭포 전망 지점 (상호작용 → 마을 전경 컷신) */
-export const FALLS_VIEW_TILE = { bx: 5, by: 8 } as const;
+export const FALLS_VIEW_TILE = { bx: 4, by: 7 } as const;
 export const FALLS_THING_ID = -102;
-/** 구름마루 폭포 산 블록 영역 */
-export const PEAK_FALLS_RECT = { x0: 2, y0: 2, x1: 8, y1: 8 } as const;
+/** 구름마루 폭포 산 — 맨 위 꼭짓점 숲을 치우고 그 자리에 선다 */
+export const PEAK_FALLS_RECT = { x0: 0, y0: 0, x1: 7, y1: 7 } as const;
+/** 뒷숲 캠프 — 맨 좌측(서쪽 끝) 숲을 치운 개간 포켓 */
+export const CAMP_RECT = { x0: 0, y0: 37, x1: 7, y1: 45 } as const;
 
 /** 오늘의 네잎클로버 타일 — 소유 구역의 걷을 수 있는 잔디 중 하루 고정 랜덤.
     occupied(동적 배치 풋프린트)를 빼서 건물 밑에 숨지 않게 한다. */

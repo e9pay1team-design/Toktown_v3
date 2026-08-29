@@ -3177,6 +3177,51 @@ export function drawVProp(ctx: CanvasRenderingContext2D, p: VDrawableProp, time:
       ctx.stroke();
       return;
     }
+    case 'ridgehill': {
+      // 구름마루 — 낮은 언덕 능선 (폭포 산에서 산맥이 이어지는 느낌).
+      const scale = 0.85 + p.v * 0.45;
+      shadow(ctx, sx, sy + 2, 26 * scale, 0.15);
+      // 언덕 본체 2겹 (초록빛 산릉).
+      ctx.fillStyle = '#5f7a58';
+      ctx.beginPath();
+      ctx.moveTo(sx - 30 * scale, sy + 2);
+      ctx.quadraticCurveTo(sx - 16 * scale, sy - 30 * scale, sx + 2 * scale, sy - 32 * scale);
+      ctx.quadraticCurveTo(sx + 20 * scale, sy - 30 * scale, sx + 30 * scale, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#75925f';
+      ctx.beginPath();
+      ctx.moveTo(sx - 22 * scale, sy + 2);
+      ctx.quadraticCurveTo(sx - 12 * scale, sy - 24 * scale, sx + 4 * scale, sy - 26 * scale);
+      ctx.quadraticCurveTo(sx + 12 * scale, sy - 22 * scale, sx + 18 * scale, sy + 2);
+      ctx.closePath();
+      ctx.fill();
+      // 바위 이마.
+      ctx.fillStyle = '#8c8377';
+      ellipse(ctx, sx + 6 * scale, sy - 24 * scale, 7 * scale, 4.4 * scale);
+      ctx.fill();
+      ctx.fillStyle = '#a39a8c';
+      ellipse(ctx, sx + 4 * scale, sy - 26 * scale, 4.4 * scale, 2.6 * scale);
+      ctx.fill();
+      // 능선 위 침엽수 1~2.
+      const sway = Math.sin(time * 0.9 + p.v * 7) * 1;
+      const drawPine = (px: number, py: number, sc: number) => {
+        ctx.fillStyle = '#3d3227';
+        ctx.fillRect(px - 2 * sc, py - 8 * sc, 4 * sc, 8 * sc);
+        for (let i = 0; i < 2; i++) {
+          ctx.fillStyle = i === 1 ? '#2c5743' : '#1f4433';
+          ctx.beginPath();
+          ctx.moveTo(px + sway * (i * 0.5), py - (18 + i * 9) * sc);
+          ctx.lineTo(px + (12 - i * 3.6) * sc, py - (6 + i * 9) * sc);
+          ctx.lineTo(px - (12 - i * 3.6) * sc, py - (6 + i * 9) * sc);
+          ctx.closePath();
+          ctx.fill();
+        }
+      };
+      drawPine(sx - 8 * scale, sy - 22 * scale, 0.85 * scale);
+      if (p.v > 0.45) drawPine(sx + 13 * scale, sy - 12 * scale, 0.62 * scale);
+      return;
+    }
     case 'rock': {
       const scale = 0.8 + p.v * 0.5;
       shadow(ctx, sx, sy + 1, 11 * scale);
