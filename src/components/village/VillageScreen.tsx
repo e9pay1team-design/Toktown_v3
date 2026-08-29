@@ -26,7 +26,15 @@ import { VillageWorldCanvas, trayMetaFor } from './VillageWorld';
 import { DialogueOverlay } from './DialogueOverlay';
 import { GROUND_DECOR, type VillageGame, type VInteractTarget } from '../../lib/villageGame';
 import { residentNpcs, villageRichness, VILLAGE_NPCS, ZONE_NPCS, zoneInfo, zoneNpcs } from '../../data/villageNpcs';
-import { nextExpansionCost, zoneAvailable, type VillageZoneId } from '../../lib/villageWorld';
+import {
+  FALLS_THING_ID,
+  nextExpansionCost,
+  WRECK_DAILY_SALVAGE,
+  WRECK_RESTORE_COST,
+  WRECK_THING_ID,
+  zoneAvailable,
+  type VillageZoneId,
+} from '../../lib/villageWorld';
 import { TokkenCoin } from '../../assets/misc';
 import { ShopModal } from './ShopModal';
 import { DexModal } from './DexModal';
@@ -146,6 +154,10 @@ export function VillageScreen() {
   const expandZone = useVillageStore((s) => s.expandZone);
   const tokken = useEconomyStore((s) => s.tokken);
   const grantTokken = useEconomyStore((s) => s.grantTokken);
+  const wreckRestored = useVillageStore((s) => s.wreckRestored);
+  const wreckLastClaimDay = useVillageStore((s) => s.wreckLastClaimDay);
+  const restoreWreck = useVillageStore((s) => s.restoreWreck);
+  const claimWreck = useVillageStore((s) => s.claimWreck);
   const questProgress = useQuestStore((s) => s.progress);
   const questDay = useQuestStore((s) => s.day);
   const advanceQuest = useQuestStore((s) => s.advance);
@@ -156,6 +168,10 @@ export function VillageScreen() {
   const [expandTarget, setExpandTarget] = useState<VillageZoneId | null>(null);
   /** 📜 오늘의 미션 패널 */
   const [questOpen, setQuestOpen] = useState(false);
+  /** 🚢 난파선 시트 (별보기 언덕 테마 콘텐츠) */
+  const [wreckOpen, setWreckOpen] = useState(false);
+  /** 🎬 폭포 전망 컷신 진행 중 — UI 잠시 숨김 */
+  const [cutsceneOn, setCutsceneOn] = useState(false);
   /** 📸 마을 전경 공유 사진 (프레임 합성 완료본) */
   const [villagePhoto, setVillagePhoto] = useState<string | null>(null);
   const [editSel, setEditSel] = useState<{ label: string; isNew: boolean; canRotate: boolean } | null>(null);
@@ -310,6 +326,46 @@ export function VillageScreen() {
   /* 🍀 네잎클로버 수집 (엔진에서 근접 자동 수집) */
   const handleClover = () => {
     advanceQuest('clover', day);
+  };
+
+  /* 🚢 난파선 — 복구(300 톡큰) → 매일 표류물 수거 */
+  const wreckClaimable = wreckRestored && wreckLastClaimDay !== day;
+  const doRestoreWreck = () => {
+    if (tokken < WRECK_RESTORE_COST) {
+      toast(
+        tr(
+          `톡큰이 부족해요 (보유 ${tokken} / 필요 ${WRECK_RESTORE_COST})`,
+          `Not enough Tokken (${tokken}/${WRECK_RESTORE_COST})`,
+        ),
+        'error',
+      );
+      return;
+    }
+    grantTokken(-WRECK_RESTORE_COST, 'salvage', tr('난파선 복구', 'Ship restoration'));
+    restoreWreck();
+    toast(tr('⛵ 범선을 복구했어요! 이제 매일 표류물이 도착해요', '⛵ Ship restored! Daily salvage incoming'), 'success');
+  };
+  const doClaimWreck = () => {
+    if (claimWreck(day)) {
+      grantTokken(WRECK_DAILY_SALVAGE, 'salvage', tr('오늘의 표류물', "Today's salvage"));
+      toast(tr(`⚓ 표류물 수거! 톡큰 +${WRECK_DAILY_SALVAGE}`, `⚓ Salvage collected! +${WRECK_DAILY_SALVAGE} Tokken`), 'tokken');
+    } else {
+      toast(tr('오늘 몫은 이미 받았어요 — 내일 다시! 🌊', 'Already collected today — come back tomorrow! 🌊'), 'info');
+    }
+  };
+
+  /* 🎬 무지개 폭포 — 마을 곳곳을 비추고 전경으로 빠지는 컷신 */
+  const startFallsCutscene = () => {
+    const g = gameRef.current;
+    if (!g) return;
+    const stops: { x: number; y: number }[] = [{ x: 35.5, y: 35.5 }];
+    for (const p of placements.filter((q) => q.kind === 'landmark' || q.kind === 'store').slice(0, 3)) {
+      stops.push({ x: p.bx + p.w / 2, y: p.by + p.h / 2 });
+    }
+    if (zonesOwned.includes('west')) stops.push({ x: 13.5, y: 39.5 });
+    if (zonesOwned.includes('north')) stops.push({ x: 45, y: 12 });
+    setInteract(null);
+    g.startCutscene(stops, tr('탭하여 건너뛰기', 'Tap to skip'));
   };
 
   /* 배치 모드 진입/종료 */
@@ -572,12 +628,16 @@ export function VillageScreen() {
           onClover={handleClover}
           onGame={(g) => {
             gameRef.current = g;
-            if (g) g.onSitChange = setSitting;
+            if (g) {
+              g.onSitChange = setSitting;
+              g.onCutsceneChange = setCutsceneOn;
+            }
           }}
         />
       </div>
 
       {/* 줌 컨트롤 — 걷기/배치 공통 (휠·핀치로도 가능) */}
+      {!cutsceneOn && (
       <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1.5">
         <button
           onClick={() => gameRef.current?.zoomBy(1.25)}
@@ -594,8 +654,10 @@ export function VillageScreen() {
           －
         </button>
       </div>
+      )}
 
-      {/* 헤더 */}
+      {/* 헤더 (컷신 중엔 숨김) */}
+      {!cutsceneOn && (
       <header className="pointer-events-none relative z-10 flex items-center justify-between px-4 pt-12">
         {editMode ? (
           <button
@@ -646,9 +708,10 @@ export function VillageScreen() {
           </button>
         )}
       </header>
+      )}
 
       {/* 기능 버튼 (걷기 모드) — 5개가 한 줄에 들어가도록 촘촘하게, 줄바꿈 금지 */}
-      {!editMode && (
+      {!editMode && !cutsceneOn && (
         <div className="pointer-events-none relative z-10 flex justify-center gap-1.5 px-2 py-2">
           {(
             [
@@ -701,7 +764,7 @@ export function VillageScreen() {
           </p>
         </div>
       ) : (
-        !dialogue && (
+        !dialogue && !cutsceneOn && (
           <>
             <div className="pointer-events-none relative z-10 flex justify-center px-6">
               <p className="rounded-full bg-town-ink/55 px-3 py-1 text-[10.5px] font-bold text-white/95 backdrop-blur-sm">
@@ -728,7 +791,7 @@ export function VillageScreen() {
       )}
 
       {/* 상호작용 버튼 (걷기 모드) — 좌석(벤치·소파)은 앉기 버튼 동반 */}
-      {!editMode && interact && !dialogue && !thingSheet && (
+      {!editMode && !cutsceneOn && interact && !dialogue && !thingSheet && (
         <div className="absolute inset-x-0 bottom-40 z-20 flex flex-col items-center gap-2">
           {interact.kind === 'thing' && interact.sit && (
             <button
@@ -742,6 +805,8 @@ export function VillageScreen() {
             <button
               onClick={() => {
                 if (interact.kind === 'npc') openDialogueFor(interact);
+                else if (interact.id === WRECK_THING_ID) setWreckOpen(true);
+                else if (interact.id === FALLS_THING_ID) startFallsCutscene();
                 else setThingSheetId(interact.id);
               }}
               className="pop-in flex items-center gap-2 rounded-full border-2 border-town-ink/10 bg-town-paper px-4 py-2.5 text-[13px] font-extrabold shadow-card transition active:scale-95"
@@ -824,7 +889,7 @@ export function VillageScreen() {
       )}
 
       {/* 배치 모드 진입 FAB (걷기 모드) */}
-      {!editMode && (
+      {!editMode && !cutsceneOn && (
         <button
           onClick={enterEdit}
           className="absolute bottom-24 right-4 z-20 flex h-14 w-14 flex-col items-center justify-center rounded-full border-2 border-town-line bg-town-paper text-[20px] shadow-card transition active:scale-95"
@@ -1007,6 +1072,68 @@ export function VillageScreen() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* 🚢 난파선 시트 — 복구(300 톡큰) / 매일 표류물 수거 */}
+      {!editMode && wreckOpen && (
+        <div className="absolute inset-0 z-[860] flex items-center justify-center bg-town-ink/45 px-8 fade-in">
+          <div className="pop-in w-full rounded-[1.6rem] bg-town-paper p-5 text-center shadow-sheet">
+            <p className="text-[34px]">{wreckRestored ? '⛵' : '🚢'}</p>
+            <h3 className="mt-1 text-[18px] font-extrabold">
+              {wreckRestored ? T('복구된 범선', 'Restored Ship') : T('난파선', 'Shipwreck')}
+            </h3>
+            {wreckRestored ? (
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                {wreckClaimable
+                  ? T('오늘의 표류물이 도착해 있어요!', "Today's salvage has arrived!")
+                  : T('오늘 몫은 받았어요 — 내일 새 표류물이 떠밀려와요.', 'Collected today — new salvage drifts in tomorrow.')}
+              </p>
+            ) : (
+              <>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-town-inkSoft">
+                  {T(
+                    '폭풍에 떠밀려온 배예요. 복구하면 바다가 실어오는 표류물을',
+                    'A storm washed this ship ashore. Restore it and the sea will',
+                  )}
+                  <br />
+                  {T(`매일 톡큰 +${WRECK_DAILY_SALVAGE}씩 가져다줘요.`, `bring +${WRECK_DAILY_SALVAGE} Tokken of salvage daily.`)}
+                </p>
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-town-cream px-3 py-2.5">
+                  <TokkenCoin size={20} />
+                  <span className="text-[15px] font-extrabold">{WRECK_RESTORE_COST}</span>
+                  <span className="text-[11px] font-bold text-town-inkSoft">{T(`· 보유 ${tokken}`, `· you have ${tokken}`)}</span>
+                </div>
+              </>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setWreckOpen(false)}
+                className="w-1/3 rounded-xl border border-town-line bg-town-paper py-3 text-[13px] font-extrabold text-town-inkSoft"
+              >
+                {T('닫기', 'Close')}
+              </button>
+              {wreckRestored ? (
+                <button
+                  onClick={doClaimWreck}
+                  className={`flex-1 rounded-xl py-3 text-[13.5px] font-extrabold shadow-pop transition active:translate-y-[2px] active:shadow-none ${
+                    wreckClaimable ? 'bg-town-skyDeep text-white' : 'bg-town-cream text-town-inkSoft'
+                  }`}
+                >
+                  {wreckClaimable
+                    ? T(`⚓ 표류물 수거 (+${WRECK_DAILY_SALVAGE} 톡큰)`, `⚓ Collect salvage (+${WRECK_DAILY_SALVAGE})`)
+                    : T('🌊 내일 다시 와요', '🌊 Come back tomorrow')}
+                </button>
+              ) : (
+                <button
+                  onClick={doRestoreWreck}
+                  className="flex-1 rounded-xl bg-town-leafDark py-3 text-[13.5px] font-extrabold text-white shadow-pop transition active:translate-y-[2px] active:shadow-none"
+                >
+                  {T(`🛠️ ${WRECK_RESTORE_COST} 톡큰으로 복구하기`, `🛠️ Restore for ${WRECK_RESTORE_COST} Tokken`)}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

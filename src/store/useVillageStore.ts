@@ -42,6 +42,10 @@ interface VillageState {
   decorOwned: Record<string, number>;
   /** 소유한 섬 구역 — base 는 항상 포함 (R5 섬 확장) */
   zonesOwned: VillageZoneId[];
+  /** 별보기 언덕 난파선 복구 여부 (R6 — 복구하면 매일 표류물 지급) */
+  wreckRestored: boolean;
+  /** 마지막 표류물 수거 가상일 */
+  wreckLastClaimDay: number | null;
 
   place: (kind: PlacementKind, refId: string, bx: number, by: number, facing?: 'sw' | 'se', variant?: number) => void;
   move: (placementId: number, bx: number, by: number, facing?: 'sw' | 'se') => void;
@@ -51,6 +55,10 @@ interface VillageState {
   buyDecor: (decorId: string) => void;
   /** 섬 구역 확장 — 비용 차감은 호출부(useEconomyStore.spendTokken)에서 */
   expandZone: (zone: VillageZoneId) => void;
+  /** 난파선 복구 — 비용 차감은 호출부에서 */
+  restoreWreck: () => void;
+  /** 오늘의 표류물 수거 — 이미 받았거나 미복구면 false */
+  claimWreck: (day: number) => boolean;
 }
 
 let placementSeq = Date.now() % 1_000_000;
@@ -72,10 +80,12 @@ function defaultDecorOwned(): Record<string, number> {
 
 export const useVillageStore = create<VillageState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       placements: defaultVillagePlacements(),
       decorOwned: defaultDecorOwned(),
       zonesOwned: ['base'],
+      wreckRestored: false,
+      wreckLastClaimDay: null,
 
       place: (kind, refId, bx, by, facing, variant) => {
         const { w, h } = footprintOf(kind);
@@ -108,6 +118,15 @@ export const useVillageStore = create<VillageState>()(
         set((s) => ({
           zonesOwned: s.zonesOwned.includes(zone) ? s.zonesOwned : [...s.zonesOwned, zone],
         })),
+
+      restoreWreck: () => set({ wreckRestored: true }),
+
+      claimWreck: (day) => {
+        const { wreckRestored, wreckLastClaimDay } = get();
+        if (!wreckRestored || wreckLastClaimDay === day) return false;
+        set({ wreckLastClaimDay: day });
+        return true;
+      },
     }),
     {
       name: 'toktown:village',
