@@ -54,12 +54,31 @@ export function NpcBubble({ npcId, drummer = false }: { npcId?: string; drummer?
   const tiger = npcId === 'bukchon-tiger';
   const deer = npcId === 'seongsu-deer';
   const gull = npcId === 'busan-gull';
+  const pony = npcId === 'jeju-pony';
   return (
     <svg width={52} height={60} viewBox="0 0 52 60" style={{ display: 'block', overflow: 'visible' }}>
       <ellipse cx={26} cy={57} rx={10} ry={2.8} fill="rgba(74,59,50,0.25)" />
       <path d="M19 44 L26 56 L33 44 Z" fill="#FFFDF7" />
       <circle cx={26} cy={24} r={22} fill="#FFFDF7" stroke={drummer ? '#8B79C9' : '#FFD66B'} strokeWidth={3} />
-      {gull ? (
+      {pony ? (
+        /* 조랑말 한라 얼굴 (미니) — 갈기 + 큰 주둥이 + 감귤 */
+        <g>
+          <path d="M15 17 L11 7 L21 12 Z" fill="#8A6B52" />
+          <path d="M37 17 L41 7 L31 12 Z" fill="#8A6B52" />
+          <ellipse cx={26} cy={26} rx={15} ry={14} fill="#8A6B52" />
+          <path d="M26 11 q-8 1 -10 8 q5 -3.6 10 -3.6 q5 0 10 3.6 q-2 -7 -10 -8 Z" fill="#4A3B32" />
+          <circle cx={20} cy={24.5} r={1.9} fill="#2B2B33" />
+          <circle cx={32} cy={24.5} r={1.9} fill="#2B2B33" />
+          <ellipse cx={26} cy={32} rx={8.5} ry={6} fill="#D9C4A8" />
+          <ellipse cx={22.5} cy={30.5} rx={1.1} ry={1.5} fill="#6B5138" />
+          <ellipse cx={29.5} cy={30.5} rx={1.1} ry={1.5} fill="#6B5138" />
+          <circle cx={26} cy={36} r={3.4} fill="#F5A03C" />
+          <circle cx={25} cy={35} r={0.9} fill="#FFD9A8" />
+          <ellipse cx={28.6} cy={32.4} rx={1.8} ry={1} fill="#4E9B58" transform="rotate(24 28.6 32.4)" />
+          <circle cx={14.5} cy={29} r={2.2} fill="#FF9D9D" opacity={0.6} />
+          <circle cx={37.5} cy={29} r={2.2} fill="#FF9D9D" opacity={0.6} />
+        </g>
+      ) : gull ? (
         /* 서퍼 갈매기 파랑 얼굴 (미니) — 이마 선글라스 + 노랑 부리 */
         <g>
           <ellipse cx={26} cy={26} rx={15} ry={14} fill="#F2F4F8" />

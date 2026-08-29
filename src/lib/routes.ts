@@ -67,6 +67,10 @@ const BUS_STOPS = [
   // 부산 해운대·광안리 도보권
   { name: '해운대해수욕장 정류장', nameEn: 'Haeundae Beach stop', lat: 35.1595, lng: 129.159 },
   { name: '광안리해변 정류장', nameEn: 'Gwangalli Beach stop', lat: 35.1535, lng: 129.119 },
+  // 제주 원도심 도보권 (제주는 지하철 없음 — 버스만)
+  { name: '동문시장 정류장', nameEn: 'Dongmun Market stop', lat: 33.5124, lng: 126.5278 },
+  { name: '탑동광장 정류장', nameEn: 'Tapdong Plaza stop', lat: 33.518, lng: 126.5218 },
+  { name: '용두암 정류장', nameEn: 'Yongduam stop', lat: 33.5163, lng: 126.5125 },
 ];
 
 const nearestOf = <T extends LatLng>(list: T[], p: LatLng): T =>
@@ -113,6 +117,8 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
   if (boardSt.name === alightSt.name) {
     alightSt = secondNearest(SUBWAY_STATIONS, from, boardSt);
   }
+  // 지하철이 없는 지역(제주 등): 가장 가까운 역이 5km 밖이면 지하철 후보 제외.
+  const hasSubway = distanceM(from, boardSt) <= 5000;
   const boardBus = nearestOf(BUS_STOPS, from);
   let alightBus = nearestOf(BUS_STOPS, to);
   if (boardBus.name === alightBus.name) {
@@ -187,7 +193,7 @@ export function buildRoutes(from: LatLng, to: LatLng): RouteCandidate[] {
     polyline: throughVia(from, boardBus, to),
   };
 
-  return [subway, bus, walk];
+  return hasSubway ? [subway, bus, walk] : [bus, walk];
 }
 
 /** 폴리라인 위 진행률(0~1) 지점 좌표 */

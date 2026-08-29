@@ -1325,6 +1325,110 @@ export function drawVLandmark(
       ellipse(ctx, p.sx - 3.5, p.sy - 10, 0.9, 0.9);
       ctx.fill();
     }
+  } else if (id === 'yongduam') {
+    // 용두암 — 바다 수면 + 현무암 용머리 + 물보라 (낮은 랜드마크).
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#8fc0d6';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.15, y0 + 0.15, x1 - 0.15, y1 - 0.15, 3);
+    ctx.fillStyle = '#a8d4e4';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 3; i++) {
+      const ph = opts.time * 1.8 + i * 2.1;
+      const wx = Math.sin(ph) * 4;
+      ctx.beginPath();
+      ctx.moveTo(top.sx - 20 + wx + i * 12, top.sy + 3 + i * 3);
+      ctx.quadraticCurveTo(top.sx - 14 + wx + i * 12, top.sy + i * 3, top.sx - 8 + wx + i * 12, top.sy + 3 + i * 3);
+      ctx.stroke();
+    }
+    // 용머리 바위 — 목이 솟아 고개를 드는 실루엣.
+    ctx.fillStyle = '#3f4550';
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 22, top.sy + 2);
+    ctx.quadraticCurveTo(top.sx - 18, top.sy - 26, top.sx - 4, top.sy - 36);
+    ctx.quadraticCurveTo(top.sx + 6, top.sy - 43, top.sx + 15, top.sy - 42);
+    ctx.quadraticCurveTo(top.sx + 24, top.sy - 41, top.sx + 25, top.sy - 34);
+    ctx.quadraticCurveTo(top.sx + 26, top.sy - 29, top.sx + 21, top.sy - 27);
+    ctx.lineTo(top.sx + 16, top.sy - 29);
+    ctx.quadraticCurveTo(top.sx + 19, top.sy - 24, top.sx + 13, top.sy - 20);
+    ctx.quadraticCurveTo(top.sx + 4, top.sy - 15, top.sx - 4, top.sy - 16);
+    ctx.quadraticCurveTo(top.sx - 12, top.sy - 12, top.sx - 14, top.sy + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#5b6377';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(top.sx - 16, top.sy - 8);
+    ctx.quadraticCurveTo(top.sx - 12, top.sy - 24, top.sx - 2, top.sy - 30);
+    ctx.stroke();
+    // 눈 + 물보라.
+    ctx.fillStyle = '#ffd66b';
+    ellipse(ctx, top.sx + 14, top.sy - 36, 2, 2);
+    ctx.fill();
+    const spray = Math.abs(Math.sin(opts.time * 2.2));
+    ctx.fillStyle = `rgba(255,253,247,${0.5 + spray * 0.4})`;
+    ellipse(ctx, top.sx - 22, top.sy - 4 - spray * 3, 2.6, 2.6);
+    ctx.fill();
+    ellipse(ctx, top.sx + 24, top.sy - 2 - spray * 2, 2, 2);
+    ctx.fill();
+  } else if (id === 'dol-hareubang') {
+    // 관덕정 돌하르방 — 잔디 마당 + 돌 할아버지 한 쌍 + 감귤나무.
+    vFootprintPath(ctx, x0, y0, x1, y1, 2);
+    ctx.fillStyle = '#a5d588';
+    ctx.fill();
+    vFootprintPath(ctx, x0 + 0.12, y0 + 0.12, x1 - 0.12, y1 - 0.12, 3);
+    ctx.fillStyle = '#cde3ae';
+    ctx.fill();
+    // 하르방 2기 — 큰 쪽/작은 쪽.
+    const grandpa = (px2: number, py2: number, s2: number, tone: string, toneHi: string) => {
+      const p = toScreen(bx + px2, by + py2);
+      ctx.fillStyle = tone;
+      ellipse(ctx, p.sx, p.sy - 12 * s2, 8 * s2, 12 * s2);
+      ctx.fill();
+      ctx.fillStyle = toneHi;
+      ellipse(ctx, p.sx, p.sy - 25 * s2, 6.2 * s2, 5.6 * s2);
+      ctx.fill();
+      // 벙거지 모자.
+      ctx.fillStyle = '#7a8492';
+      ctx.beginPath();
+      ctx.ellipse(p.sx, p.sy - 29 * s2, 6.6 * s2, 3 * s2, 0, Math.PI, 0);
+      ctx.fill();
+      ellipse(ctx, p.sx, p.sy - 31.5 * s2, 4.4 * s2, 2 * s2);
+      ctx.fill();
+      // 눈·코·입.
+      ctx.fillStyle = '#5b6470';
+      ellipse(ctx, p.sx - 2.4 * s2, p.sy - 25.5 * s2, 1.5 * s2, 1.5 * s2);
+      ctx.fill();
+      ellipse(ctx, p.sx + 2.4 * s2, p.sy - 25.5 * s2, 1.5 * s2, 1.5 * s2);
+      ctx.fill();
+      ellipse(ctx, p.sx, p.sy - 22 * s2, 1.3 * s2, 1.8 * s2);
+      ctx.fill();
+      // 배 위 손.
+      ctx.strokeStyle = '#6e7886';
+      ctx.lineWidth = 2.4 * s2;
+      ctx.beginPath();
+      ctx.moveTo(p.sx - 7 * s2, p.sy - 14 * s2);
+      ctx.quadraticCurveTo(p.sx - 2 * s2, p.sy - 10 * s2, p.sx + 2 * s2, p.sy - 11.5 * s2);
+      ctx.moveTo(p.sx + 7 * s2, p.sy - 12 * s2);
+      ctx.quadraticCurveTo(p.sx + 2 * s2, p.sy - 8.5 * s2, p.sx - 2 * s2, p.sy - 10 * s2);
+      ctx.stroke();
+    };
+    grandpa(0.75, 1.15, 1.15, '#8f9aa8', '#9aa5b2');
+    grandpa(1.5, 0.7, 0.95, '#9aa5b2', '#a6b0bc');
+    // 감귤나무.
+    const tree = toScreen(bx + 0.35, by + 1.75);
+    ctx.fillStyle = '#8a6b52';
+    ctx.fillRect(tree.sx - 1.8, tree.sy - 14, 3.6, 12);
+    ctx.fillStyle = '#5e8c61';
+    ellipse(ctx, tree.sx, tree.sy - 19, 8.5, 7.5);
+    ctx.fill();
+    ctx.fillStyle = '#f5a03c';
+    ellipse(ctx, tree.sx - 3, tree.sy - 21, 2, 2);
+    ctx.fill();
+    ellipse(ctx, tree.sx + 3.2, tree.sy - 17.5, 1.8, 1.8);
+    ctx.fill();
   } else {
     // gwanghwamun — 석축 + 홍예문 + 2단 기와지붕.
     faceQuad(ctx, D, C, 0, 1, 0, 24);
@@ -1387,6 +1491,8 @@ export const LANDMARK_ACCENTS: Record<string, string> = {
   'red-brick': '#a34f42',
   'gwangan-bridge': '#d95a73',
   nurimaru: '#8fa6b2',
+  yongduam: '#3f4550',
+  'dol-hareubang': '#8f9aa8',
 };
 
 /** 랜드마크 이름표 — 다른 오브젝트에 가려지지 않게 별도 최상단 패스에서 그린다 */

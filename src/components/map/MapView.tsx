@@ -103,6 +103,8 @@ const LANDMARK_SIZE: Record<string, [number, number]> = {
   'red-brick': [58, 58],
   'gwangan-bridge': [72, 42],
   nurimaru: [58, 55],
+  yongduam: [64, 49],
+  'dol-hareubang': [58, 53],
 };
 
 function landmarkIcon(lm: Landmark): L.DivIcon {

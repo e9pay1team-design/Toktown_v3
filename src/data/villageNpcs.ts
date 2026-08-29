@@ -222,5 +222,16 @@ export function regionalNpcSkin(npcId: string): VCharSkin {
       ear: 'bird',
     };
   }
+  if (npcId === 'jeju-pony') {
+    // 제주 한라 — 갈색 털 + 감귤빛 상의
+    return {
+      body: '#F5A03C',
+      bodyDark: '#E8883C',
+      fur: '#8A6B52',
+      furDark: '#4A3B32',
+      hair: '#4A3B32',
+      ear: 'cat',
+    };
+  }
   return magpieSkin(npcId === 'magpie-kkaami');
 }
